@@ -1,0 +1,30 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: rustfmt
+      run: |
+        rustfmt --verbose --check magic_cap/src/*.rs
+        rustfmt --verbose --check mcap/src/*.rs
+    - name: Run mcap Tests
+      run: cargo test --package mcap
+    - name: Run magic_cap Tests
+      run: cargo test --package magic_cap
+    - name: Install llvm-cov
+      run: cargo install cargo-llvm-cov
+    - name: Run llvm-cov
+      run: cargo llvm-cov

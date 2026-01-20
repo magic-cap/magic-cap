@@ -1,0 +1,12 @@
+[package]
+name = "mcap"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+clap = { version = "4.5.54", features = ["derive"] }
+magic_cap = { path = "../magic_cap" }
+proptest = "1.9.0"
+tempdir = "0.3.7"
+tempfile = "3.24.0"
