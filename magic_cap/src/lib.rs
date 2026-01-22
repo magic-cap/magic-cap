@@ -42,7 +42,6 @@ pub mod err;
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
 use bitcoin_hashes::{HashEngine, sha256d};
 use data_encoding::BASE64URL_NOPAD;
-use rmp_serde;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
 
@@ -221,7 +220,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.corresponds_to(&metadata) {
+        if !self.corresponds_to(metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -245,7 +244,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         if merkle_root != metadata.ciphertext_root {
             return Err(MagicCapError::CipherTextDiscordant(merkle_root));
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -299,7 +298,7 @@ where
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
-        if self.this_block.len() > 0 {
+        if self.this_block.is_empty() {
             // make sure we "fill up" the final block and write it
             let leftover = self.context.blocksize - self.this_block.len();
             assert!(
@@ -308,12 +307,12 @@ where
             );
             // todo: faster way to do this?
             let pad: Vec<u8> = vec![0u8; leftover];
-            self.write(&pad)?;
+            let _written_amount = self.write(&pad)?;
             self.context.datasize -= leftover;
         }
         let offset = self.ciphertext_bytes + 8;
 
-        assert!(self.this_block.len() == 0);
+        assert!(self.this_block.is_empty());
 
         let (cap, meta) = self.context.done()?;
         // "current_location" is now the offset of the metadata .. so
@@ -343,7 +342,7 @@ where
             // encrypt it
             let encrypted_block = match self.context.encrypt_block(&this_block_bytes) {
                 Ok(it) => it,
-                Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+                Err(err) => return Err(std::io::Error::other(err)),
             };
             // write out a block
             let written = self.output.write(&encrypted_block)?;
@@ -452,7 +451,7 @@ impl ReadCap for ImmutableReadCap {
         // we probably "decrypted" more of the block than is valid (on
         // the last block) so throw that data away
         plaintext.truncate(immutable.metadata.size as usize);
-        return Ok(plaintext);
+        Ok(plaintext)
     }
 }
 
@@ -960,7 +959,7 @@ pub mod test {
         let mt = MerkleTree::<TahoeInside>::from_leaves(&leaves);
         println!("root: {:?}", mt.root().unwrap());
 
-        let foo = vec![[1u8; 32], [0u8; 32]].concat();
+        let foo = [[1u8; 32], [0u8; 32]].concat();
         let bar = vec![1u8; 32];
         println!("X {:?}", TahoeInside::hash(&foo));
         println!("X {:?}", TahoeInside::hash(&bar));
@@ -972,13 +971,13 @@ pub mod test {
         let mut key_bytes = [1u8; 16];
         getrandom::fill(&mut key_bytes).unwrap();
         let iv = [0u8; 16]; // 16 bytes of 0's (I wonder if IV is allowed to rollover? looks like yes?)
-        let mut key = TahoeAesCtr::new(&mut key_bytes.into(), &iv.into());
+        let mut key = TahoeAesCtr::new(&key_bytes.into(), &iv.into());
         let mut b: Vec<u8> = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec();
         key.apply_keystream(&mut b);
         // let cpos:usize = key.current_pos();
         // println!("Size is {total_size}\nThe IV is now set to {cpos}");
         let bad_iv = [0u8; 16];
-        let mut unkey = TahoeAesCtr::new(&mut key_bytes.into(), &bad_iv.into());
+        let mut unkey = TahoeAesCtr::new(&key_bytes.into(), &bad_iv.into());
         unkey.try_seek(26).unwrap();
         let mut subvec: Vec<u8> = b.clone();
         subvec.drain(0..26);
@@ -1045,9 +1044,9 @@ pub mod test {
         // confirm that we REJECT an Immutable with incorrect merkle entries
         let (cap, immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         // corrupt some of the merkle tree
-        let mut corrupt_root = immutable.metadata.ciphertext_root.clone();
+        let mut corrupt_root = immutable.metadata.ciphertext_root;
         // try inverting various pieces of the merkle tree
-        corrupt_root[idx] = 0xff ^ corrupt_root[idx];
+        corrupt_root[idx] ^= 0xff;
 
         let corrupted = Immutable{
             metadata: ImmutableMetadata{
@@ -1060,9 +1059,7 @@ pub mod test {
         // this decrypt should fail, because we messed up the merkle root above
         if let ImmutableCap::Read(readcap) = cap {
             let round = readcap.decrypt(&corrupted);
-            if let Ok(_) = round {
-                assert!(false);
-            }
+            assert!(round.is_err());
         } else {
             assert!(false);
         }
@@ -1078,7 +1075,7 @@ pub mod test {
         // this decrypt should fail
         if let ImmutableCap::Read(readcap2) = cap2 {
             let round = readcap2.decrypt(&immutable1);
-            if let Ok(_) = round {
+            if round.is_ok() {
                 assert!(false);
             }
         } else {
@@ -1098,12 +1095,12 @@ pub mod test {
     fn big_round_trip(bad in 4096..(4096*63)) {
         // test sizes 1 block to 63 blocks (and fractions thereof)
         let s = bad as u64;
-        let mut b: Vec<u8> = Vec::with_capacity(s as usize);
+        let mut b: Vec<u8> = vec![0; s as usize];
         b.resize(s as usize, 0u8);
         getrandom::fill(b.as_mut_slice()).unwrap();
         let (cap, immutable) = Immutable::encrypt(b.as_slice(), 4096).unwrap();
         println!("{:?} {:?}" , immutable.metadata.size, immutable.metadata.blocks);
-        assert!(immutable.metadata.size == s as u64);
+        assert!(immutable.metadata.size == s);
         if let ImmutableCap::Read(readcap) = cap {
             let round = readcap.decrypt(&immutable).unwrap();
             assert!(b.as_slice() == round);
@@ -1116,12 +1113,12 @@ pub mod test {
     fn random_block_size_round_trip(input_size in 2..20usize, block_size in 1..40usize) {
         // test sizes 1 block to 63 blocks (and fractions thereof)
         let s = input_size as u64;
-        let mut b: Vec<u8> = Vec::with_capacity(s as usize);
+        let mut b: Vec<u8> = vec![0; s as usize];
         b.resize(s as usize, 0u8);
         getrandom::fill(b.as_mut_slice()).unwrap();
         let (cap, immutable) = Immutable::encrypt(b.as_slice(), block_size).unwrap();
         println!("{:?} {:?}" , immutable.metadata.size, immutable.metadata.blocks);
-        assert!(immutable.metadata.size == s as u64);
+        assert!(immutable.metadata.size == s);
         if let ImmutableCap::Read(readcap) = cap {
             let round = readcap.decrypt(&immutable).unwrap();
             assert_eq!(b, round);
@@ -1134,11 +1131,12 @@ pub mod test {
     fn leaf_round_trip(bad in 4096..(4096*63)) {
         // test sizes 1 block to 63 blocks (and fractions thereof)
         let s = bad as u64;
-        let mut b: Vec<u8> = Vec::with_capacity(s as usize);
+        let mut b: Vec<u8> = vec![0; s as usize];
         b.resize(s as usize, 0u8);
         getrandom::fill(b.as_mut_slice()).unwrap();
         let (_cap, immutable) = Immutable::encrypt(b.as_slice(), 4096).unwrap();
         println!("{:?} {:?}" , immutable.metadata.size, immutable.metadata.blocks);
+        // changing "len() > 0" to "is_empty()" breaks this test
         assert!(immutable.metadata.merkle_leaves.len() > 0);
     }
 
