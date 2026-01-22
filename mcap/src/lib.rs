@@ -142,13 +142,13 @@ pub mod test {
             let mut output = vec!();
             main_encrypt(&mut output, &plain, &cipher).unwrap();
 
-            let capstr: &str = str::from_utf8(&output)?.trim_end();
+            let capstr: &str = std::str::from_utf8(&output)?.trim_end();
             let round = outd.path().join("decrypted");
 
             // turn this into a Verify Cap and confirm the ciphertext
             let mut output = vec!();
             main_reduce(&mut output, capstr)?;
-            let verifycap = str::from_utf8(&output)?.trim_end();
+            let verifycap = std::str::from_utf8(&output)?.trim_end();
             main_verify(verifycap, &cipher).unwrap();
 
             // confirm that "decrypt" can turn back into plaintext
