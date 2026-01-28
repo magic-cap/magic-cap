@@ -298,7 +298,7 @@ where
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
-        if self.this_block.is_empty() {
+        if !self.this_block.is_empty() {
             // make sure we "fill up" the final block and write it
             let leftover = self.context.blocksize - self.this_block.len();
             assert!(
