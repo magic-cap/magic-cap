@@ -34,6 +34,30 @@
 //! The entire Magic Cap should be treated as a secret -- because it is!
 //! It is an identifier you can later use to retrieve the original
 //! plaintext (and share offline, etc -- more on those features later)
+//!
+//! One way to create an [`ImmutableReadCap`] is to stream it using
+//! the [`Write`] trait to an [`ImmutableBuilder`]. For example:
+//!
+//! ```rust
+//! use magic_cap::ImmutableBuilder;
+//! use std::io::prelude::*;
+//! use std::fs::File;
+//!
+//! let mut input_file = std::fs::File::open("private-information.txt").unwrap();
+//! let mut plaintext: Vec<u8> = vec![0u8; 4096];
+//! let output_file = File::create("encrypted.mcap").unwrap();
+//! let bufw = std::io::BufWriter::new(output_file);
+//! let mut cryptor = ImmutableBuilder::new(4096, bufw).unwrap();
+//!
+//! let mut r = input_file.read(&mut plaintext).unwrap();
+//! while r != 0 {
+//!     plaintext.resize(r, 0);
+//!     cryptor.write(&plaintext).unwrap();
+//!     r = input_file.read(&mut plaintext).unwrap();
+//! }
+//! let cap = cryptor.done().unwrap();
+//! ```
+
 
 ///pub mod cli;
 pub mod err;
@@ -263,6 +287,16 @@ pub struct ImmutableReadCap {
 }
 
 // without Seek on the output, we require it on the input
+
+/// Manage context to incrementally encrypt to an underlying ``Write``
+///
+/// Instances of this are used to build up an ``Immutable`` by writing
+/// plaintext data to it, which is then encrypted and written out to
+/// the underlying ``Write`` instance in ``writer``.
+///
+/// To retrieve the ``Immutable`` you must call ``done`` which
+/// consumes the ``ImmutableBuilder`` and finalizes the metadata and
+/// offsets in the output.
 pub struct ImmutableBuilder<W>
 where
     W: Write,
@@ -280,6 +314,8 @@ where
     // pub fn encrypt_stream(blocksize: usize, encrypted: Write) -> Result<ImmutableBuilder, MagicCapError> {
     // 1. write header to "encrypted"
 
+    /// Create a new ``ImmutableBuilder`` which will write ciphertext
+    /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(blocksize: usize, mut writer: W) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
@@ -293,6 +329,10 @@ where
         Ok(result)
     }
 
+    /// Finalize the metadata and return the resulting ``ImmutableReadCap``.
+    ///
+    /// No more data may be written after this (as the instance is
+    /// consumed).
     pub fn done(mut self) -> Result<ImmutableReadCap, MagicCapError> {
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
@@ -360,6 +400,11 @@ where
     }
     // think: can "done()" be like "close()"??
 }
+
+
+
+//TODO: below is the stuff we want to re-do as an iterator, right?
+// and then also as a "plaintext -> ciphertext" function?
 
 impl ReadCap for ImmutableReadCap {
     /// encode the provided plaintext into a version 1 file written to
@@ -637,6 +682,14 @@ pub struct Immutable {
 }
 
 impl Immutable {
+
+    /// Deserialize an Immutable from the given input stream.
+    ///
+    /// The serialized format stores the metadata near the end of the
+    /// data so this will read some bytes from the beginning then seek
+    /// to the end before returning to near the start to read
+    /// encrypted blocks of data.
+    ///
     pub fn read<R>(mut reader: R) -> Result<Immutable, MagicCapError>
     where
         R: Read + std::io::Seek,
@@ -903,6 +956,20 @@ pub mod test {
     use super::*;
     use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
     use tempdir::TempDir;
+
+    #[test]
+    fn doc_example() {
+        let plaintext: Vec<u8> = "attack at dawn".into();
+        let mut ciphertext: Vec<u8> = vec!();//vec![0u8; 4096];
+
+        let mut cryptor = ImmutableBuilder::new(4096, ciphertext).unwrap();
+        cryptor.write(&plaintext).unwrap();
+        let cap = cryptor.done().unwrap();
+
+        let immutable = Immutable::read(ciphertext).unwrap();
+        let mut decrypted: Vec<u8> = vec!();
+        cap.decrypt(&immutable);
+    }
 
     #[test]
     fn handcrafted_filesystem_round_trip() {
