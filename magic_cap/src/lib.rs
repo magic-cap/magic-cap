@@ -39,25 +39,24 @@
 //! the [`Write`] trait to an [`ImmutableBuilder`]. For example:
 //!
 //! ```rust
-//! use magic_cap::ImmutableBuilder;
-//! use std::io::prelude::*;
-//! use std::fs::File;
+//!    use std::io::{Write, Cursor};
+//!    use crate::magic_cap::{ImmutableBuilder, ImmutableReadCap, ReadCap, Immutable};
 //!
-//! let mut input_file = std::fs::File::open("private-information.txt").unwrap();
-//! let mut plaintext: Vec<u8> = vec![0u8; 4096];
-//! let output_file = File::create("encrypted.mcap").unwrap();
-//! let bufw = std::io::BufWriter::new(output_file);
-//! let mut cryptor = ImmutableBuilder::new(4096, bufw).unwrap();
+//!    let plaintext: Vec<u8> = "attack at dawn".into();
+//!    let mut ciphertext: Vec<u8> = vec!();//vec![0u8; 4096];
 //!
-//! let mut r = input_file.read(&mut plaintext).unwrap();
-//! while r != 0 {
-//!     plaintext.resize(r, 0);
-//!     cryptor.write(&plaintext).unwrap();
-//!     r = input_file.read(&mut plaintext).unwrap();
-//! }
-//! let cap = cryptor.done().unwrap();
+//!    // create an encrypted immutable + associated ReadCap
+//!    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
+//!    cryptor.write(&plaintext).unwrap();
+//!    let cap = cryptor.done().unwrap();
+//!    println!("ciphertext: {} bytes", ciphertext.len());
+//!
+//!    // using the encrypted immutable and ReadCap, get back the ciperhtext
+//!    let ctext = ciphertext.as_slice();
+//!    let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
+//!    let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
+//!    assert_eq!(plaintext, decrypted);
 //! ```
-
 
 ///pub mod cli;
 pub mod err;
@@ -297,17 +296,17 @@ pub struct ImmutableReadCap {
 /// To retrieve the ``Immutable`` you must call ``done`` which
 /// consumes the ``ImmutableBuilder`` and finalizes the metadata and
 /// offsets in the output.
-pub struct ImmutableBuilder<W>
+pub struct ImmutableBuilder<'a, W>
 where
     W: Write,
 {
     context: EncryptionContext,
-    output: W,
+    output: &'a mut W,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
 }
 
-impl<W> ImmutableBuilder<W>
+impl<'a, W> ImmutableBuilder<'a, W>
 where
     W: Write,
 {
@@ -316,7 +315,7 @@ where
 
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
-    pub fn new(blocksize: usize, mut writer: W) -> Result<Self, MagicCapError> {
+    pub fn new(blocksize: usize, writer: &'a mut W) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
 
@@ -356,14 +355,14 @@ where
         let (cap, meta) = self.context.done()?;
         // "current_location" is now the offset of the metadata .. so
         // we write that out at the very end of the file
-        meta.write(&mut self.output)?;
+        meta.write(self.output)?;
 
         self.output.write_all(&offset.to_be_bytes())?;
         Ok(cap)
     }
 }
 
-impl<W> Write for ImmutableBuilder<W>
+impl<'a, W> Write for ImmutableBuilder<'a, W>
 where
     W: Write,
 {
@@ -400,8 +399,6 @@ where
     }
     // think: can "done()" be like "close()"??
 }
-
-
 
 //TODO: below is the stuff we want to re-do as an iterator, right?
 // and then also as a "plaintext -> ciphertext" function?
@@ -682,7 +679,6 @@ pub struct Immutable {
 }
 
 impl Immutable {
-
     /// Deserialize an Immutable from the given input stream.
     ///
     /// The serialized format stores the metadata near the end of the
@@ -955,20 +951,24 @@ fn fill_empty_merkle_leaves(leaves: &mut Vec<[u8; 32]>) {
 pub mod test {
     use super::*;
     use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+    use std::io::Cursor;
     use tempdir::TempDir;
 
     #[test]
     fn doc_example() {
         let plaintext: Vec<u8> = "attack at dawn".into();
-        let mut ciphertext: Vec<u8> = vec!();//vec![0u8; 4096];
+        let mut ciphertext: Vec<u8> = vec![]; //vec![0u8; 4096];
 
-        let mut cryptor = ImmutableBuilder::new(4096, ciphertext).unwrap();
+        let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
         cryptor.write(&plaintext).unwrap();
         let cap = cryptor.done().unwrap();
+        println!("ciphertext: {} bytes", ciphertext.len());
 
-        let immutable = Immutable::read(ciphertext).unwrap();
-        let mut decrypted: Vec<u8> = vec!();
-        cap.decrypt(&immutable);
+        let ctext = ciphertext.as_slice();
+
+        let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
+        let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
+        assert_eq!(plaintext, decrypted);
     }
 
     #[test]

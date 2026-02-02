@@ -33,10 +33,10 @@ pub fn main_encrypt(
     // 8 bytes: u64 meta_offset to start of metadata
 
     let output_file = File::create(output_fname.as_path())?;
-    let bufw = std::io::BufWriter::new(output_file);
+    let mut bufw = std::io::BufWriter::new(output_file);
 
     let mut plaintext: Vec<u8> = vec![0u8; 4096];
-    let mut cryptor = ImmutableBuilder::new(4096, bufw)?;
+    let mut cryptor = ImmutableBuilder::new(4096, &mut bufw)?;
 
     let mut r = input_file.read(&mut plaintext)?;
     while r != 0 {
