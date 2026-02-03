@@ -5,15 +5,15 @@ use magic_cap::{
 };
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Implementation of "mcap encrypt"
 /// This is the top level function for easy use of this crate by applications or other libraries.
 /// This function does not consider memory use, but instead just does the thing using all the memory.
 pub fn main_encrypt(
     output: &mut impl Write,
-    plain_text: &PathBuf,
-    output_fname: &PathBuf,
+    plain_text: &Path,
+    output_fname: &Path,
 ) -> anyhow::Result<()> {
     let mut input_file = std::fs::File::open(plain_text)?;
 
@@ -32,7 +32,7 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    let output_file = File::create(output_fname.as_path())?;
+    let output_file = File::create(output_fname)?;
     let mut bufw = std::io::BufWriter::new(output_file);
 
     let mut plaintext: Vec<u8> = vec![0u8; 4096];
@@ -41,10 +41,10 @@ pub fn main_encrypt(
     let mut r = input_file.read(&mut plaintext)?;
     while r != 0 {
         plaintext.resize(r, 0);
-        cryptor.write(&plaintext)?;
+        let _ = cryptor.write(&plaintext)?;
         r = input_file.read(&mut plaintext)?;
     }
-    let cap = cryptor.done()?;
+    let (cap, _) = cryptor.done()?;
 
     let capstr = format!("{}", cap);
     writeln!(output, "{}", capstr)?;
@@ -57,16 +57,15 @@ pub fn main_decrypt(
     output: &mut impl Write,
     cap: &str,
     input_fname: &PathBuf,
-    outfile: &PathBuf,
+    outfile: &Path,
 ) -> anyhow::Result<()> {
     let cap = ImmutableReadCap::try_from(cap)?;
-    let f = std::fs::File::open(input_fname.as_path())?;
+    let f = std::fs::File::open(input_fname)?;
     let imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
     match cap.decrypt(&imm) {
         Ok(plain) => {
-            let out = outfile.as_path();
-            let mut out = std::fs::File::create(out)?;
+            let mut out = std::fs::File::create(outfile)?;
             out.write_all(plain.as_slice())?;
             match outfile.to_str() {
                 Some(of) => {
@@ -99,9 +98,9 @@ pub fn main_decrypt(
 }
 
 /// "mcap verify"
-pub fn main_verify(cap: &str, input_fname: &PathBuf) -> anyhow::Result<()> {
+pub fn main_verify(cap: &str, input_fname: &Path) -> anyhow::Result<()> {
     let cap = ImmutableVerifyCap::try_from(cap)?;
-    let f = std::fs::File::open(input_fname.as_path())?;
+    let f = std::fs::File::open(input_fname)?;
     let imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
     cap.verify(&imm.metadata, imm.data_provider)?;
@@ -117,7 +116,7 @@ pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapErr
         writeln!(output, "{}", verifycap)?;
     } else {
         writeln!(output, "Unknown kind of cap.")?;
-        return Err(MagicCapError::InvalidCap(cap.to_string())).into();
+        return Err(MagicCapError::InvalidCap(cap.to_string()));
     }
     Ok(())
 }
