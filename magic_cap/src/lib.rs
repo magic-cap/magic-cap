@@ -5,6 +5,13 @@
 //! the corresponding plaintext when presented alongside the correct
 //! ciphertext.
 //!
+//! <div class="warning">
+//! This is a release-early library that has <b>not yet received cryptographic (or other) audits</b>.
+//! We do appreciate feedback, but you own both pieces if you deploy to production :)
+//! </div>
+//!
+//! </pre></div>
+//!
 //! ## Overview
 //!
 //! Magic Cap turns the problem of having a lot of secret data
@@ -34,6 +41,8 @@
 //! The entire Magic Cap should be treated as a secret -- because it is!
 //! It is an identifier you can later use to retrieve the original
 //! plaintext (and share offline, etc -- more on those features later)
+//!
+//! ## Examples
 //!
 //! One way to create an [`ImmutableReadCap`] is to stream it using
 //! the [`Write`] trait to an [`ImmutableBuilder`]. For example:

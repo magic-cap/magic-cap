@@ -1,5 +1,11 @@
 * Magic Cap
 
+#+ATTR_TEXINFO: :tag Warning
+#+BEGIN_QUOTE
+This is a release-early library that has *not yet received cryptographic (or other) audits*.
+We do appreciate feedback, but you own both pieces if you deploy to production :)
+#+END_QUOTE
+
 Magic Cap turns the problem of having a lot of secret data (e.g. =enjoyable-movie.mp4=) into the problem of having only a small amount of secret data.
 
 The resulting (fixed, tiny) Magic Cap string can combined with the data file for the secret data; either part by itself cannot learn the secret data.
