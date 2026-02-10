@@ -86,7 +86,7 @@ use err::MagicCapError;
 /// with the value, and applying SHA256d to the result. [^tahoe]
 ///
 /// [^tahoe]: This is the same way Tahoe-LAFS does it.
-pub fn tagged_hash<const TAGSIZE: usize>(tag: &[u8], val: &[u8]) -> [u8; TAGSIZE] {
+fn tagged_hash<const TAGSIZE: usize>(tag: &[u8], val: &[u8]) -> [u8; TAGSIZE] {
     // todo: Chris' code had "truncate_to" as an arg ... and then we
     // wnated to do that as const-generics ... but "sha256d" _is_ just
     // always 32 bytes so what does the truncate_to even do?
@@ -108,7 +108,7 @@ pub fn tagged_hash<const TAGSIZE: usize>(tag: &[u8], val: &[u8]) -> [u8; TAGSIZE
 /// ``"foo"`` is ``"3:foo,"`` [^djb97]
 ///
 /// [^djb97]: <https://cr.yp.to/proto/netstrings.txt>
-pub fn netstring(s: &[u8]) -> Vec<u8> {
+fn netstring(s: &[u8]) -> Vec<u8> {
     //format!("{}:{},", s.len(), std::str::from_utf8(s).unwrap()).into_bytes()
 
     // what Python does is output BYTES here, where we have some
@@ -581,7 +581,7 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
     }
 }
 
-pub fn vec_to_array<T, const BLOCKSIZE: usize>(v: Vec<T>) -> Result<[T; BLOCKSIZE], MagicCapError> {
+fn vec_to_array<T, const BLOCKSIZE: usize>(v: Vec<T>) -> Result<[T; BLOCKSIZE], MagicCapError> {
     // todo: surely we can type this shorter, but we so far failed
     let result = v.try_into();
     match result {
@@ -900,50 +900,6 @@ impl std::convert::From<&ImmutableMetadata> for ImmutableVerifyCap {
     }
 }
 
-// todo: I should iterate over slices, not Vec
-// todo: Rc<ReCell> might be unnecessary, mutable reference _might_ work.
-// todo: use Arc<Mutex instead of Rc<RefCell if multithreaded access necessary
-// todo: rename PlainTextConsumer to PlainTextConsumerImpl, create
-//    struct PlainTextConsumer { impl: Rc<RefCell<EncryptionContextImpl>> }
-/*
-use std::cell::RefCell;
-use std::rc::Rc;
-struct EncryptingIterator<I: Iterator<Item=Vec<u8>>> {
-    source_iter: I,
-    consumer: Rc<RefCell<EncryptionContext>>,
-}
-impl<I> Rc<RefCell<EncryptionContext<I>>> {
-    // let consumer = Plaintextconsumer {... };  <-- ownership
-    // let consumer = Rc::new(consumer);
-    // for encrypted_chunk in consumer.iter(source_of_plaintext_iter) { <--- creates EncryptingIterator with mutable reference, might not work
-    //    ... do something with chunk
-    // }
-    // let cap, metadata = consumer.done();
-    //
-    // todo: input should be IntoIterator
-    pub fn iter(&self, input: I) -> EncryptingIterator<I> {
-        EncryptingIterator {
-            source_iter: input,
-            consumer: self.clone(),
-        }
-    }
-}
-impl Iterator for EncryptingIterator {
-    type Item = Vec<u8>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.source_iter.next() {
-            Some(data) => {
-                let ciphertext = self.consumer.encrypt_block(data).unwrap();
-                Some(Plainciphertext)
-            },
-            None => {
-                None,
-            }
-        }
-    }
-}
-*/
 
 /// This is what Tahoe does with empty Merkle leaves.
 /// why? is there good reason to do that, or is rs_merkle default good?
