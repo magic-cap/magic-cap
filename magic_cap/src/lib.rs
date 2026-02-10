@@ -5,6 +5,11 @@
 //! the corresponding plaintext when presented alongside the correct
 //! ciphertext.
 //!
+//! <div class="warning">
+//! This is a release-early library that has <b>not yet received cryptographic (or other) audits</b>.
+//! We do appreciate feedback, but you own both pieces if you deploy to production :)
+//! </div>
+//!
 //! ## Overview
 //!
 //! Magic Cap turns the problem of having a lot of secret data
@@ -34,6 +39,31 @@
 //! The entire Magic Cap should be treated as a secret -- because it is!
 //! It is an identifier you can later use to retrieve the original
 //! plaintext (and share offline, etc -- more on those features later)
+//!
+//! ## Examples
+//!
+//! One way to create an [`ImmutableReadCap`] is to stream it using
+//! the [`Write`] trait to an [`ImmutableBuilder`]. For example:
+//!
+//! ```rust
+//!    use std::io::{Write, Cursor};
+//!    use crate::magic_cap::{ImmutableBuilder, ImmutableReadCap, ReadCap, Immutable};
+//!
+//!    let plaintext: Vec<u8> = "attack at dawn".into();
+//!    let mut ciphertext: Vec<u8> = vec!();//vec![0u8; 4096];
+//!
+//!    // create an encrypted immutable + associated ReadCap
+//!    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
+//!    cryptor.write(&plaintext).unwrap();
+//!    let (cap, ciphertext) = cryptor.done().unwrap();
+//!    println!("ciphertext: {} bytes", ciphertext.len());
+//!
+//!    // using the encrypted immutable and ReadCap, get back the ciperhtext
+//!    let ctext = ciphertext.as_slice();
+//!    let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
+//!    let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
+//!    assert_eq!(plaintext, decrypted);
+//! ```
 
 ///pub mod cli;
 pub mod err;
@@ -263,6 +293,16 @@ pub struct ImmutableReadCap {
 }
 
 // without Seek on the output, we require it on the input
+
+/// Manage context to incrementally encrypt to an underlying ``Write``
+///
+/// Instances of this are used to build up an ``Immutable`` by writing
+/// plaintext data to it, which is then encrypted and written out to
+/// the underlying ``Write`` instance in ``writer``.
+///
+/// To retrieve the ``Immutable`` you must call ``done`` which
+/// consumes the ``ImmutableBuilder`` and finalizes the metadata and
+/// offsets in the output.
 pub struct ImmutableBuilder<W>
 where
     W: Write,
@@ -273,6 +313,12 @@ where
     ciphertext_bytes: usize,
 }
 
+// feb 3: see the history: we have a version that takes a "&mut Write"
+// reference, with a lifetime. It also works where we "consume" the
+// Write on ::new(), and "un-consume" it when we're "done()" (like
+// below). This gets rid of a lifetime, but we don't know which way is
+// "idiomatic Rust".
+
 impl<W> ImmutableBuilder<W>
 where
     W: Write,
@@ -280,6 +326,8 @@ where
     // pub fn encrypt_stream(blocksize: usize, encrypted: Write) -> Result<ImmutableBuilder, MagicCapError> {
     // 1. write header to "encrypted"
 
+    /// Create a new ``ImmutableBuilder`` which will write ciphertext
+    /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(blocksize: usize, mut writer: W) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
@@ -293,7 +341,11 @@ where
         Ok(result)
     }
 
-    pub fn done(mut self) -> Result<ImmutableReadCap, MagicCapError> {
+    /// Finalize the metadata and return the resulting ``ImmutableReadCap``.
+    ///
+    /// No more data may be written after this (as the instance is
+    /// consumed).
+    pub fn done(mut self) -> Result<(ImmutableReadCap, W), MagicCapError> {
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
@@ -319,7 +371,7 @@ where
         meta.write(&mut self.output)?;
 
         self.output.write_all(&offset.to_be_bytes())?;
-        Ok(cap)
+        Ok((cap, self.output))
     }
 }
 
@@ -360,6 +412,9 @@ where
     }
     // think: can "done()" be like "close()"??
 }
+
+//TODO: below is the stuff we want to re-do as an iterator, right?
+// and then also as a "plaintext -> ciphertext" function?
 
 impl ReadCap for ImmutableReadCap {
     /// encode the provided plaintext into a version 1 file written to
@@ -637,6 +692,13 @@ pub struct Immutable {
 }
 
 impl Immutable {
+    /// Deserialize an Immutable from the given input stream.
+    ///
+    /// The serialized format stores the metadata near the end of the
+    /// data so this will read some bytes from the beginning then seek
+    /// to the end before returning to near the start to read
+    /// encrypted blocks of data.
+    ///
     pub fn read<R>(mut reader: R) -> Result<Immutable, MagicCapError>
     where
         R: Read + std::io::Seek,
@@ -902,7 +964,25 @@ fn fill_empty_merkle_leaves(leaves: &mut Vec<[u8; 32]>) {
 pub mod test {
     use super::*;
     use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+    use std::io::Cursor;
     use tempdir::TempDir;
+
+    #[test]
+    fn doc_example() {
+        let plaintext: Vec<u8> = "attack at dawn".into();
+        let mut ciphertext: Vec<u8> = vec![];
+
+        let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
+        cryptor.write(&plaintext).unwrap();
+        let (cap, ciphertext) = cryptor.done().unwrap();
+        println!("ciphertext: {} bytes", ciphertext.len());
+
+        let ctext = ciphertext.as_slice();
+
+        let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
+        let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
+        assert_eq!(plaintext, decrypted);
+    }
 
     #[test]
     fn handcrafted_filesystem_round_trip() {
