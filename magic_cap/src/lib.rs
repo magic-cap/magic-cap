@@ -10,8 +10,6 @@
 //! We do appreciate feedback, but you own both pieces if you deploy to production :)
 //! </div>
 //!
-//! </pre></div>
-//!
 //! ## Overview
 //!
 //! Magic Cap turns the problem of having a lot of secret data
