@@ -22,15 +22,14 @@
 //! converting to the human-usable strings, which are UTF8 characters
 //! with URL-safe Base64 encoded data which looks like this:
 //!
-//!    `mcap:0:r:1EmWRHtNLvG4J2xkLZ2Qd3GFcwRXJfxJ2X40xj8nJac:5U7RTaKClMp1YsJXPMw47w`
+//!    `mcap0r1EmWRHtNLvG4J2xkLZ2Qd3GFcwRXJfxJ2X40xj8nJac5U7RTaKClMp1YsJXPMw47w`
 //!
-//! Breaking this down, we have 4 colon-delimited fields:
+//! Breaking this down, we have:
 //!
 //! - `mcap` -- all Magic Caps start with this
 //! - `0` -- a version identifier (only "0" exists, and is **not yet stable**)
 //! - `r` -- the kind of Cap this is ("r" for Read and "v" for Verify are valid for version 0)
-//! - `1EmWRHtNLvG4J2xkLZ2Qd3GFcwRXJfxJ2X40xj8nJac` -- url-safe base64 encoded "metadata hash"
-//! - `5U7RTaKClMp1YsJXPMw47w` -- url-safe base64 encoded secret key'
+//! - rest is url-safe base64 encoded binary data, dependant on the version
 //!
 //! The entire Magic Cap should be treated as a secret -- because it is!
 //! It is an identifier you can later use to retrieve the original
@@ -477,8 +476,7 @@ impl std::convert::From<ImmutableReadCap> for ImmutableVerifyCap {
 impl Display for ImmutableVerifyCap {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         let metahash: String = BASE64URL_NOPAD.encode(&self.metadata_hash);
-        write!(f, "mcap:0:v")?;
-        write!(f, ":{}", metahash)?;
+        write!(f, "mcap0v{}", metahash)?;
         Ok(())
     }
 }
@@ -487,15 +485,11 @@ impl std::convert::TryFrom<&str> for ImmutableVerifyCap {
     type Error = MagicCapError;
 
     fn try_from(uri: &str) -> Result<ImmutableVerifyCap, Self::Error> {
-        let pieces: Vec<&str> = uri.split(":").skip(2).collect();
-        if pieces.len() != 2 {
+        if !uri.starts_with("mcap0v") {
             return Err(MagicCapError::InvalidCap(uri.to_string()));
         }
-        let (kind, metahash_base64) = (pieces[0], pieces[1]);
-        if kind != "v" {
-            return Err(MagicCapError::InvalidCapKind(kind.to_string()));
-        }
-        let metahash = BASE64URL_NOPAD.decode(metahash_base64.as_bytes())?;
+
+        let metahash = BASE64URL_NOPAD.decode(uri[6..].as_bytes())?;
         Ok(ImmutableVerifyCap {
             metadata_hash: vec_to_array(metahash)?,
         })
@@ -504,11 +498,10 @@ impl std::convert::TryFrom<&str> for ImmutableVerifyCap {
 
 impl Display for ImmutableReadCap {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        let keyhash: String = BASE64URL_NOPAD.encode(&self.key);
-        let metahash: String = BASE64URL_NOPAD.encode(&self.verify.metadata_hash);
-        write!(f, "mcap:0:r:")?;
-        write!(f, "{}:", metahash)?;
-        write!(f, "{}", keyhash)?;
+        let mut metakey: Vec<u8> = self.verify.metadata_hash.to_vec();
+        metakey.append(&mut self.key.to_vec());
+        let mk: String = BASE64URL_NOPAD.encode(&metakey);
+        write!(f, "mcap0r{}", mk)?;
         Ok(())
     }
 }
@@ -517,22 +510,17 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
     type Error = MagicCapError;
 
     fn try_from(uri: &str) -> Result<ImmutableReadCap, Self::Error> {
-        let pieces: Vec<&str> = uri.split(":").skip(2).collect();
-        if pieces.len() != 3 {
+        if !uri.starts_with("mcap0r") {
             return Err(MagicCapError::InvalidCap(uri.to_string()));
         }
-        let (kind, metahash_base64, keyhash_base64) = (pieces[0], pieces[1], pieces[2]);
-        if kind != "r" {
-            return Err(MagicCapError::InvalidCapKind(kind.to_string()));
-        }
 
-        let keyhash = BASE64URL_NOPAD.decode(keyhash_base64.as_bytes())?;
-        let metahash = BASE64URL_NOPAD.decode(metahash_base64.as_bytes())?;
-        let key = vec_to_array(keyhash)?;
+        let keymeta = BASE64URL_NOPAD.decode(uri[6..].as_bytes())?;
+
+        let key = vec_to_array(keymeta[32..48].to_vec())?;
         Ok(ImmutableReadCap {
             key,
             verify: ImmutableVerifyCap {
-                metadata_hash: vec_to_array(metahash)?,
+                metadata_hash: vec_to_array(keymeta[0..32].to_vec())?,
             },
         })
     }

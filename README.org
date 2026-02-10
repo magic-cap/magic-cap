@@ -2,10 +2,9 @@
 
 Magic Cap turns the problem of having a lot of secret data (e.g. =enjoyable-movie.mp4=) into the problem of having only a small amount of secret data.
 
-The resulting (fixed, tiny) Magic Cap string can be redeemed later for the secret data.
-It also has other interesting, cryptographically-ensured features (described later).
+The resulting (fixed, tiny) Magic Cap string can combined with the data file for the secret data; either part by itself cannot learn the secret data.
 
-The "Magic Cap" string is short (73 bytes) and can fit in TPMs or other secure storage.
+The "Magic Cap" string is short (70 bytes) and can fit in TPMs or other secure storage.
 Any interesting uses come when thinking about separating the Data (ciphertext + metadata) from the Magic Cap in time or space or both.
 
 NOTE: this is a brand new project with no cryptographic review.
@@ -30,10 +29,10 @@ cargo run -- encrypt --plaintext README.org ciphertext
 #+end_src
 
 #+RESULTS: encrypt
-: mcap:0:r:rvhme815HvTPwrkDpKk8tudmXcDTSxg3-iOa20PWoVI:PO0xAgEbu9c8Pi4oxXdqzg
+: mcap0rn36cf_726tzxsj55BDdJuD0FqFeLNvUvnYWti8MYCDtq6FVZ31ERUdXgk76uimTM
 
 Now, we have two things: "a Data File" and "a Magic Cap string".
-The latter is =mcap:0:r:<base64-encoded hash>:<base64-encoded key>=
+The latter is =mcap0r<base64-encoded data>=
 
 Before we break that down, lets convert the DataFile + Magic Cap string back into this README!
 
@@ -42,7 +41,7 @@ Before we break that down, lets convert the DataFile + Magic Cap string back int
 #+end_src
 
 #+RESULTS:
-: Wrote 9621 bytes of plaintext to "plain".
+: Wrote 10375 bytes of plaintext to "plain".
 
 
 We can confirm that they're the same:
@@ -58,8 +57,7 @@ diff -s README.org plain
 * Practical Examples
 
 Let's say you're a graphic designer and your client wants to see this month's proofs for their secret upcoming ad campaign.
-You can encrypt the proofs with magic-cap and upload the encrypted file somewhere, and then send a single line of 73 characters to your client so they can decrypt the proofs on their computer.
-
+You can encrypt the proofs with magic-cap and upload the encrypted file somewhere, and then send a single line of ~70 characters to your client so they can decrypt the proofs on their computer.
 
 
 One advantage here is that the "somewhere" you put the bulk data _cannot_ decrypt unless you also share the "magic cap" string with them.
@@ -81,11 +79,11 @@ Additional features developers may enjoy:
 * Bonus awesome for reading this tutorial / readme.
 
 Inside this same folder is "kitten.mcap".
-The mcap to unlock it is: =mcap:0:r:UHEpVWu1xzvwZyQiMul4EtGTTD0mPOPSaeYDMVRMSj4:bd9d-FmYZtbFuSUYGRo2Og=
+The mcap to unlock it is: =mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g=
 If you're using "cargo" a command-line to do that is:
 
 #+begin_src sh
-  cargo run -- decrypt --ciphertext kitten.mcap --cap mcap:0:r:UHEpVWu1xzvwZyQiMul4EtGTTD0mPOPSaeYDMVRMSj4:bd9d-FmYZtbFuSUYGRo2Og --plaintext kitten.jpeg
+  cargo run -- decrypt --ciphertext kitten.mcap --cap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g --plaintext kitten.jpeg
 #+end_src
 
 #+RESULTS:
@@ -95,7 +93,7 @@ We have found an amazing cat picture from a public domain source[fn:1] for your 
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
 #+begin_src sh
-  cargo run -- verify --ciphertext kitten.mcap --cap mcap:0:v:UHEpVWu1xzvwZyQiMul4EtGTTD0mPOPSaeYDMVRMSj4
+  cargo run -- verify --ciphertext kitten.mcap --cap mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4
 #+end_src
 
 #+RESULTS:
@@ -104,7 +102,7 @@ You could also verify that the ciphertext is correct if you only had the "verify
 
 The first example in the "Using this Crate" section does the encryption -- it turns your plaintext into two things:
 - A single Data File containing metadata and all the ciphertext blocks
-- The Magic Cap string, 75 characters starting with =mcap:0:r:...=
+- The Magic Cap string, 70 characters starting with =mcap0r...=
 
 The Data File reveals that there exists a file of a particular length, but nothing about its contents.
 You could upload this to a commercial file service, to shared storage, a removable drive, whatever -- only when the Magic Cap and the corresponding Data File are re-united can the plaintext be recovered.
