@@ -1,4 +1,3 @@
-use crate::TahoeInside;
 use data_encoding::DecodeError;
 use getrandom;
 use thiserror::Error;
@@ -35,7 +34,7 @@ pub enum MagicCapError {
     McapMetadataDiscordant(),
 
     #[error("Ciphertext does not correspond")]
-    CipherTextDiscordant(<TahoeInside as rs_merkle::Hasher>::Hash),
+    CipherTextDiscordant(String),
 
     #[error("Merkle Tree cannot be constructed")]
     MerkleError(),

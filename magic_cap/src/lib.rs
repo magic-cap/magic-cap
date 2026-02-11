@@ -273,7 +273,8 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // checked above that the user-supplied capability-string has
         // a matching root)
         if merkle_root != metadata.ciphertext_root {
-            return Err(MagicCapError::CipherTextDiscordant(merkle_root));
+            let incorrect_hash = BASE64URL_NOPAD.encode(&merkle_root);
+            return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
         }
         Ok(())
     }
@@ -496,7 +497,8 @@ impl ReadCap for ImmutableReadCap {
         // checked above that the user-supplied capability-string has
         // a matching root)
         if merkle_root != immutable.metadata.ciphertext_root {
-            return Err(MagicCapError::CipherTextDiscordant(merkle_root));
+            let incorrect_hash = BASE64URL_NOPAD.encode(&merkle_root);
+            return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
         }
 
         for block_idx in 0..immutable.data_provider.get_total_blocks() {
