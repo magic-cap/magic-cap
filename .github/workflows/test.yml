@@ -21,7 +21,7 @@ jobs:
         rustfmt --verbose --check magic_cap/src/*.rs
         rustfmt --verbose --check mcap/src/*.rs
     - name: Run mcap Tests
-      run: cargo test --package mcap
+      run: cargo test --package magic_cap_cli
     - name: Run magic_cap Tests
       run: cargo test --package magic_cap
     - name: Install llvm-cov
