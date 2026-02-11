@@ -495,8 +495,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "mcap"
-version = "0.1.0"
+name = "magic_cap_cli"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",

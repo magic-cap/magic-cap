@@ -1,4 +1,4 @@
-use mcap::{main_decrypt, main_encrypt, main_reduce, main_verify};
+use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify};
 
 // b'\xbd\xe1\xb4\x19\xc1+\xa9\xe8\xd9h\xc6u\xe5\xea\x01'
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
