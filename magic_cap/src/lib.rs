@@ -126,11 +126,11 @@ fn netstring(s: &[u8]) -> Vec<u8> {
 // leaves vs. interior vs. empty nodes.
 #[derive(Clone)]
 /// Marker struct for Merkle Tree nodes that are leaves
-pub struct TahoeLeaf {}
+struct TahoeLeaf {}
 
 #[derive(Clone)]
 /// Marker struct interior Merkle Tree nodes
-pub struct TahoeInside {}
+struct TahoeInside {}
 
 impl Hasher for TahoeLeaf {
     type Hash = [u8; 32];
