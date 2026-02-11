@@ -2,6 +2,19 @@
 name = "magic_cap_cli"
 version = "0.0.0"
 edition = "2024"
+authors = [
+    "meejah <meejah@meejah.ca>",
+    "shapr <shae@ScannedInAvian.com>",
+]
+license = "AGPL-3.0-or-later"
+description = "Magic Cap is a user-friendly tool for encrypted files."
+##documentation = ""
+homepage = "https://github.com/magic-cap"
+repository = "https://github.com/magic-cap/magic-cap"
+readme = "../README.org"
+keywords = ["crypto", "cryptography", "cli", "security"]
+categories = ["cryptography", "command-line-utilities", "data-structures", "encoding", "security"]
+publish = true  # when flipping this, ensure GitHub repo is public (add homepage etc too if avail)
 
 [[bin]]
 name = "mcap"
