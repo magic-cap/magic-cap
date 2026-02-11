@@ -69,7 +69,7 @@
 pub mod err;
 // why can't we use KeyInit ?! 😠
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
-use bitcoin_hashes::{HashEngine, sha256d};
+use sha2::{Sha256, Digest};
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
@@ -81,6 +81,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use err::MagicCapError;
+
 
 /// Produce a "tagged hash" by concatenating a netstring of the tag
 /// with the value, and applying SHA256d to the result. [^tahoe]
@@ -94,12 +95,13 @@ fn tagged_hash<const TAGSIZE: usize>(tag: &[u8], val: &[u8]) -> [u8; TAGSIZE] {
     const {
         assert!(TAGSIZE <= 32, "illegal tag size");
     }
-    let mut engine = sha256d::Hash::engine();
-    engine.input(&netstring(tag));
-    engine.input(val);
-    let raw = *sha256d::Hash::from_engine(engine).as_byte_array();
+    let mut hasher = Sha256::new();
+    hasher.update(&netstring(tag));
+    hasher.update(val);
+    let hash = hasher.finalize();
+    let hash2 = Sha256::digest(hash);
     let mut rtn: [u8; TAGSIZE] = [0u8; TAGSIZE];
-    rtn.copy_from_slice(&raw[0..TAGSIZE]);
+    rtn.copy_from_slice(&hash2[0..TAGSIZE]);
     rtn
 }
 
@@ -921,6 +923,13 @@ pub mod test {
     use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
     use std::io::Cursor;
     use tempdir::TempDir;
+
+    #[test]
+    fn golden_tahoe_tagged_hash() {
+        let gold = b"\xee\x19\x0f\x82\xb1\x962\xaf\xf9\x97\x18SN\xd8\x96y0\xc4\xf8\xd1\x8fEqh\xab\r27\xae\r\x95\x0b";
+        let alleged = tagged_hash::<32>(b"foo", b"bar");
+        assert_eq!(*gold, alleged);
+    }
 
     #[test]
     fn doc_example() {
