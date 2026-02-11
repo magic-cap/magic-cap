@@ -18,7 +18,7 @@ fn encode(num_bytes: usize) -> () {
 
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("encode 10MiB", |b| b.iter(|| encode(black_box(10*1000*1000))));
+    c.bench_function("encode 1 MiB", |b| b.iter(|| encode(black_box(1*1024*1024))));
 }
 
 criterion_group!(benches, criterion_benchmark);
