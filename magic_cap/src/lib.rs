@@ -900,7 +900,6 @@ impl std::convert::From<&ImmutableMetadata> for ImmutableVerifyCap {
     }
 }
 
-
 /// This is what Tahoe does with empty Merkle leaves.
 /// why? is there good reason to do that, or is rs_merkle default good?
 fn fill_empty_merkle_leaves(leaves: &mut Vec<[u8; 32]>) {
