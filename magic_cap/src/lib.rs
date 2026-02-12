@@ -69,10 +69,10 @@
 pub mod err;
 // why can't we use KeyInit ?! 😠
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
-use sha2::{Sha256, Digest};
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
+use sha2::{Digest, Sha256};
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -81,7 +81,6 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use err::MagicCapError;
-
 
 /// Produce a "tagged hash" by concatenating a netstring of the tag
 /// with the value, and applying SHA256d to the result. [^tahoe]
