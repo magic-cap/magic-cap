@@ -10,10 +10,14 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(version = "25.12.1")]
 #[command(about = "
-Magic Cap creation and reading
+Create, read and verify Magic Cap strings and encrypted data.
 
-Work with Magic Cap strings and their associated metadata + ciphertext files
-and/or plaintext.
+Data is a file containing encrypted data and associated metadata.
+
+A Read Cap is a string containing information to decrypt a corresponding Data.
+
+A Verify Cap has the power to confirm that the data is correct.
+Any Read Cap may be turned into a Verify Cap.
 ")]
 struct Cli {
     #[command(subcommand)]
