@@ -10,16 +10,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  rustfmt:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: rustfmt
       run: |
         rustfmt --verbose --check magic_cap/src/*.rs
         rustfmt --verbose --check mcap/src/*.rs
+
+  build:
+    runs-on: ubuntu-latest
+    needs: rustfmt
+    steps:
+    - uses: actions/checkout@v4
     - name: Run mcap Tests
       run: cargo test --package magic_cap_cli
     - name: Run magic_cap Tests
