@@ -202,10 +202,7 @@ pub enum ImmutableCap {
 
 // todo: shorten this method to only take "&Immutable"
 pub trait ImmutableVerifier {
-    fn verify(
-        &self,
-        immutable: &Immutable,
-    ) -> Result<(), MagicCapError>;
+    fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError>;
 }
 
 pub trait ReadCap: ImmutableVerifier {
@@ -268,10 +265,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
     /// merkle tree of hashes of each block matches the root in the
     /// metadata). This traverses all the bytes of ciphertext (to hash
     /// them).
-    fn verify(
-        &self,
-        immutable: &Immutable,
-    ) -> Result<(), MagicCapError> {
+    fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError> {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
@@ -549,10 +543,7 @@ impl ReadCap for ImmutableReadCap {
 }
 
 impl ImmutableVerifier for ImmutableReadCap {
-    fn verify(
-        &self,
-        immutable: &Immutable,
-    ) -> Result<(), MagicCapError> {
+    fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError> {
         self.verify.verify(immutable)
     }
 }
@@ -1005,7 +996,9 @@ pub mod test {
 
     #[test]
     fn doc_example_verify() {
-        let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4".try_into().unwrap();
+        let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+            .try_into()
+            .unwrap();
         let ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
         assert!(verifycap.corresponds_to(&ciphertext));
         verifycap.verify(&ciphertext).unwrap();
