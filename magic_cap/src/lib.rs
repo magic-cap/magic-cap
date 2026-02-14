@@ -288,6 +288,19 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to both verify the ciphertext and decrypt it
+///
+/// Use `Display` and `TryFrom` to convert to and from human-usable
+/// rendintions of this data.
+///
+/// For example:
+///
+/// ```rust
+///    use magic_cap::ImmutableReadCap;
+///
+///    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+///    let cap: ImmutableReadCap = cap_string.try_into().unwrap();
+///    println!("The cap is: {}", cap);
+/// ```
 pub struct ImmutableReadCap {
     // "Read" adds on top of Verify: we always need to verify
     verify: ImmutableVerifyCap,
@@ -954,6 +967,13 @@ pub mod test {
         let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
         let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
         assert_eq!(plaintext, decrypted);
+    }
+
+    #[test]
+    fn doc_example_capstrings() {
+        let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+        let cap: ImmutableReadCap = cap_string.try_into().unwrap();
+        println!("The cap is: {}", cap);
     }
 
     #[test]
