@@ -5,6 +5,8 @@
 //! the corresponding plaintext when presented alongside the correct
 //! ciphertext.
 //!
+//! The repository README has diagrams <https://github.com/magic-cap/magic-cap>
+//!
 //! <div class="warning">
 //! This is a release-early library that has <b>not yet received cryptographic (or other) audits</b>.
 //! We do appreciate feedback, but you own both pieces if you deploy to production :)
