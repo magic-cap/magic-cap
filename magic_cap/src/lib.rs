@@ -1,7 +1,7 @@
 //! # Magic Cap
 //!
 //! Provides low-level primitives for working with a "magic cap",
-//! which is a (relatively) small string that can be turned back into
+//! which is a small string (~70 bytes) that can be turned back into
 //! the corresponding plaintext when presented alongside the correct
 //! ciphertext.
 //!
@@ -16,9 +16,14 @@
 //! (e.g. Sintel.mp4) into a tiny problem of only a little (fixed)
 //! amount of data ("the cap").
 //!
-//! The resulting (fixed, tiny) Magic Cap string can be redeemed for
-//! the secret data, passed around offline, with described and
-//! specific features.
+//! The resulting (fixed, tiny) Magic Cap string can combined with the
+//! data file for the secret data; either part by itself cannot learn
+//! the secret data.
+//!
+//! The "Magic Cap" string is short (70 bytes) and can fit in TPMs or
+//! other secure storage.  Any interesting uses come when thinking
+//! about separating the Data (ciphertext + metadata) from the Magic
+//! Cap in time or space or both.
 //!
 //! ## Using the Crate
 //!
