@@ -200,11 +200,11 @@ pub enum ImmutableCap {
     Read(ImmutableReadCap),
 }
 
+// todo: shorten this method to only take "&Immutable"
 pub trait ImmutableVerifier {
     fn verify(
         &self,
-        metadata: &ImmutableMetadata,
-        ciphertext: Box<dyn EncryptedImmutable>,
+        immutable: &Immutable,
     ) -> Result<(), MagicCapError>;
 }
 
@@ -219,7 +219,26 @@ pub trait ReadCap: ImmutableVerifier {
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to confirm the ciphertext is valid, but cannot
-/// decrypt any of it
+/// decrypt any of it.
+///
+/// You obtain one from a `ImmutableReadCap` or by parsing a valid
+/// Verify Cap string.
+///
+/// For example:
+///
+/// ```rust
+///    use magic_cap::{ImmutableReadCap, ImmutableVerifyCap};
+///
+///    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+///    let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
+///    let verifycap: ImmutableVerifyCap = readcap.into();
+///    let verifycap_string = format!("{}", verifycap);
+///    assert_eq!(
+///        verifycap_string,
+///        "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+///    );
+/// ```
+///
 pub struct ImmutableVerifyCap {
     metadata_hash: [u8; 32],
 }
@@ -227,8 +246,8 @@ pub struct ImmutableVerifyCap {
 impl ImmutableVerifyCap {
     /// returns true IFF the hash of the passed metadata matches that
     /// in this VerifyCap
-    pub fn corresponds_to(&self, metadata: &ImmutableMetadata) -> bool {
-        let h = ImmutableVerifyCap::from(metadata);
+    pub fn corresponds_to(&self, immutable: &Immutable) -> bool {
+        let h = ImmutableVerifyCap::from(&immutable.metadata);
         h.metadata_hash == self.metadata_hash
     }
 
@@ -251,22 +270,19 @@ impl ImmutableVerifier for ImmutableVerifyCap {
     /// them).
     fn verify(
         &self,
-        metadata: &ImmutableMetadata,
-        ciphertext: Box<dyn EncryptedImmutable>,
+        immutable: &Immutable,
     ) -> Result<(), MagicCapError> {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.corresponds_to(metadata) {
+        if !self.corresponds_to(immutable) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
-        // todo: can we unify this "verify" operation with the "also decrypt" code?
-
         // can we use iterators more directly here instead of for loop? e.g.:
         let mut leaves: Vec<[u8; 32]> = vec![];
-        for i in 0..ciphertext.get_total_blocks() {
-            let lh = TahoeLeaf::hash(ciphertext.get_block(i));
+        for i in 0..immutable.data_provider.get_total_blocks() {
+            let lh = TahoeLeaf::hash(immutable.data_provider.get_block(i));
             leaves.push(lh);
         }
         fill_empty_merkle_leaves(&mut leaves);
@@ -278,7 +294,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // actually matches the ciphertext from our 'data' file (we
         // checked above that the user-supplied capability-string has
         // a matching root)
-        if merkle_root != metadata.ciphertext_root {
+        if merkle_root != immutable.metadata.ciphertext_root {
             let incorrect_hash = BASE64URL_NOPAD.encode(&merkle_root);
             return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
         }
@@ -490,7 +506,7 @@ impl ReadCap for ImmutableReadCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.verify.corresponds_to(&immutable.metadata) {
+        if !self.verify.corresponds_to(&immutable) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -535,10 +551,9 @@ impl ReadCap for ImmutableReadCap {
 impl ImmutableVerifier for ImmutableReadCap {
     fn verify(
         &self,
-        metadata: &ImmutableMetadata,
-        ciphertext: Box<dyn EncryptedImmutable>,
+        immutable: &Immutable,
     ) -> Result<(), MagicCapError> {
-        self.verify.verify(metadata, ciphertext)
+        self.verify.verify(immutable)
     }
 }
 
@@ -977,6 +992,26 @@ pub mod test {
     }
 
     #[test]
+    fn doc_example_verifycap() {
+        let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+        let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
+        let verifycap: ImmutableVerifyCap = readcap.into();
+        let verifycap_string = format!("{}", verifycap);
+        assert_eq!(
+            verifycap_string,
+            "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+        );
+    }
+
+    #[test]
+    fn doc_example_verify() {
+        let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4".try_into().unwrap();
+        let ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
+        assert!(verifycap.corresponds_to(&ciphertext));
+        verifycap.verify(&ciphertext).unwrap();
+    }
+
+    #[test]
     fn handcrafted_filesystem_round_trip() {
         let blocksize = 2;
         let input: Vec<u8> = b"abcdef".to_vec();
@@ -1067,7 +1102,7 @@ pub mod test {
     fn verify_fails_corrupted_ciphertext(s in "\\PC+") {
         let (cap, immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Verify(vcap) = cap {
-            assert!(vcap.verify(&immutable.metadata, immutable.data_provider).is_ok());
+            assert!(vcap.verify(&immutable).is_ok());
         }
     }
 
@@ -1075,7 +1110,7 @@ pub mod test {
     fn test_verify(s in "\\PC+") {
         let (cap, immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Verify(verifycap) = cap {
-            assert!(verifycap.verify(&immutable.metadata, immutable.data_provider).is_ok());
+            assert!(verifycap.verify(&immutable).is_ok());
         }
     }
 
@@ -1084,8 +1119,12 @@ pub mod test {
         // we cannot decrypt the ciphertext
         let (cap0, immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         let (_, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let failed = Immutable {
+            metadata: immutable1.metadata,
+            data_provider: immutable0.data_provider,
+        };
         if let ImmutableCap::Verify(verifycap) = cap0 {
-            assert!(verifycap.verify(&immutable0.metadata, immutable1.data_provider).is_err());
+            assert!(verifycap.verify(&failed).is_err());
         }
     }
 
@@ -1094,8 +1133,12 @@ pub mod test {
         // the metadata doesn't verify
         let (cap0, immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         let (_, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let failed = Immutable {
+            metadata: immutable1.metadata,
+            data_provider: immutable0.data_provider,
+        };
         if let ImmutableCap::Verify(verifycap) = cap0 {
-            assert!(verifycap.verify(&immutable1.metadata, immutable0.data_provider).is_err());
+            assert!(verifycap.verify(&failed).is_err());
         }
     }
 

@@ -103,7 +103,7 @@ pub fn main_verify(cap: &str, input_fname: &Path) -> anyhow::Result<()> {
     let f = std::fs::File::open(input_fname)?;
     let imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
-    cap.verify(&imm.metadata, imm.data_provider)?;
+    cap.verify(&imm)?;
     Ok(())
 }
 
