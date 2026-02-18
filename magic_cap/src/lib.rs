@@ -47,17 +47,28 @@
 //! It is an identifier you can later use to retrieve the original
 //! plaintext (and share offline, etc -- more on those features later)
 //!
+//! There is a reduced-power string called a Verify Cap which can be
+//! directly derived from the Read Cap (offline, with no server
+//! interaction). This Verify Cap can confirm that the ciphertext is
+//! valid, and could be decrypted by the Read Cap but cannot itself
+//! see any of the data. These look like:
+//!
+//!    ``mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4``
+//!
+//! Notice the ``v`` instead of ``r`` at the start of the string.
+//!
 //! ## Examples
 //!
-//! One way to create an [`ImmutableReadCap`] is to stream it using
-//! the [`Write`] trait to an [`ImmutableBuilder`]. For example:
+//! One way to create an [`ImmutableReadCap`] is to stream plaintext
+//! to it using the [`Write`] trait to an [`ImmutableBuilder`]. For
+//! example:
 //!
 //! ```rust
 //!    use std::io::{Write, Cursor};
 //!    use crate::magic_cap::{ImmutableBuilder, ImmutableReadCap, ReadCap, Immutable};
 //!
 //!    let plaintext: Vec<u8> = "attack at dawn".into();
-//!    let mut ciphertext: Vec<u8> = vec!();//vec![0u8; 4096];
+//!    let mut ciphertext: Vec<u8> = vec!();
 //!
 //!    // create an encrypted immutable + associated ReadCap
 //!    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
@@ -72,9 +83,9 @@
 //!    assert_eq!(plaintext, decrypted);
 //! ```
 
-///pub mod cli;
+
 pub mod err;
-// why can't we use KeyInit ?! 😠
+// why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
@@ -326,11 +337,11 @@ pub struct ImmutableReadCap {
 
 // without Seek on the output, we require it on the input
 
-/// Manage context to incrementally encrypt to an underlying ``Write``
+/// Manage context to incrementally encrypt to an underlying [`Write`]
 ///
-/// Instances of this are used to build up an ``Immutable`` by writing
+/// Instances of this are used to build up an [`Immutable`] by writing
 /// plaintext data to it, which is then encrypted and written out to
-/// the underlying ``Write`` instance in ``writer``.
+/// the underlying [`Write`] instance in ``writer``.
 ///
 /// To retrieve the ``Immutable`` you must call ``done`` which
 /// consumes the ``ImmutableBuilder`` and finalizes the metadata and
@@ -650,7 +661,7 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 }
 
 #[derive(Debug, PartialEq)]
-/// Access all ciphertext via a Read provider
+/// Access all ciphertext via a [`Read`] provider
 pub struct EncryptedImmutableReader<R>
 where
     R: Read,
@@ -710,8 +721,8 @@ impl ImmutableMetadata {
     }
 }
 
-/// Represents everything to do with an Immutable except the
-/// ImmutableCap itself. That is, this represents the Immutable's
+/// Represents everything to do with an [`Immutable`] except the
+/// [`ImmutableCap`] itself. That is, this represents the [`Immutable`]'s
 /// metadata and a way to access the ciphertext.
 pub struct Immutable {
     //    pub cap: Option<ImmutableCap>,
