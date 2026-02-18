@@ -65,25 +65,15 @@ fn main() {
         Some(Commands::Encrypt {
             plaintext,
             ciphertext,
-        }) => {
-            main_encrypt(&mut std::io::stdout(), plaintext, ciphertext)
-        }
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext),
         Some(Commands::Decrypt {
             cap,
             ciphertext,
             plaintext,
-        }) => {
-            main_decrypt(&mut std::io::stdout(), cap, ciphertext, plaintext)
-        }
-        Some(Commands::Verify { cap, ciphertext }) => {
-            main_verify(cap, ciphertext)
-        }
-        Some(Commands::Reduce { cap }) => {
-            main_reduce(&mut std::io::stdout(), cap)
-        }
-        None => {
-            Ok(())
-        }
+        }) => main_decrypt(&mut std::io::stdout(), cap, ciphertext, plaintext),
+        Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
+        Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
+        None => Ok(()),
     };
 
     if let Err(e) = result {

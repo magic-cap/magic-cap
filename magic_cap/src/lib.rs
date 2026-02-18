@@ -105,7 +105,6 @@
 //! ```
 //!
 
-
 pub mod err;
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
@@ -1013,11 +1012,13 @@ pub mod test {
     fn doc_example_in_memory() {
         let plaintext: Vec<u8> = "attack at dawn".into();
 
-        if let Ok((ImmutableCap::Read(readcap), immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
+        if let Ok((ImmutableCap::Read(readcap), immutable)) =
+            Immutable::encrypt(plaintext.as_slice(), 4096)
+        {
             println!("Read Cap: {:?}", readcap);
 
             let verifycap: ImmutableVerifyCap = readcap.into();
-            if ! verifycap.corresponds_to(&immutable) {
+            if !verifycap.corresponds_to(&immutable) {
                 println!("Verify Cap does not match data");
             }
         }

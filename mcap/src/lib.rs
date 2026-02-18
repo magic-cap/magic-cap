@@ -179,9 +179,7 @@ pub fn main_decrypt(
             }
         }
         Err(e) => match &e {
-            MagicCapError::McapMetadataDiscordant() => {
-                Err(e)
-            }
+            MagicCapError::McapMetadataDiscordant() => Err(e),
             _ => {
                 writeln!(output, "Error decrypting: {}", e)?;
                 Ok(())
