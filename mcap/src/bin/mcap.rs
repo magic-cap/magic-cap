@@ -61,26 +61,23 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-    match &cli.command {
+    let result = match &cli.command {
         Some(Commands::Encrypt {
             plaintext,
             ciphertext,
-        }) => {
-            main_encrypt(&mut std::io::stdout(), plaintext, ciphertext).unwrap();
-        }
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext),
         Some(Commands::Decrypt {
             cap,
             ciphertext,
             plaintext,
-        }) => {
-            main_decrypt(&mut std::io::stdout(), cap, ciphertext, plaintext).unwrap();
-        }
-        Some(Commands::Verify { cap, ciphertext }) => {
-            main_verify(cap, ciphertext).unwrap();
-        }
-        Some(Commands::Reduce { cap }) => {
-            main_reduce(&mut std::io::stdout(), cap).unwrap();
-        }
-        None => {}
+        }) => main_decrypt(&mut std::io::stdout(), cap, ciphertext, plaintext),
+        Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
+        Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
+        None => Ok(()),
+    };
+
+    if let Err(e) = result {
+        println!("Error: {}", e);
+        std::process::exit(2);
     }
 }

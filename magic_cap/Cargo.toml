@@ -32,6 +32,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 sha2 = "0.10.9"
 thiserror = "2.0.17"
 tempfile = "3.2"
+# can we put this in other deps?
+include-doc = "0.2.2"
 
 [build-dependencies]
 cargo-llvm-cov = "0.6.21"
