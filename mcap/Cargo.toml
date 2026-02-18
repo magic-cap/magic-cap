@@ -1,6 +1,6 @@
 [package]
 name = "magic_cap_cli"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2024"
 authors = [
     "meejah <meejah@meejah.ca>",
@@ -21,7 +21,7 @@ name = "mcap"
 
 [dependencies]
 clap = { version = "4.5.54", features = ["derive"] }
-magic_cap = { path = "../magic_cap", version = "0.0.0" }
+magic_cap = { path = "../magic_cap", version = "0.0.1" }
 
 [dev-dependencies]
 proptest = "1.9.0"
