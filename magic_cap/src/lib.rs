@@ -207,6 +207,7 @@ type TahoeAesCtr = ctr::Ctr128BE<aes::Aes128>;
 // - don't need total shares, we have 1
 // - don't trust size (it leaks information and is redundant)
 
+#[derive(Debug)]
 pub enum ImmutableCap {
     Verify(ImmutableVerifyCap),
     Read(ImmutableReadCap),
@@ -971,7 +972,7 @@ pub mod test {
     }
 
     #[test]
-    fn doc_example() {
+    fn doc_example_stream() {
         let plaintext: Vec<u8> = "attack at dawn".into();
         let mut ciphertext: Vec<u8> = vec![];
 
@@ -985,6 +986,23 @@ pub mod test {
         let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
         let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
         assert_eq!(plaintext, decrypted);
+    }
+
+    #[test]
+    fn doc_example_in_memory() {
+        let plaintext: Vec<u8> = "attack at dawn".into();
+
+        if let Ok((cap, immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
+            println!("cap: {:?}", cap);
+
+            if let ImmutableCap::Read(readcap) = cap {
+                let verifycap: ImmutableVerifyCap = readcap.into();
+                // confirm this ciphertext corresponds
+                if let Err(e) = verifycap.verify(&immutable) {
+                    println!("Verify Cap does not match data: {}", e);
+                }
+            }
+        }
     }
 
     #[test]
