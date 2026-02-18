@@ -953,7 +953,6 @@ fn fill_empty_merkle_leaves(leaves: &mut Vec<[u8; 32]>) {
 pub mod test {
     use super::*;
     use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
-    use std::io::Cursor;
     use tempfile::TempDir;
 
     #[test]
