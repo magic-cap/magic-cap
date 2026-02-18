@@ -83,6 +83,27 @@
 //!    let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
 //!    assert_eq!(plaintext, decrypted);
 //! ```
+//!
+//! Another way is to create a completely in-memory [`Immutable`] and
+//! corresponding [`ImmutableCap::Read`]. This example also
+//! demonstrates using the [`ImmutableVerifyCap`] to verify the
+//! ciphertext.
+//!
+//! ```rust
+//!    use crate::magic_cap::{ImmutableVerifyCap, Immutable, ImmutableCap};
+//!
+//!    let plaintext: Vec<u8> = "attack at dawn".into();
+//!
+//!    if let Ok((ImmutableCap::Read(readcap), immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
+//!        println!("Read Cap: {:?}", readcap);
+//!
+//!        let verifycap: ImmutableVerifyCap = readcap.into();
+//!        if ! verifycap.corresponds_to(&immutable) {
+//!            println!("Verify Cap does not match data");
+//!        }
+//!    }
+//! ```
+//!
 
 
 pub mod err;
@@ -992,15 +1013,12 @@ pub mod test {
     fn doc_example_in_memory() {
         let plaintext: Vec<u8> = "attack at dawn".into();
 
-        if let Ok((cap, immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
-            println!("cap: {:?}", cap);
+        if let Ok((ImmutableCap::Read(readcap), immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
+            println!("Read Cap: {:?}", readcap);
 
-            if let ImmutableCap::Read(readcap) = cap {
-                let verifycap: ImmutableVerifyCap = readcap.into();
-                // confirm this ciphertext corresponds
-                if let Err(e) = verifycap.verify(&immutable) {
-                    println!("Verify Cap does not match data: {}", e);
-                }
+            let verifycap: ImmutableVerifyCap = readcap.into();
+            if ! verifycap.corresponds_to(&immutable) {
+                println!("Verify Cap does not match data");
             }
         }
     }
