@@ -90,22 +90,12 @@
 //! ciphertext.
 //!
 //! ```rust
-//!    use crate::magic_cap::{ImmutableVerifyCap, Immutable, ImmutableCap};
-//!
-//!    let plaintext: Vec<u8> = "attack at dawn".into();
-//!
-//!    if let Ok((ImmutableCap::Read(readcap), immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
-//!        println!("Read Cap: {:?}", readcap);
-//!
-//!        let verifycap: ImmutableVerifyCap = readcap.into();
-//!        if ! verifycap.corresponds_to(&immutable) {
-//!            println!("Verify Cap does not match data");
-//!        }
-//!    }
+#![doc = include_doc::source_file!("examples/stream.rs")]
 //! ```
 //!
 
 pub mod err;
+
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
 use data_encoding::BASE64URL_NOPAD;
