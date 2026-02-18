@@ -233,7 +233,6 @@ pub enum ImmutableCap {
     Read(ImmutableReadCap),
 }
 
-// todo: shorten this method to only take "&Immutable"
 pub trait ImmutableVerifier {
     fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError>;
 }
