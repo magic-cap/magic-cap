@@ -16,6 +16,11 @@ Any interesting uses come when thinking about separating the Data (ciphertext + 
 NOTE: this is a brand new project with no cryptographic review.
 We are definitely interested in your use-cases and ideas, but please ask your cryptographer before deploying to production!
 
+- Crate: https://docs.rs/magic_cap/latest/magic_cap/
+- CLI: https://docs.rs/magic_cap_cli/latest/magic_cap_cli/
+- Code: https://github.com/magic-cap/magic-cap
+
+
 #+CAPTION: Depiction of 'mcap decrypt' visualizing the resulting data + Magic Cap
 #+NAME:   fig:encrypt
 [[./diagrams/mcap-encrypt.svg]]
