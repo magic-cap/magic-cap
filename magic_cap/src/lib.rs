@@ -923,7 +923,7 @@ pub mod test {
     use super::*;
     use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
     use std::io::Cursor;
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     #[test]
     fn golden_tahoe_tagged_hash() {
@@ -953,7 +953,7 @@ pub mod test {
     fn handcrafted_filesystem_round_trip() {
         let blocksize = 2;
         let input: Vec<u8> = b"abcdef".to_vec();
-        let tmp = TempDir::new("fs_round_trip").unwrap();
+        let tmp = TempDir::new().unwrap();
 
         let fm = File::create(tmp.path().join("encrypted")).unwrap();
         let cap = ImmutableReadCap::encrypt(
@@ -1196,7 +1196,7 @@ pub mod test {
 
     #[test]
     fn filesystem_round_trip(input: Vec<u8>, blocksize in 2u16..70u16) {
-        let tmp = TempDir::new("fs_round_trip")?;
+        let tmp = TempDir::new()?;
 
         let fm = File::create(tmp.path().join("encrypted"))?;
         let cap = ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize as usize)?;
