@@ -1,15 +1,20 @@
-use magic_cap::{ImmutableVerifyCap, Immutable, ImmutableCap};
+use std::io::{Write, Cursor};
+use magic_cap::{ImmutableBuilder, ReadCap, Immutable};
 
 fn main() {
     let plaintext: Vec<u8> = "attack at dawn".into();
+    let mut ciphertext: Vec<u8> = vec!();
 
-    if let Ok((ImmutableCap::Read(readcap), immutable)) = Immutable::encrypt(plaintext.as_slice(), 4096) {
-        println!("Read Cap: {:?}", readcap);
+    // create an encrypted immutable + associated ReadCap
+    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
+    cryptor.write(&plaintext).unwrap();
+    // .write() may be called any number of times with any size data
+    let (cap, ciphertext) = cryptor.done().unwrap();
+    println!("ciphertext: {} bytes", ciphertext.len());
 
-        let verifycap: ImmutableVerifyCap = readcap.into();
-        if ! verifycap.corresponds_to(&immutable) {
-            println!("Verify Cap does not match data");
-        }
-    }
-
+    // using the encrypted immutable and ReadCap, get back the ciperhtext
+    let ctext = ciphertext.as_slice();
+    let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
+    let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
+    assert_eq!(plaintext, decrypted);
 }

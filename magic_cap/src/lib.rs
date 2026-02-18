@@ -64,24 +64,7 @@
 //! example:
 //!
 //! ```rust
-//!    use std::io::{Write, Cursor};
-//!    use crate::magic_cap::{ImmutableBuilder, ImmutableReadCap, ReadCap, Immutable};
-//!
-//!    let plaintext: Vec<u8> = "attack at dawn".into();
-//!    let mut ciphertext: Vec<u8> = vec!();
-//!
-//!    // create an encrypted immutable + associated ReadCap
-//!    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
-//!    cryptor.write(&plaintext).unwrap();
-//!    // .write() may be called any number of times with any size data
-//!    let (cap, ciphertext) = cryptor.done().unwrap();
-//!    println!("ciphertext: {} bytes", ciphertext.len());
-//!
-//!    // using the encrypted immutable and ReadCap, get back the ciperhtext
-//!    let ctext = ciphertext.as_slice();
-//!    let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
-//!    let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
-//!    assert_eq!(plaintext, decrypted);
+#![doc = include_doc::source_file!("examples/stream.rs")]
 //! ```
 //!
 //! Another way is to create a completely in-memory [`Immutable`] and
@@ -90,7 +73,7 @@
 //! ciphertext.
 //!
 //! ```rust
-#![doc = include_doc::source_file!("examples/stream.rs")]
+#![doc = include_doc::source_file!("examples/in-memory.rs")]
 //! ```
 //!
 
@@ -978,23 +961,6 @@ pub mod test {
         let gold = b"\xee\x19\x0f\x82\xb1\x962\xaf\xf9\x97\x18SN\xd8\x96y0\xc4\xf8\xd1\x8fEqh\xab\r27\xae\r\x95\x0b";
         let alleged = tagged_hash::<32>(b"foo", b"bar");
         assert_eq!(*gold, alleged);
-    }
-
-    #[test]
-    fn doc_example_stream() {
-        let plaintext: Vec<u8> = "attack at dawn".into();
-        let mut ciphertext: Vec<u8> = vec![];
-
-        let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
-        cryptor.write(&plaintext).unwrap();
-        let (cap, ciphertext) = cryptor.done().unwrap();
-        println!("ciphertext: {} bytes", ciphertext.len());
-
-        let ctext = ciphertext.as_slice();
-
-        let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
-        let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
-        assert_eq!(plaintext, decrypted);
     }
 
     #[test]
