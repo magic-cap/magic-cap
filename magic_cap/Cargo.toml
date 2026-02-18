@@ -40,9 +40,14 @@ cargo-llvm-cov = "0.6.21"
 [dev-dependencies]
 proptest = "1.7.0"
 tempfile = "3.2"
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["tempdir","proptest"]
 
 [profile.release]
 opt-level = 3
+
+[[bench]]
+name = "encode"
+harness = false
