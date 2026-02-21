@@ -53,4 +53,7 @@ pub enum MagicCapError {
 
     #[error("Failed to obtain entropy: {0}")]
     GetRandomError(#[from] getrandom::Error),
+
+    #[error("ImmutableDirectoryCollection must be a directory")]
+    NotDirectory(),
 }

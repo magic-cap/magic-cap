@@ -91,6 +91,7 @@ use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::PathBuf;
 
 use err::MagicCapError;
 
@@ -321,6 +322,103 @@ impl std::convert::From<&ImmutableReadCap> for ImmutableIdentifier {
     }
 }
 
+// todo: make a Base32 / Base64 marker-type? That contains a String?
+impl std::convert::Into<String> for &ImmutableIdentifier {
+    fn into(self) -> String {
+        BASE64URL_NOPAD.encode(&self.storage_index)
+    }
+}
+
+pub trait ImmutableCollection {
+    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
+
+    fn insert<'a, W>(&'a mut self, blocksize: usize, writer: W) -> Result<ImmutableDirectoryCollectionBuilder<'a, W>, MagicCapError> where W: Write;
+}
+
+/// a file-system implementation of [`ImmutableCollection`] which
+/// stores magic-caps in a struture similar to Git
+/// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
+pub struct ImmutableDirectoryCollection {
+    root: PathBuf,
+}
+
+impl ImmutableDirectoryCollection {
+    pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCollection, MagicCapError> {
+        if !root.is_dir() {
+            return Err(err::MagicCapError::NotDirectory());
+        }
+        // todo: consider putting a README or similar in here that
+        // both more-accurately marks this as an
+        // ImmutableDirectoryCollection and also explains to a human
+        // what this is.
+        Ok(
+            ImmutableDirectoryCollection {root}
+        )
+    }
+}
+
+pub struct ImmutableDirectoryCollectionBuilder<'a, W>
+where
+    W: Write,
+{
+    builder: ImmutableBuilder<W>,
+    collection: &'a mut ImmutableDirectoryCollection,
+    // todo, something like:  completed: FnOnce,
+}
+
+impl<'a, W> ImmutableDirectoryCollectionBuilder<'a, W>
+where
+    W: Write,
+{
+    pub fn done(self) -> Result<(ImmutableReadCap, W), MagicCapError> {
+        let (cap, w) = self.builder.done()?;
+        // 1. tell collection we're done inserting
+        //self.completed(cap)?;
+        self.collection.completed(&cap)?;
+        // 2. return to parent
+        Ok((cap, w))
+    }
+}
+
+impl ImmutableDirectoryCollection {
+    fn completed(&mut self, immutable: &ImmutableReadCap) -> Result<(), MagicCapError> {
+        println!("completed!");
+        Ok(())
+    }
+}
+
+
+impl ImmutableCollection for ImmutableDirectoryCollection {
+    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError> {
+        // 1. convert identifier to &str (base64? base32?)
+        // 2. strip first 2 (more?) chars off
+        // 3. look in root/<2 chars>/<entire id>
+        let name: String = locator.into();
+        println!("id: {}", name);
+        let dir = &name[0..2];
+        println!("dir: {}", dir);
+        todo!()
+    }
+
+    fn insert<'a, W>(&'a mut self, blocksize: usize, writer: W) -> Result<ImmutableDirectoryCollectionBuilder<'a, W>, MagicCapError> where
+        W: Write
+    {
+        // 1. make a Write wrapper so we know when done() got called?
+        // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
+        // 3. return the builder
+        // 4. when done() called, our Write will be close()'d (right?)
+        // 5. ...and so we can then move it to the right spot.
+        //   (but how do we get the Immutable / identifier then??)
+        //  -> do we have to wrap the BUILDER? (probably)
+        let builder = ImmutableBuilder::<W>::new(blocksize, writer)?;
+        Ok(
+            ImmutableDirectoryCollectionBuilder::<W> {
+                builder,
+                collection: self,
+            }
+        )
+    }
+}
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to both verify the ciphertext and decrypt it
@@ -1095,6 +1193,21 @@ pub mod test {
         subvec.drain(0..26);
         unkey.apply_keystream(&mut subvec);
         println!("Hopefully decrypted: {:?}", subvec);
+    }
+
+    #[test]
+    fn find_collection_basic() {
+        let tmp = TempDir::new().unwrap().path().to_owned();
+        println!("foo {:?}", tmp);
+        let collection = ImmutableDirectoryCollection::create(tmp);
+
+        // okay, what does "insert" look like here .. we want to get
+        // _back_ a Builder right? But we can't / don't know the
+        // location until it's done. So does it provide some sot of
+        // semi-empheral "incoming" area and then "mv" the thing to
+        // the correct spot when done?
+
+        let thing = collection.open(locator);
     }
 
     use proptest::prelude::*;
