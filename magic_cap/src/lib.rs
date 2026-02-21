@@ -301,6 +301,27 @@ impl ImmutableVerifier for ImmutableVerifyCap {
     }
 }
 
+
+#[derive(Debug)]
+pub struct ImmutableIdentifier {
+    storage_index: [u8; 32],  // tagged-hash
+}
+
+impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
+    fn from(cap: &ImmutableVerifyCap) -> ImmutableIdentifier {
+        ImmutableIdentifier {
+            storage_index:tagged_hash::<32>(b"magic_cap_storage_index_v1", &cap.metadata_hash),
+        }
+    }
+}
+
+impl std::convert::From<&ImmutableReadCap> for ImmutableIdentifier {
+    fn from(cap: &ImmutableReadCap) -> ImmutableIdentifier {
+        ImmutableIdentifier::from(&cap.verify)
+    }
+}
+
+
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to both verify the ciphertext and decrypt it
 ///
