@@ -91,7 +91,8 @@ use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::PathBuf;
+use std::io::BufWriter;
+use std::path::{Path, PathBuf};
 
 use err::MagicCapError;
 
@@ -215,7 +216,7 @@ pub trait ReadCap: ImmutableVerifier {
     fn decrypt(&self, immutable: &Immutable) -> Result<Vec<u8>, MagicCapError>;
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: std::io::BufWriter<File>,
+        writer: BufWriter<File>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
 }
@@ -332,7 +333,7 @@ impl std::convert::Into<String> for &ImmutableIdentifier {
 pub trait ImmutableCollection {
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
 
-    fn insert<'a, W>(&'a mut self, blocksize: usize, writer: W) -> Result<ImmutableDirectoryCollectionBuilder<'a, W>, MagicCapError> where W: Write;
+    fn insert<'a>(&'a mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<'a, BufWriter<File>>, MagicCapError>;
 }
 
 /// a file-system implementation of [`ImmutableCollection`] which
@@ -400,19 +401,22 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         todo!()
     }
 
-    fn insert<'a, W>(&'a mut self, blocksize: usize, writer: W) -> Result<ImmutableDirectoryCollectionBuilder<'a, W>, MagicCapError> where
-        W: Write
+    fn insert<'a>(&'a mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<'a, BufWriter<File>>, MagicCapError>
     {
-        // 1. make a Write wrapper so we know when done() got called?
+        // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
-        // 3. return the builder
+        // 3. return the builder with Write to our ephemeral file
         // 4. when done() called, our Write will be close()'d (right?)
         // 5. ...and so we can then move it to the right spot.
         //   (but how do we get the Immutable / identifier then??)
         //  -> do we have to wrap the BUILDER? (probably)
-        let builder = ImmutableBuilder::<W>::new(blocksize, writer)?;
+        let incoming = Path::join(self.root.as_path(), "foo"); // fixme, random ephemeral name
+        let writer = File::create(incoming)?;
+        let bufwriter = BufWriter::new(writer);
+
+        let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
         Ok(
-            ImmutableDirectoryCollectionBuilder::<W> {
+            ImmutableDirectoryCollectionBuilder::<BufWriter<File>> {
                 builder,
                 collection: self,
             }
@@ -1197,9 +1201,12 @@ pub mod test {
 
     #[test]
     fn find_collection_basic() {
-        let tmp = TempDir::new().unwrap().path().to_owned();
+        let tmpd = TempDir::new().unwrap();
+        let tmp = tmpd.path().to_owned();
+        assert!(tmp.exists());
+        assert!(tmp.is_dir());
         println!("foo {:?}", tmp);
-        let collection = ImmutableDirectoryCollection::create(tmp);
+        let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
 
         // okay, what does "insert" look like here .. we want to get
         // _back_ a Builder right? But we can't / don't know the
@@ -1207,7 +1214,7 @@ pub mod test {
         // semi-empheral "incoming" area and then "mv" the thing to
         // the correct spot when done?
 
-        let thing = collection.open(locator);
+        let builder = collection.insert(4096);
     }
 
     use proptest::prelude::*;
