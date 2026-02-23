@@ -27,6 +27,8 @@ jobs:
       run: |
         rustfmt --verbose --check magic_cap/src/*.rs
         rustfmt --verbose --check mcap/src/*.rs
+    - name: clippy
+      run: cargo clippy
 
   tests:
     runs-on: ubuntu-latest
