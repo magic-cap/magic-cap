@@ -364,7 +364,7 @@ where
 {
     builder: ImmutableBuilder<W>,
     collection: &'a mut ImmutableDirectoryCollection,
-    // todo, something like:  completed: FnOnce,
+    completed: Box<dyn FnOnce(&ImmutableReadCap) -> ()>,
 }
 
 impl<'a, W> ImmutableDirectoryCollectionBuilder<'a, W>
@@ -375,7 +375,8 @@ where
         let (cap, w) = self.builder.done()?;
         // 1. tell collection we're done inserting
         //self.completed(cap)?;
-        self.collection.completed(&cap)?;
+        let cmp = self.completed;
+        cmp(&cap);
         // 2. return to parent
         Ok((cap, w))
     }
@@ -396,7 +397,7 @@ where
 
 impl ImmutableDirectoryCollection {
     fn completed(&mut self, immutable: &ImmutableReadCap) -> Result<(), MagicCapError> {
-        println!("completed!");
+        println!("completed {}", immutable);
         Ok(())
     }
 }
@@ -426,11 +427,13 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         let incoming = Path::join(self.root.as_path(), "foo"); // fixme, random ephemeral name
         let writer = File::create(incoming)?;
         let bufwriter = BufWriter::new(writer);
+        let completed = Box::new(|cap: &ImmutableReadCap| { println!("completed! {}", cap) });
 
         let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
         Ok(
             ImmutableDirectoryCollectionBuilder::<BufWriter<File>> {
                 builder,
+                completed,
                 collection: self,
             }
         )
