@@ -81,7 +81,7 @@ pub mod err;
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
-use data_encoding::BASE64URL_NOPAD;
+use data_encoding::{BASE64URL_NOPAD, HEXLOWER};
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
 use sha2::{Digest, Sha256};
@@ -324,9 +324,15 @@ impl std::convert::From<&ImmutableReadCap> for ImmutableIdentifier {
 }
 
 // todo: make a Base32 / Base64 marker-type? That contains a String?
+impl std::convert::Into<String> for ImmutableIdentifier {
+    fn into(self) -> String {
+        HEXLOWER.encode(&self.storage_index)
+    }
+}
+
 impl std::convert::Into<String> for &ImmutableIdentifier {
     fn into(self) -> String {
-        BASE64URL_NOPAD.encode(&self.storage_index)
+        HEXLOWER.encode(&self.storage_index)
     }
 }
 
@@ -427,7 +433,15 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         let incoming = Path::join(self.root.as_path(), "foo"); // fixme, random ephemeral name
         let writer = File::create(incoming)?;
         let bufwriter = BufWriter::new(writer);
-        let completed = Box::new(|cap: &ImmutableReadCap| { println!("completed! {}", cap) });
+        let mut dir = self.root.clone();
+        let completed = Box::new(move |cap: &ImmutableReadCap| {
+            println!("completed! {}", cap);
+            let id: ImmutableIdentifier = cap.into();
+            let idstr: String = (&id).into();
+            dir.push(&idstr[0..2]);
+            println!("dir {:?} name {:?}", dir, idstr);
+            std::fs::create_dir(dir).unwrap();
+        });
 
         let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
         Ok(
