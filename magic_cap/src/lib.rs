@@ -381,6 +381,19 @@ where
     }
 }
 
+impl<'a, W> Write for ImmutableDirectoryCollectionBuilder<'a, W>
+where
+    W: Write,
+{
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        self.builder.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.builder.flush()
+    }
+}
+
 impl ImmutableDirectoryCollection {
     fn completed(&mut self, immutable: &ImmutableReadCap) -> Result<(), MagicCapError> {
         println!("completed!");
@@ -1214,7 +1227,10 @@ pub mod test {
         // semi-empheral "incoming" area and then "mv" the thing to
         // the correct spot when done?
 
-        let builder = collection.insert(4096);
+        let mut builder = collection.insert(4096).unwrap();
+        builder.write(b"To light a candle is to cast a shadow...").unwrap();
+        let (cap, meta) = builder.done().unwrap();
+        println!("{}", cap);
     }
 
     use proptest::prelude::*;
