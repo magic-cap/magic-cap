@@ -107,7 +107,7 @@ fn tagged_hash<const TAGSIZE: usize>(tag: &[u8], val: &[u8]) -> [u8; TAGSIZE] {
         assert!(TAGSIZE <= 32, "illegal tag size");
     }
     let mut hasher = Sha256::new();
-    hasher.update(&netstring(tag));
+    hasher.update(netstring(tag));
     hasher.update(val);
     let hash = hasher.finalize();
     let hash2 = Sha256::digest(hash);
@@ -505,7 +505,7 @@ impl ReadCap for ImmutableReadCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.verify.corresponds_to(&immutable) {
+        if !self.verify.corresponds_to(immutable) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -578,7 +578,7 @@ impl std::convert::TryFrom<&str> for ImmutableVerifyCap {
             return Err(MagicCapError::InvalidCap(uri.to_string()));
         }
 
-        let metahash = BASE64URL_NOPAD.decode(uri[6..].as_bytes())?;
+        let metahash = BASE64URL_NOPAD.decode(&uri.as_bytes()[6..])?;
         Ok(ImmutableVerifyCap {
             metadata_hash: vec_to_array(metahash)?,
         })
@@ -603,7 +603,7 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
             return Err(MagicCapError::InvalidCap(uri.to_string()));
         }
 
-        let keymeta = BASE64URL_NOPAD.decode(uri[6..].as_bytes())?;
+        let keymeta = BASE64URL_NOPAD.decode(&uri.as_bytes()[6..])?;
 
         let key = vec_to_array(keymeta[32..48].to_vec())?;
         Ok(ImmutableReadCap {
