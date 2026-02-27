@@ -1,11 +1,10 @@
 {
   description = "magic-cap is a command line utility for an always encrypted archive file type.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     rust-overlay = { url = "github:oxalica/rust-overlay"; };
   };
-  outputs = { nixpkgs, nixpkgs-unstable, rust-overlay, ... }:
+  outputs = { nixpkgs, rust-overlay, ... }:
     let
       system = "x86_64-linux";
     in {
@@ -25,10 +24,21 @@
                     overlays = [ (import rust-overlay) ];
                     config.allowUnfree = true;
                   };
-                  upkgs = import nixpkgs-unstable { inherit system; };
               in
                 pkgs.mkShell {
-                  packages = with pkgs; [ rust-bin.stable.latest.default upkgs.rust-analyzer cargo pkg-config clippy ];
+                  packages = with pkgs; [
+                    (rust-bin.stable.latest.default.override {
+                      extensions = [ "rust-analyzer" ];
+                    })
+                    cargo
+                    cargo-autoinherit
+                    cargo-depgraph
+                    cargo-duplicates
+                    cargo-edit
+                    cargo-wizard
+                    clippy
+                    gnuplot
+                  ];
                 };
     };
 }
