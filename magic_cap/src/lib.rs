@@ -409,13 +409,9 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         // 2. strip first 2 (more?) chars off
         // 3. look in root/<2 chars>/<entire id>
         let name: String = locator.into();
-        println!("id: {}", name);
         let dir = &name[0..2];
-        println!("dir: {}", dir);
         let fname = Path::join(&Path::join(self.root.as_path(), dir), name);
-        println!("fname: {}", fname.as_path().display());
         let f = std::fs::File::open(fname.clone())?;
-        println!("{:?}", std::fs::metadata(fname)?);
         let imm = Immutable::read(f)?;
         Ok(imm)
     }
@@ -435,14 +431,13 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         let bufwriter = BufWriter::new(writer);
         let mut dir = self.root.clone();
         let completed = Box::new(move |cap: &ImmutableReadCap| {
-            println!("completed! {}", cap);
             let id: ImmutableIdentifier = cap.into();
             let idstr: String = (&id).into();
             dir.push(&idstr[0..2]);
             let mut fname = dir.clone();
             fname.push(&idstr);
 
-            println!("dir {:?} name {:?}", dir, idstr);
+            // maybe create subdir for this hash
             let _ = std::fs::create_dir(dir);
 
             // move into correct place
@@ -896,11 +891,9 @@ impl Immutable {
     where
         R: Read + std::io::Seek,
     {
-        println!("AA;lkjsdlfkj");
         // read the tag and verify this is an mcap file
         let mut tag = [0u8; 4];
         reader.read_exact(&mut tag)?;
-        println!("ASDFfda");
         if tag != *b"mcap" {
             return Err(MagicCapError::InvalidCapTag(tag));
         }
@@ -929,9 +922,7 @@ impl Immutable {
             Vec::with_capacity(metadata.blocks as usize * metadata.block_size as usize);
         for _ in 0..metadata.blocks {
             let mut chunk = vec![0u8; metadata.block_size as usize];
-            println!("AA");
             reader.read_exact(chunk.as_mut_slice())?;
-            println!("BB");
             chunks.push(chunk);
         }
 
@@ -1246,25 +1237,19 @@ pub mod test {
         let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
         assert!(tmp.exists());
         assert!(tmp.is_dir());
-        println!("foo {:?}", tmp);
         let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
 
         let message = b"To light a candle is to cast a shadow...";
         let mut builder = collection.insert(4096).unwrap();
         builder.write(message).unwrap();
         let (cap, mut writer) = builder.done().unwrap();
-        println!("{}", cap);
         writer.flush().unwrap();
 
         let id: ImmutableIdentifier = (&cap).into();
-        println!("{:?}", &id);
         std::thread::sleep(std::time::Duration::from_millis(1000));
         let immutable = collection.open(&id).unwrap();
-        if let Ok(data) = cap.decrypt(&immutable) {
-            println!("success: {}", data.len());
-            println!("{}", std::str::from_utf8(data.as_slice()).unwrap());
-            assert_eq!(message, data.as_slice());
-        }
+        let data = cap.decrypt(&immutable).unwrap();
+        assert_eq!(message, data.as_slice());
     }
 
     use proptest::prelude::*;
