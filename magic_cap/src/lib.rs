@@ -337,6 +337,7 @@ impl std::convert::Into<String> for &ImmutableIdentifier {
 }
 
 pub trait ImmutableCollection {
+    // todo: probably want "load" vs. "stream" API here
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
 
     fn insert<'a>(&'a mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<'a, BufWriter<File>>, MagicCapError>;
@@ -401,13 +402,6 @@ where
     }
 }
 
-impl ImmutableDirectoryCollection {
-    fn completed(&mut self, immutable: &ImmutableReadCap) -> Result<(), MagicCapError> {
-        println!("completed {}", immutable);
-        Ok(())
-    }
-}
-
 
 impl ImmutableCollection for ImmutableDirectoryCollection {
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError> {
@@ -418,7 +412,12 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         println!("id: {}", name);
         let dir = &name[0..2];
         println!("dir: {}", dir);
-        todo!()
+        let fname = Path::join(&Path::join(self.root.as_path(), dir), name);
+        println!("fname: {}", fname.as_path().display());
+        let f = std::fs::File::open(fname.clone())?;
+        println!("{:?}", std::fs::metadata(fname)?);
+        let imm = Immutable::read(f)?;
+        Ok(imm)
     }
 
     fn insert<'a>(&'a mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<'a, BufWriter<File>>, MagicCapError>
@@ -431,6 +430,7 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         //   (but how do we get the Immutable / identifier then??)
         //  -> do we have to wrap the BUILDER? (probably)
         let incoming = Path::join(self.root.as_path(), "foo"); // fixme, random ephemeral name
+        let uploaded = incoming.clone();
         let writer = File::create(incoming)?;
         let bufwriter = BufWriter::new(writer);
         let mut dir = self.root.clone();
@@ -439,8 +439,14 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
             let id: ImmutableIdentifier = cap.into();
             let idstr: String = (&id).into();
             dir.push(&idstr[0..2]);
+            let mut fname = dir.clone();
+            fname.push(&idstr);
+
             println!("dir {:?} name {:?}", dir, idstr);
-            std::fs::create_dir(dir).unwrap();
+            let _ = std::fs::create_dir(dir);
+
+            // move into correct place
+            std::fs::rename(uploaded, fname).unwrap();
         });
 
         let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
@@ -890,9 +896,11 @@ impl Immutable {
     where
         R: Read + std::io::Seek,
     {
+        println!("AA;lkjsdlfkj");
         // read the tag and verify this is an mcap file
         let mut tag = [0u8; 4];
         reader.read_exact(&mut tag)?;
+        println!("ASDFfda");
         if tag != *b"mcap" {
             return Err(MagicCapError::InvalidCapTag(tag));
         }
@@ -921,7 +929,9 @@ impl Immutable {
             Vec::with_capacity(metadata.blocks as usize * metadata.block_size as usize);
         for _ in 0..metadata.blocks {
             let mut chunk = vec![0u8; metadata.block_size as usize];
+            println!("AA");
             reader.read_exact(chunk.as_mut_slice())?;
+            println!("BB");
             chunks.push(chunk);
         }
 
@@ -1231,23 +1241,30 @@ pub mod test {
 
     #[test]
     fn find_collection_basic() {
-        let tmpd = TempDir::new().unwrap();
-        let tmp = tmpd.path().to_owned();
+        //let tmpd = TempDir::new().unwrap();
+        //let tmp = tmpd.path().to_owned();
+        let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
         assert!(tmp.exists());
         assert!(tmp.is_dir());
         println!("foo {:?}", tmp);
         let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
 
-        // okay, what does "insert" look like here .. we want to get
-        // _back_ a Builder right? But we can't / don't know the
-        // location until it's done. So does it provide some sot of
-        // semi-empheral "incoming" area and then "mv" the thing to
-        // the correct spot when done?
-
+        let message = b"To light a candle is to cast a shadow...";
         let mut builder = collection.insert(4096).unwrap();
-        builder.write(b"To light a candle is to cast a shadow...").unwrap();
-        let (cap, meta) = builder.done().unwrap();
+        builder.write(message).unwrap();
+        let (cap, mut writer) = builder.done().unwrap();
         println!("{}", cap);
+        writer.flush().unwrap();
+
+        let id: ImmutableIdentifier = (&cap).into();
+        println!("{:?}", &id);
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        let immutable = collection.open(&id).unwrap();
+        if let Ok(data) = cap.decrypt(&immutable) {
+            println!("success: {}", data.len());
+            println!("{}", std::str::from_utf8(data.as_slice()).unwrap());
+            assert_eq!(message, data.as_slice());
+        }
     }
 
     use proptest::prelude::*;
