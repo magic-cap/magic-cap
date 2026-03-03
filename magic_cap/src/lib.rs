@@ -627,7 +627,7 @@ fn vec_to_array<T, const BLOCKSIZE: usize>(v: Vec<T>) -> Result<[T; BLOCKSIZE], 
     }
 }
 
-/// Specification of how to access all ciphertext, whcih are stored in blocks.
+/// Specification of how to access all ciphertext, which are stored in blocks.
 pub trait EncryptedImmutable {
     // naive API:
     fn get_total_blocks(&self) -> usize;

@@ -2,7 +2,7 @@ use magic_cap::{Immutable, ImmutableBuilder, ReadCap};
 use std::io::{Cursor, Write};
 
 fn main() {
-    let plaintext: Vec<u8> = "attack at dawn".into();
+    let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
     let mut ciphertext: Vec<u8> = vec![];
 
     // create an encrypted immutable + associated ReadCap

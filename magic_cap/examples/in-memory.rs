@@ -1,7 +1,7 @@
 use magic_cap::{Immutable, ImmutableCap, ImmutableVerifyCap};
 
 fn main() {
-    let plaintext: Vec<u8> = "attack at dawn".into();
+    let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
 
     if let Ok((ImmutableCap::Read(readcap), immutable)) =
         Immutable::encrypt(plaintext.as_slice(), 4096)
