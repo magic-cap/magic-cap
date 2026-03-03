@@ -150,10 +150,10 @@ fn find_collection_basic() {
     let mut builder = collection.insert(4096).unwrap();
     builder.write(message).unwrap();
     let (cap, mut writer) = builder.done().unwrap();
+    // todo: can we close() or put the right stuff out of scope instead?
     writer.flush().unwrap();
 
     let id: ImmutableIdentifier = (&cap).into();
-    std::thread::sleep(std::time::Duration::from_millis(1000));
     let immutable = collection.open(&id).unwrap();
     let data = cap.decrypt(&immutable).unwrap();
     assert_eq!(message, data.as_slice());

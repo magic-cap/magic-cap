@@ -49,9 +49,7 @@ where
     pub fn done(self) -> Result<(ImmutableReadCap, W), MagicCapError> {
         let (cap, w) = self.builder.done()?;
         // 1. tell collection we're done inserting
-        //self.completed(cap)?;
-        let cmp = self.completed;
-        cmp(&cap);
+        (self.completed)(&cap);
         // 2. return to parent
         Ok((cap, w))
     }
