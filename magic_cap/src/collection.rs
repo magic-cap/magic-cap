@@ -1,26 +1,29 @@
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufWriter;
-use std::path::{Path, PathBuf};
-use crate::{ImmutableBuilder, ImmutableIdentifier, ImmutableReadCap, Immutable};
 use crate::err::MagicCapError;
+use crate::{Immutable, ImmutableBuilder, ImmutableIdentifier, ImmutableReadCap};
+use std::fs::File;
+use std::io::BufWriter;
+use std::io::prelude::*;
+use std::path::{Path, PathBuf};
 
 pub trait ImmutableCollection {
     // todo: probably want "load" vs. "stream" API here
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
 
-    fn insert(&mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>;
+    fn insert(
+        &mut self,
+        blocksize: usize,
+    ) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ImmutableIdentifier {
-    storage_index: [u8; 32],  // tagged-hash
+    storage_index: [u8; 32], // tagged-hash
 }
 
 impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
     fn from(cap: &ImmutableVerifyCap) -> ImmutableIdentifier {
         ImmutableIdentifier {
-            storage_index:tagged_hash::<32>(b"magic_cap_storage_index_v1", &cap.metadata_hash),
+            storage_index: tagged_hash::<32>(b"magic_cap_storage_index_v1", &cap.metadata_hash),
         }
     }
 }
@@ -43,7 +46,6 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
     }
 }
 
-
 /// a file-system implementation of [`ImmutableCollection`] which
 /// stores magic-caps in a struture similar to Git
 /// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
@@ -60,9 +62,7 @@ impl ImmutableDirectoryCollection {
         // both more-accurately marks this as an
         // ImmutableDirectoryCollection and also explains to a human
         // what this is.
-        Ok(
-            ImmutableDirectoryCollection {root}
-        )
+        Ok(ImmutableDirectoryCollection { root })
     }
 }
 
@@ -100,7 +100,6 @@ where
     }
 }
 
-
 impl ImmutableCollection for ImmutableDirectoryCollection {
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError> {
         // 1. convert identifier to &str (base64? base32?)
@@ -114,8 +113,10 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         Ok(imm)
     }
 
-    fn insert(&mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>
-    {
+    fn insert(
+        &mut self,
+        blocksize: usize,
+    ) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError> {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
         // 3. return the builder with Write to our ephemeral file
@@ -143,11 +144,6 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         });
 
         let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
-        Ok(
-            ImmutableDirectoryCollectionBuilder::<BufWriter<File>> {
-                builder,
-                completed,
-            }
-        )
+        Ok(ImmutableDirectoryCollectionBuilder::<BufWriter<File>> { builder, completed })
     }
 }

@@ -1,9 +1,9 @@
-use std::io::{Write, Cursor};
-use magic_cap::{ImmutableBuilder, ReadCap, Immutable};
+use magic_cap::{Immutable, ImmutableBuilder, ReadCap};
+use std::io::{Cursor, Write};
 
 fn main() {
     let plaintext: Vec<u8> = "attack at dawn".into();
-    let mut ciphertext: Vec<u8> = vec!();
+    let mut ciphertext: Vec<u8> = vec![];
 
     // create an encrypted immutable + associated ReadCap
     let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();

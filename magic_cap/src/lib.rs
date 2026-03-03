@@ -77,10 +77,10 @@
 //! ```
 //!
 
-pub mod err;
 mod collection;
+pub mod err;
 
-#[cfg(test)]  // can we put this "inside" test.rs instead somehow?
+#[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
 
 // todo: re-export some stuff from collection
@@ -98,8 +98,8 @@ use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::BufWriter;
+use std::io::prelude::*;
 
 use err::MagicCapError;
 
@@ -298,7 +298,6 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         Ok(())
     }
 }
-
 
 // todo: make a Base32 / Base64 marker-type? That contains a String?
 impl std::convert::Into<String> for ImmutableIdentifier {

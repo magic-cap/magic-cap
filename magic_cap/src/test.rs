@@ -1,8 +1,7 @@
 use super::*;
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
-use tempfile::TempDir;
 use proptest::prelude::*;
-
+use tempfile::TempDir;
 
 #[test]
 fn golden_tahoe_tagged_hash() {
@@ -68,7 +67,7 @@ fn handcrafted_filesystem_round_trip() {
         std::io::BufWriter::new(fm),
         blocksize as usize,
     )
-        .unwrap();
+    .unwrap();
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let data = std::io::BufReader::new(fm);
