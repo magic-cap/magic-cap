@@ -218,6 +218,21 @@ pub mod test {
     use proptest::prelude::*;
     use tempfile::tempdir;
 
+    #[test]
+    fn reduce_unknown() {
+        let capstr = "mcap0x_deadbeef";
+        let mut output = vec!();
+        if let Err(x) = main_reduce(&mut output, capstr) {
+            match x {
+                MagicCapError::InvalidCap(_) => (),
+                _ => {panic!("Unexpected error")},
+            }
+        } else {
+            panic!("Expected an error");
+        }
+    }
+
+
     proptest! {
         #[test]
         fn round_trip_main(s in "\\PC+") {
@@ -240,6 +255,11 @@ pub mod test {
             main_reduce(&mut output, capstr)?;
             let verifycap = std::str::from_utf8(&output)?.trim_end();
             main_verify(verifycap, &cipher).unwrap();
+
+            // "reducing" a Verify Cap is a no-op
+            let mut output = vec!();
+            main_reduce(&mut output, verifycap).unwrap();
+            assert_eq!(String::from_utf8(output).unwrap().trim(), verifycap);
 
             // confirm that "decrypt" can turn back into plaintext
             let mut output = vec!();

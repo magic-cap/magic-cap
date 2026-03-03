@@ -254,17 +254,6 @@ impl ImmutableVerifyCap {
         let h = ImmutableVerifyCap::from(&immutable.metadata);
         h.metadata_hash == self.metadata_hash
     }
-
-    pub fn storage_index(&self) -> [u8; 16] {
-        // the contents of the metadata-hash are essentially random:
-        // the ciphertext_root is a Merkle tree over the encryption
-        // (with a random key) of the plaintext. Tahoe-LAFS chooses to
-        // tagged-hash the _key_ for the storage index, but we believe
-        // this is "just as random" -- and further, allows
-        // (hypothetical future) storage servers to double-check that
-        // uploaded data corresponds to the storage-index
-        tagged_hash::<16>(b"metadata_to_storage_index_v1", &self.metadata_hash)
-    }
 }
 
 impl ImmutableVerifier for ImmutableVerifyCap {
@@ -304,7 +293,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ImmutableIdentifier {
     storage_index: [u8; 32],  // tagged-hash
 }
@@ -317,9 +306,21 @@ impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
     }
 }
 
+impl std::convert::From<ImmutableVerifyCap> for ImmutableIdentifier {
+    fn from(cap: ImmutableVerifyCap) -> ImmutableIdentifier {
+        ImmutableIdentifier::from(&cap)
+    }
+}
+
 impl std::convert::From<&ImmutableReadCap> for ImmutableIdentifier {
     fn from(cap: &ImmutableReadCap) -> ImmutableIdentifier {
         ImmutableIdentifier::from(&cap.verify)
+    }
+}
+
+impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
+    fn from(cap: ImmutableReadCap) -> ImmutableIdentifier {
+        ImmutableIdentifier::from(&cap)
     }
 }
 
@@ -1231,6 +1232,18 @@ pub mod test {
     }
 
     #[test]
+    fn read_and_verify_same_identifier() {
+        let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+        let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
+        let verifycap: ImmutableVerifyCap = readcap.clone().into();
+
+        assert_eq!(
+            ImmutableIdentifier::from(readcap),
+            ImmutableIdentifier::from(verifycap)
+        );
+    }
+
+    #[test]
     fn find_collection_basic() {
         //let tmpd = TempDir::new().unwrap();
         //let tmp = tmpd.path().to_owned();
@@ -1272,9 +1285,13 @@ pub mod test {
 
     #[test]
     fn verify_fails_corrupted_ciphertext(s in "\\PC+") {
-        let (cap, immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
-        if let ImmutableCap::Verify(vcap) = cap {
-            assert!(vcap.verify(&immutable).is_ok());
+        let (cap0, immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (cap1, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        if let ImmutableCap::Read(rcap) = cap0 {
+            let vcap: ImmutableVerifyCap = rcap.into();
+            assert!(vcap.verify(&immutable1).is_err());
+        } else {
+            panic!("asdf");
         }
     }
 
