@@ -1,9 +1,10 @@
 use crate::err::MagicCapError;
-use crate::{Immutable, ImmutableBuilder, ImmutableIdentifier, ImmutableReadCap};
+use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap, tagged_hash};
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use data_encoding::HEXLOWER;
 
 pub trait ImmutableCollection {
     // todo: probably want "load" vs. "stream" API here
@@ -25,6 +26,19 @@ impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
         ImmutableIdentifier {
             storage_index: tagged_hash::<32>(b"magic_cap_storage_index_v1", &cap.metadata_hash),
         }
+    }
+}
+
+// todo: make a Base32 / Base64 marker-type? That contains a String?
+impl std::convert::From<ImmutableIdentifier> for String {
+    fn from(val: ImmutableIdentifier) -> String {
+        Self::from(&val)
+    }
+}
+
+impl std::convert::From<&ImmutableIdentifier> for String {
+    fn from(val: &ImmutableIdentifier) -> String {
+        HEXLOWER.encode(&val.storage_index)
     }
 }
 
@@ -71,7 +85,7 @@ where
     W: Write,
 {
     builder: ImmutableBuilder<W>,
-    completed: Box<dyn FnOnce(&ImmutableReadCap) -> ()>,
+    completed: Box<dyn FnOnce(&ImmutableReadCap)>,
 }
 
 impl<W> ImmutableDirectoryCollectionBuilder<W>
@@ -131,7 +145,7 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         let mut dir = self.root.clone();
         let completed = Box::new(move |cap: &ImmutableReadCap| {
             let id: ImmutableIdentifier = cap.into();
-            let idstr: String = (&id).into();
+            let idstr: String = id.into();
             dir.push(&idstr[0..2]);
             let mut fname = dir.clone();
             fname.push(&idstr);
