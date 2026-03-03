@@ -141,9 +141,6 @@ fn read_and_verify_same_identifier() {
 fn find_collection_basic() {
     let tmpd = TempDir::new().unwrap();
     let tmp = tmpd.path().to_owned();
-    //let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
-    assert!(tmp.exists());
-    assert!(tmp.is_dir());
     let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
 
     let message = b"To light a candle is to cast a shadow...";
