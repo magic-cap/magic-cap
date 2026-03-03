@@ -1,10 +1,10 @@
 use crate::err::MagicCapError;
 use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap, tagged_hash};
+use data_encoding::HEXLOWER;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use data_encoding::HEXLOWER;
 
 pub trait ImmutableCollection {
     // todo: probably want "load" vs. "stream" API here

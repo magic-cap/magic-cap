@@ -84,9 +84,9 @@ pub mod err;
 mod test;
 
 // todo: re-export some stuff from collection
-pub use collection::ImmutableIdentifier;
 pub use collection::ImmutableCollection;
 pub use collection::ImmutableDirectoryCollection;
+pub use collection::ImmutableIdentifier;
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
