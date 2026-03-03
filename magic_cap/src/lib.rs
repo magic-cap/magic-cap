@@ -79,6 +79,9 @@
 
 pub mod err;
 
+#[cfg(test)]  // can we put this "inside" test.rs instead somehow?
+mod test;
+
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
 use data_encoding::{BASE64URL_NOPAD, HEXLOWER};

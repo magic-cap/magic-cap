@@ -1,166 +1,165 @@
-#[cfg(test)]
-pub mod test {
-    use super::*;
-    use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
-    use tempfile::TempDir;
+use super::*;
+use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+use tempfile::TempDir;
+use proptest::prelude::*;
 
-    #[test]
-    fn golden_tahoe_tagged_hash() {
-        let gold = b"\xee\x19\x0f\x82\xb1\x962\xaf\xf9\x97\x18SN\xd8\x96y0\xc4\xf8\xd1\x8fEqh\xab\r27\xae\r\x95\x0b";
-        let alleged = tagged_hash::<32>(b"foo", b"bar");
-        assert_eq!(*gold, alleged);
-    }
 
-    #[test]
-    fn doc_example_in_memory() {
-        let plaintext: Vec<u8> = "attack at dawn".into();
+#[test]
+fn golden_tahoe_tagged_hash() {
+    let gold = b"\xee\x19\x0f\x82\xb1\x962\xaf\xf9\x97\x18SN\xd8\x96y0\xc4\xf8\xd1\x8fEqh\xab\r27\xae\r\x95\x0b";
+    let alleged = tagged_hash::<32>(b"foo", b"bar");
+    assert_eq!(*gold, alleged);
+}
 
-        if let Ok((ImmutableCap::Read(readcap), immutable)) =
-            Immutable::encrypt(plaintext.as_slice(), 4096)
-        {
-            println!("Read Cap: {:?}", readcap);
+#[test]
+fn doc_example_in_memory() {
+    let plaintext: Vec<u8> = "attack at dawn".into();
 
-            let verifycap: ImmutableVerifyCap = readcap.into();
-            if !verifycap.corresponds_to(&immutable) {
-                println!("Verify Cap does not match data");
-            }
+    if let Ok((ImmutableCap::Read(readcap), immutable)) =
+        Immutable::encrypt(plaintext.as_slice(), 4096)
+    {
+        println!("Read Cap: {:?}", readcap);
+
+        let verifycap: ImmutableVerifyCap = readcap.into();
+        if !verifycap.corresponds_to(&immutable) {
+            println!("Verify Cap does not match data");
         }
     }
+}
 
-    #[test]
-    fn doc_example_capstrings() {
-        let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
-        let cap: ImmutableReadCap = cap_string.try_into().unwrap();
-        println!("The cap is: {}", cap);
-    }
+#[test]
+fn doc_example_capstrings() {
+    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+    let cap: ImmutableReadCap = cap_string.try_into().unwrap();
+    println!("The cap is: {}", cap);
+}
 
-    #[test]
-    fn doc_example_verifycap() {
-        let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
-        let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
-        let verifycap: ImmutableVerifyCap = readcap.into();
-        let verifycap_string = format!("{}", verifycap);
-        assert_eq!(
-            verifycap_string,
-            "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
-        );
-    }
+#[test]
+fn doc_example_verifycap() {
+    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+    let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
+    let verifycap: ImmutableVerifyCap = readcap.into();
+    let verifycap_string = format!("{}", verifycap);
+    assert_eq!(
+        verifycap_string,
+        "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+    );
+}
 
-    #[test]
-    fn doc_example_verify() {
-        let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
-            .try_into()
-            .unwrap();
-        let ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
-        assert!(verifycap.corresponds_to(&ciphertext));
-        verifycap.verify(&ciphertext).unwrap();
-    }
+#[test]
+fn doc_example_verify() {
+    let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+        .try_into()
+        .unwrap();
+    let ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
+    assert!(verifycap.corresponds_to(&ciphertext));
+    verifycap.verify(&ciphertext).unwrap();
+}
 
-    #[test]
-    fn handcrafted_filesystem_round_trip() {
-        let blocksize = 2;
-        let input: Vec<u8> = b"abcdef".to_vec();
-        let tmp = TempDir::new().unwrap();
+#[test]
+fn handcrafted_filesystem_round_trip() {
+    let blocksize = 2;
+    let input: Vec<u8> = b"abcdef".to_vec();
+    let tmp = TempDir::new().unwrap();
 
-        let fm = File::create(tmp.path().join("encrypted")).unwrap();
-        let cap = ImmutableReadCap::encrypt(
-            input.clone(),
-            std::io::BufWriter::new(fm),
-            blocksize as usize,
-        )
+    let fm = File::create(tmp.path().join("encrypted")).unwrap();
+    let cap = ImmutableReadCap::encrypt(
+        input.clone(),
+        std::io::BufWriter::new(fm),
+        blocksize as usize,
+    )
         .unwrap();
 
-        let fm = File::open(tmp.path().join("encrypted")).unwrap();
-        let data = std::io::BufReader::new(fm);
-        let imm2 = Immutable::read(data).unwrap();
-        let plain_text = cap.decrypt(&imm2).unwrap();
-        assert_eq!(input, plain_text);
-    }
+    let fm = File::open(tmp.path().join("encrypted")).unwrap();
+    let data = std::io::BufReader::new(fm);
+    let imm2 = Immutable::read(data).unwrap();
+    let plain_text = cap.decrypt(&imm2).unwrap();
+    assert_eq!(input, plain_text);
+}
 
-    #[test]
-    fn power_of_two() {
-        // test our assumptions about how next_power_of_two() works
-        assert_eq!(2u32.next_power_of_two(), 2);
-        assert_eq!(3u32.next_power_of_two(), 4);
-        assert_eq!(4u32.next_power_of_two(), 4);
-    }
+#[test]
+fn power_of_two() {
+    // test our assumptions about how next_power_of_two() works
+    assert_eq!(2u32.next_power_of_two(), 2);
+    assert_eq!(3u32.next_power_of_two(), 4);
+    assert_eq!(4u32.next_power_of_two(), 4);
+}
 
-    #[test]
-    fn merkle_behavior() {
-        let mut leaves: Vec<[u8; 32]> = vec![
-            TahoeLeaf::hash(b"foo"),
-            TahoeLeaf::hash(b"bar"),
-            TahoeLeaf::hash(b"quux"),
-        ];
-        let mt = MerkleTree::<TahoeInside>::from_leaves(&leaves);
-        println!("root: {:?}", mt.root().unwrap());
+#[test]
+fn merkle_behavior() {
+    let mut leaves: Vec<[u8; 32]> = vec![
+        TahoeLeaf::hash(b"foo"),
+        TahoeLeaf::hash(b"bar"),
+        TahoeLeaf::hash(b"quux"),
+    ];
+    let mt = MerkleTree::<TahoeInside>::from_leaves(&leaves);
+    println!("root: {:?}", mt.root().unwrap());
 
-        leaves.push([0u8; 32]);
-        let mt = MerkleTree::<TahoeInside>::from_leaves(&leaves);
-        println!("root: {:?}", mt.root().unwrap());
+    leaves.push([0u8; 32]);
+    let mt = MerkleTree::<TahoeInside>::from_leaves(&leaves);
+    println!("root: {:?}", mt.root().unwrap());
 
-        let foo = [[1u8; 32], [0u8; 32]].concat();
-        let bar = vec![1u8; 32];
-        println!("X {:?}", TahoeInside::hash(&foo));
-        println!("X {:?}", TahoeInside::hash(&bar));
-    }
-    #[test]
-    fn decrypt_with_iv() {
-        /* How do we decrypt blocks somewhere deep inside the stream?
-        Our temple robbing has discovered try_seek as part of StreamCipherSeek */
-        let mut key_bytes = [1u8; 16];
-        getrandom::fill(&mut key_bytes).unwrap();
-        let iv = [0u8; 16]; // 16 bytes of 0's (I wonder if IV is allowed to rollover? looks like yes?)
-        let mut key = TahoeAesCtr::new(&key_bytes.into(), &iv.into());
-        let mut b: Vec<u8> = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec();
-        key.apply_keystream(&mut b);
-        // let cpos:usize = key.current_pos();
-        // println!("Size is {total_size}\nThe IV is now set to {cpos}");
-        let bad_iv = [0u8; 16];
-        let mut unkey = TahoeAesCtr::new(&key_bytes.into(), &bad_iv.into());
-        unkey.try_seek(26).unwrap();
-        let mut subvec: Vec<u8> = b.clone();
-        subvec.drain(0..26);
-        unkey.apply_keystream(&mut subvec);
-        println!("Hopefully decrypted: {:?}", subvec);
-    }
+    let foo = [[1u8; 32], [0u8; 32]].concat();
+    let bar = vec![1u8; 32];
+    println!("X {:?}", TahoeInside::hash(&foo));
+    println!("X {:?}", TahoeInside::hash(&bar));
+}
+#[test]
+fn decrypt_with_iv() {
+    /* How do we decrypt blocks somewhere deep inside the stream?
+    Our temple robbing has discovered try_seek as part of StreamCipherSeek */
+    let mut key_bytes = [1u8; 16];
+    getrandom::fill(&mut key_bytes).unwrap();
+    let iv = [0u8; 16]; // 16 bytes of 0's (I wonder if IV is allowed to rollover? looks like yes?)
+    let mut key = TahoeAesCtr::new(&key_bytes.into(), &iv.into());
+    let mut b: Vec<u8> = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec();
+    key.apply_keystream(&mut b);
+    // let cpos:usize = key.current_pos();
+    // println!("Size is {total_size}\nThe IV is now set to {cpos}");
+    let bad_iv = [0u8; 16];
+    let mut unkey = TahoeAesCtr::new(&key_bytes.into(), &bad_iv.into());
+    unkey.try_seek(26).unwrap();
+    let mut subvec: Vec<u8> = b.clone();
+    subvec.drain(0..26);
+    unkey.apply_keystream(&mut subvec);
+    println!("Hopefully decrypted: {:?}", subvec);
+}
 
-    #[test]
-    fn read_and_verify_same_identifier() {
-        let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
-        let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
-        let verifycap: ImmutableVerifyCap = readcap.clone().into();
+#[test]
+fn read_and_verify_same_identifier() {
+    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+    let readcap: ImmutableReadCap = cap_string.try_into().unwrap();
+    let verifycap: ImmutableVerifyCap = readcap.clone().into();
 
-        assert_eq!(
-            ImmutableIdentifier::from(readcap),
-            ImmutableIdentifier::from(verifycap)
-        );
-    }
+    assert_eq!(
+        ImmutableIdentifier::from(readcap),
+        ImmutableIdentifier::from(verifycap)
+    );
+}
 
-    #[test]
-    fn find_collection_basic() {
-        let tmpd = TempDir::new().unwrap();
-        let tmp = tmpd.path().to_owned();
-        //let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
-        assert!(tmp.exists());
-        assert!(tmp.is_dir());
-        let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
+#[test]
+fn find_collection_basic() {
+    let tmpd = TempDir::new().unwrap();
+    let tmp = tmpd.path().to_owned();
+    //let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
+    assert!(tmp.exists());
+    assert!(tmp.is_dir());
+    let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
 
-        let message = b"To light a candle is to cast a shadow...";
-        let mut builder = collection.insert(4096).unwrap();
-        builder.write(message).unwrap();
-        let (cap, mut writer) = builder.done().unwrap();
-        writer.flush().unwrap();
+    let message = b"To light a candle is to cast a shadow...";
+    let mut builder = collection.insert(4096).unwrap();
+    builder.write(message).unwrap();
+    let (cap, mut writer) = builder.done().unwrap();
+    writer.flush().unwrap();
 
-        let id: ImmutableIdentifier = (&cap).into();
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-        let immutable = collection.open(&id).unwrap();
-        let data = cap.decrypt(&immutable).unwrap();
-        assert_eq!(message, data.as_slice());
-    }
+    let id: ImmutableIdentifier = (&cap).into();
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    let immutable = collection.open(&id).unwrap();
+    let data = cap.decrypt(&immutable).unwrap();
+    assert_eq!(message, data.as_slice());
+}
 
-    use proptest::prelude::*;
-    proptest! {
+proptest! {
     #[test]
     fn encrypt_doesnt_crash(s in "\\PC+") {
         Immutable::encrypt(s.as_bytes(), 4096).unwrap();
@@ -269,9 +268,9 @@ pub mod test {
         }
     }
 
-    }
+}
 
-    proptest! {
+proptest! {
     #![proptest_config(ProptestConfig {
         max_shrink_iters: 2500, cases: 5, .. ProptestConfig::default()
     })]
@@ -359,6 +358,5 @@ pub mod test {
         let imm2 = Immutable::read(data).unwrap();
         let plain_text = cap.decrypt(&imm2).unwrap();
         assert_eq!(input, plain_text);
-    }
     }
 }
