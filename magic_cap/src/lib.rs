@@ -1243,9 +1243,9 @@ pub mod test {
 
     #[test]
     fn find_collection_basic() {
-        //let tmpd = TempDir::new().unwrap();
-        //let tmp = tmpd.path().to_owned();
-        let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
+        let tmpd = TempDir::new().unwrap();
+        let tmp = tmpd.path().to_owned();
+        //let tmp = PathBuf::from("/home/meejah/src/magic-cap/data/root");
         assert!(tmp.exists());
         assert!(tmp.is_dir());
         let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
