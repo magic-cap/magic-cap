@@ -341,7 +341,7 @@ pub trait ImmutableCollection {
     // todo: probably want "load" vs. "stream" API here
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
 
-    fn insert<'a>(&'a mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<'a, BufWriter<File>>, MagicCapError>;
+    fn insert(&mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>;
 }
 
 /// a file-system implementation of [`ImmutableCollection`] which
@@ -366,16 +366,15 @@ impl ImmutableDirectoryCollection {
     }
 }
 
-pub struct ImmutableDirectoryCollectionBuilder<'a, W>
+pub struct ImmutableDirectoryCollectionBuilder<W>
 where
     W: Write,
 {
     builder: ImmutableBuilder<W>,
-    collection: &'a mut ImmutableDirectoryCollection,
     completed: Box<dyn FnOnce(&ImmutableReadCap) -> ()>,
 }
 
-impl<'a, W> ImmutableDirectoryCollectionBuilder<'a, W>
+impl<W> ImmutableDirectoryCollectionBuilder<W>
 where
     W: Write,
 {
@@ -390,7 +389,7 @@ where
     }
 }
 
-impl<'a, W> Write for ImmutableDirectoryCollectionBuilder<'a, W>
+impl<W> Write for ImmutableDirectoryCollectionBuilder<W>
 where
     W: Write,
 {
@@ -417,7 +416,7 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
         Ok(imm)
     }
 
-    fn insert<'a>(&'a mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<'a, BufWriter<File>>, MagicCapError>
+    fn insert(&mut self, blocksize: usize) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>
     {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
@@ -450,7 +449,6 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
             ImmutableDirectoryCollectionBuilder::<BufWriter<File>> {
                 builder,
                 completed,
-                collection: self,
             }
         )
     }
@@ -1285,8 +1283,8 @@ pub mod test {
 
     #[test]
     fn verify_fails_corrupted_ciphertext(s in "\\PC+") {
-        let (cap0, immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
-        let (cap1, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (cap0, _immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (_cap1, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Read(rcap) = cap0 {
             let vcap: ImmutableVerifyCap = rcap.into();
             assert!(vcap.verify(&immutable1).is_err());
