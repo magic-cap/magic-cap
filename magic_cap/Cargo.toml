@@ -21,7 +21,6 @@ unsafe_code = "forbid"
 
 [dependencies]
 aes = "0.8.4"
-anyhow = "1.0.99"
 cipher = "0.4.4"
 ctr = "0.9.2"
 data-encoding = "2.9.0"
@@ -35,13 +34,12 @@ tempfile = "3.2"
 # can we put this in other deps?
 include-doc = "0.2.2"
 
-[build-dependencies]
-cargo-llvm-cov = "0.6.21"
 
 [dev-dependencies]
 proptest = "1.7.0"
 tempfile = "3.2"
 criterion = { version = "0.8", features = ["html_reports"] }
+cargo-llvm-cov = "*"
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["proptest"]
