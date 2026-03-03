@@ -56,6 +56,18 @@ fn doc_example_verify() {
 }
 
 #[test]
+fn handcrafted_illegal_cap_tag() {
+    let data = b"notmcap";
+    assert!(Immutable::read(std::io::Cursor::new(data)).is_err());
+}
+
+#[test]
+fn handcrafted_illegal_cap_version() {
+    let data = b"mcap\xff\xff\xff\xff";
+    assert!(Immutable::read(std::io::Cursor::new(data)).is_err());
+}
+
+#[test]
 fn handcrafted_filesystem_round_trip() {
     let blocksize = 2;
     let input: Vec<u8> = b"abcdef".to_vec();
@@ -137,6 +149,14 @@ fn read_and_verify_same_identifier() {
 }
 
 #[test]
+fn invalid_caps() {
+    let cap_string = "MCAP0z-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
+    // suggestions from the compiler .. shorter way to say this?
+    assert!(<&str as std::convert::TryInto<ImmutableVerifyCap>>::try_into(cap_string).is_err());
+    assert!(<&str as std::convert::TryInto<ImmutableReadCap>>::try_into(cap_string).is_err());
+}
+
+#[test]
 fn find_collection_basic() {
     let tmpd = TempDir::new().unwrap();
     let tmp = tmpd.path().to_owned();
@@ -177,8 +197,10 @@ proptest! {
         let (cap0, _immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         let (_cap1, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Read(rcap) = cap0 {
+            let rcap0 = rcap.clone();
             let vcap: ImmutableVerifyCap = rcap.into();
             assert!(vcap.verify(&immutable1).is_err());
+            assert!(rcap0.verify(&immutable1).is_err());
         } else {
             panic!("asdf");
         }
