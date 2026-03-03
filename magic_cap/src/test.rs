@@ -149,9 +149,9 @@ fn find_collection_basic() {
     let message = b"To light a candle is to cast a shadow...";
     let mut builder = collection.insert(4096).unwrap();
     builder.write(message).unwrap();
-    let (cap, mut writer) = builder.done().unwrap();
-    // todo: can we close() or put the right stuff out of scope instead?
-    writer.flush().unwrap();
+    let (cap, _) = builder.done().unwrap();
+    // note: we have to drop "writer", which is the "_" above, so it
+    // flushes / closes properly
 
     let id: ImmutableIdentifier = (&cap).into();
     let immutable = collection.open(&id).unwrap();
