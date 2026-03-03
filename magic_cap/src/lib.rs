@@ -300,37 +300,6 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 }
 
 
-#[derive(Debug, PartialEq)]
-pub struct ImmutableIdentifier {
-    storage_index: [u8; 32],  // tagged-hash
-}
-
-impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
-    fn from(cap: &ImmutableVerifyCap) -> ImmutableIdentifier {
-        ImmutableIdentifier {
-            storage_index:tagged_hash::<32>(b"magic_cap_storage_index_v1", &cap.metadata_hash),
-        }
-    }
-}
-
-impl std::convert::From<ImmutableVerifyCap> for ImmutableIdentifier {
-    fn from(cap: ImmutableVerifyCap) -> ImmutableIdentifier {
-        ImmutableIdentifier::from(&cap)
-    }
-}
-
-impl std::convert::From<&ImmutableReadCap> for ImmutableIdentifier {
-    fn from(cap: &ImmutableReadCap) -> ImmutableIdentifier {
-        ImmutableIdentifier::from(&cap.verify)
-    }
-}
-
-impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
-    fn from(cap: ImmutableReadCap) -> ImmutableIdentifier {
-        ImmutableIdentifier::from(&cap)
-    }
-}
-
 // todo: make a Base32 / Base64 marker-type? That contains a String?
 impl std::convert::Into<String> for ImmutableIdentifier {
     fn into(self) -> String {
