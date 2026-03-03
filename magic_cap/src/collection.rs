@@ -5,7 +5,11 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use std::fmt;
 
+// todo: might want a more fine-grained API so we do "get_metadata"
+// vs. "get_ciphertext" so that a network / storage-server can be
+// smarter about the seeks? (speculative)!
 pub trait ImmutableCollection {
     // todo: probably want "load" vs. "stream" API here
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
@@ -19,6 +23,12 @@ pub trait ImmutableCollection {
 #[derive(Debug, PartialEq)]
 pub struct ImmutableIdentifier {
     storage_index: [u8; 32], // tagged-hash
+}
+
+impl fmt::Display for ImmutableIdentifier {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", HEXLOWER.encode(&self.storage_index))
+    }
 }
 
 impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
@@ -59,6 +69,12 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
         ImmutableIdentifier::from(&cap)
     }
 }
+
+// TODO: could have a Default implementation that always says no and
+// is and error to insert?
+//
+// OR: could create a new one in a "well known place" and uses that
+// (this is nice because then it actually works)
 
 /// a file-system implementation of [`ImmutableCollection`] which
 /// stores magic-caps in a struture similar to Git

@@ -100,6 +100,9 @@ use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
+    ImmutableCollection,
+    ImmutableDirectoryCollection,
+    ImmutableIdentifier,
 };
 use std::fs::File;
 use std::io::prelude::*;
@@ -149,19 +152,41 @@ pub fn main_encrypt(
     Ok(())
 }
 
+//static default_collection: PathBuf = PathBuf::from("~/.magicap");
+
 /// "mcap decrypt"
 pub fn main_decrypt(
     //    input: &mut impl Read,
     output: &mut impl Write,
     cap: &str,
-    input_fname: &PathBuf,
-    outfile: &Path,
+    collection: &Option<PathBuf>,
+    input_fname: &Option<PathBuf>,
+    outfile: &PathBuf,
 ) -> Result<(), MagicCapError> {
+    if collection.is_some() && input_fname.is_some() {
+        // could be error, could say "if filename doesn't exist then use collection"
+        //
+        // take a Enum in here that is a Collection OR a input_fname
+        // so we can only do one
+        todo!();
+    }
     let cap = ImmutableReadCap::try_from(cap)?;
-    let f = std::fs::File::open(input_fname)?;
-    let imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
-    match cap.decrypt(&imm) {
+    let imm: Result<Immutable, MagicCapError> = if let Some(input_fname) = input_fname {
+        let f = std::fs::File::open(input_fname)?;
+        Immutable::read(&mut std::io::BufReader::new(f))
+    } else {
+        //let root = collection.ok_or(default_collection);
+        if let Some(root) = collection {
+            let collect = ImmutableDirectoryCollection::create(root.clone())?;
+            let locid: ImmutableIdentifier = (&cap).into();
+            collect.open(&locid)
+        } else {
+            Err(MagicCapError::NoCapability)
+        }
+    };
+
+    match cap.decrypt(&imm?) {
         Ok(plain) => {
             let mut out = std::fs::File::create(outfile)?;
             out.write_all(plain.as_slice())?;

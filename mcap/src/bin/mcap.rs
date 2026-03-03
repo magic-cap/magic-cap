@@ -38,8 +38,13 @@ enum Commands {
         #[arg(long)]
         cap: String,
 
+        // todo: shae says we can put these in a group .. see
+        // https://stackoverflow.com/questions/76315540/how-do-i-require-one-of-the-two-clap-options/76315811#76315811
+        #[arg(long)]
+        collection: Option<PathBuf>,
         #[arg(short, long)]
-        ciphertext: PathBuf,
+        ciphertext: Option<PathBuf>,
+
         #[arg(short, long)]
         plaintext: PathBuf,
         // #[arg(short, long)]
@@ -68,9 +73,10 @@ fn main() {
         }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext),
         Some(Commands::Decrypt {
             cap,
+            collection,
             ciphertext,
             plaintext,
-        }) => main_decrypt(&mut std::io::stdout(), cap, ciphertext, plaintext),
+        }) => main_decrypt(&mut std::io::stdout(), cap, collection, ciphertext, plaintext),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         None => Ok(()),
