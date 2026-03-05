@@ -27,14 +27,16 @@
               in
                 pkgs.mkShell {
                   packages = with pkgs; [
+                    llvmPackages.llvm
                     (rust-bin.stable.latest.default.override {
-                      extensions = [ "rust-analyzer" ];
+                      extensions = [ "rust-analyzer" "rust-src" "llvm-tools-preview" ];
                     })
                     cargo
                     cargo-autoinherit
                     cargo-depgraph
                     cargo-duplicates
                     cargo-edit
+                    cargo-llvm-cov
                     cargo-wizard
                     clippy
                     gnuplot
