@@ -7,6 +7,7 @@
   outputs = { nixpkgs, rust-overlay, ... }:
     let
       system = "x86_64-linux";
+      pkgs = import nixpkgs { inherit system; };
     in {
       packages.${system}.default =
         let
@@ -42,5 +43,13 @@
                     gnuplot
                   ];
                 };
+      apps.${system}.cov = {
+        type = "app";
+        program = pkgs.lib.getExe (pkgs.writeShellScriptBin "cov" ''
+          #!env bash
+          cargo llvm-cov --html
+          firefox --new-tab --url ./target/llvm-cov/html/index.html
+          '');
+      };
     };
 }
