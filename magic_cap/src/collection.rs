@@ -1,11 +1,11 @@
 use crate::err::MagicCapError;
 use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap, tagged_hash};
 use data_encoding::HEXLOWER;
+use std::fmt;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::fmt;
 
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
@@ -26,7 +26,7 @@ pub struct ImmutableIdentifier {
 }
 
 impl fmt::Display for ImmutableIdentifier {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", HEXLOWER.encode(&self.storage_index))
     }
 }

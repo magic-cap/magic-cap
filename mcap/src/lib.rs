@@ -99,10 +99,8 @@
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
-    ImmutableCollection,
-    ImmutableDirectoryCollection,
-    ImmutableIdentifier,
+    Immutable, ImmutableBuilder, ImmutableCollection, ImmutableDirectoryCollection,
+    ImmutableIdentifier, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
 use std::fs::File;
 use std::io::prelude::*;
