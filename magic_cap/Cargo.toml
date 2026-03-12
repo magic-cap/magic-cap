@@ -8,7 +8,7 @@ authors = [
 ]
 license = "AGPL-3.0-or-later"
 description = "Magic Cap is a user-friendly tool for encrypted files."
-##documentation = ""
+documentation = "https://docs.rs/crates/magic_cap"
 homepage = "https://github.com/magic-cap"
 repository = "https://github.com/magic-cap/magic-cap"
 readme = "../README.org"
