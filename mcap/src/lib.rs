@@ -153,8 +153,7 @@ pub fn main_encrypt(
     let mut r = input_file.read(&mut plaintext)?;
     while r != 0 {
         plaintext.resize(r, 0);
-        let zz = cryptor.write(&plaintext)?;
-        println!("ASDFASDF {}", zz);
+        let _ = cryptor.write(&plaintext)?;
         r = input_file.read(&mut plaintext)?;
     }
     let (cap, _) = cryptor.done()?;
@@ -173,7 +172,7 @@ pub fn main_decrypt(
     cap: &str,
     collection: &Option<PathBuf>,
     input_fname: &Option<PathBuf>,
-    outfile: &PathBuf,
+    outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     if collection.is_some() && input_fname.is_some() {
         // could be error, could say "if filename doesn't exist then use collection"
@@ -200,19 +199,25 @@ pub fn main_decrypt(
 
     match cap.decrypt(&imm?) {
         Ok(plain) => {
-            let mut out = std::fs::File::create(outfile)?;
-            out.write_all(plain.as_slice())?;
-            match outfile.to_str() {
-                Some(of) => {
-                    writeln!(
-                        output,
-                        "Wrote {} bytes of plaintext to \"{}\".",
-                        plain.len(),
-                        of,
-                    )?;
-                    Ok(())
+            if let Some(outfile) = outfile {
+                let mut out = std::fs::File::create(outfile)?;
+                out.write_all(plain.as_slice())?;
+                match outfile.to_str() {
+                    Some(of) => {
+                        writeln!(
+                            output,
+                            "Wrote {} bytes of plaintext to \"{}\".",
+                            plain.len(),
+                            of,
+                        )?;
+                        Ok(())
+                    }
+                    None => Ok(()),
                 }
-                None => Ok(()),
+            } else {
+                let mut out = std::io::stdout();
+                out.write_all(plain.as_slice())?;
+                Ok(())
             }
         }
         Err(e) => match &e {

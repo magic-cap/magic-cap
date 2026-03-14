@@ -49,7 +49,7 @@ enum Commands {
         ciphertext: Option<PathBuf>,
 
         #[arg(short, long)]
-        plaintext: PathBuf,
+        plaintext: Option<PathBuf>,
         // #[arg(short, long)]
         // crypt_text: PathBuf,
     },

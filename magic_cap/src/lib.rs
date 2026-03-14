@@ -440,9 +440,9 @@ where
                 Err(err) => return Err(std::io::Error::other(err)),
             };
             // write out a block
-            let written = self.output.write(&encrypted_block)?;
-            local_written += written;
-            self.ciphertext_bytes += written;
+            self.output.write_all(&encrypted_block)?;
+            local_written += encrypted_block.len();
+            self.ciphertext_bytes += encrypted_block.len();
         }
         Ok(local_written)
         // todo: we're basically "just hosed" if anything errors in
