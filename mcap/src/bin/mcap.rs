@@ -30,7 +30,10 @@ enum Commands {
     Encrypt {
         #[arg(short, long)]
         plaintext: PathBuf,
-        ciphertext: PathBuf,
+        #[arg(short, long)]
+        ciphertext: Option<PathBuf>,
+        #[arg(long)]
+        collection: Option<PathBuf>,
     },
 
     #[command(about = "turn a Magic Cap + ciphertext into plaintext")]
@@ -70,7 +73,8 @@ fn main() {
         Some(Commands::Encrypt {
             plaintext,
             ciphertext,
-        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext),
+            collection,
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext, collection),
         Some(Commands::Decrypt {
             cap,
             collection,
@@ -87,9 +91,10 @@ fn main() {
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         None => Ok(()),
     };
-
-    if let Err(e) = result {
+    result.unwrap();
+    //return result;
+/*    if let Err(e) = result {
         println!("Error: {}", e);
         std::process::exit(2);
-    }
+    }*/
 }

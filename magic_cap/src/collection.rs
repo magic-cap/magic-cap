@@ -17,7 +17,7 @@ pub trait ImmutableCollection {
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>;
+    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,6 +79,7 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
 /// a file-system implementation of [`ImmutableCollection`] which
 /// stores magic-caps in a struture similar to Git
 /// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
+#[derive(Debug)]
 pub struct ImmutableDirectoryCollection {
     root: PathBuf,
 }
@@ -93,40 +94,6 @@ impl ImmutableDirectoryCollection {
         // ImmutableDirectoryCollection and also explains to a human
         // what this is.
         Ok(ImmutableDirectoryCollection { root })
-    }
-}
-
-pub struct ImmutableDirectoryCollectionBuilder<W>
-where
-    W: Write,
-{
-    builder: ImmutableBuilder<W>,
-    completed: Box<dyn FnOnce(&ImmutableReadCap)>,
-}
-
-impl<W> ImmutableDirectoryCollectionBuilder<W>
-where
-    W: Write,
-{
-    pub fn done(self) -> Result<(ImmutableReadCap, W), MagicCapError> {
-        let (cap, w) = self.builder.done()?;
-        // 1. tell collection we're done inserting
-        (self.completed)(&cap);
-        // 2. return to parent
-        Ok((cap, w))
-    }
-}
-
-impl<W> Write for ImmutableDirectoryCollectionBuilder<W>
-where
-    W: Write,
-{
-    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        self.builder.write(buf)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.builder.flush()
     }
 }
 
@@ -146,7 +113,7 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError> {
+    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
         // 3. return the builder with Write to our ephemeral file
@@ -173,7 +140,7 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
             std::fs::rename(uploaded, fname).unwrap();
         });
 
-        let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
-        Ok(ImmutableDirectoryCollectionBuilder::<BufWriter<File>> { builder, completed })
+        let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter, Some(Box::new(completed)))?;
+        Ok(builder)
     }
 }

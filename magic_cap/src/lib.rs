@@ -339,6 +339,7 @@ pub struct ImmutableReadCap {
 /// To retrieve the ``Immutable`` you must call ``done`` which
 /// consumes the ``ImmutableBuilder`` and finalizes the metadata and
 /// offsets in the output.
+
 pub struct ImmutableBuilder<W>
 where
     W: Write,
@@ -347,6 +348,7 @@ where
     output: W,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
+    completed: Option<Box<dyn FnOnce(&ImmutableReadCap)>>,
 }
 
 // feb 3: see the history: we have a version that takes a "&mut Write"
@@ -364,7 +366,8 @@ where
 
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
-    pub fn new(blocksize: usize, mut writer: W) -> Result<Self, MagicCapError> {
+    pub fn new(blocksize: usize, mut writer: W, completed: Option<Box<dyn FnOnce(&ImmutableReadCap)>>) -> Result<Self, MagicCapError> {
+        println!("zzzz");
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
 
@@ -373,6 +376,7 @@ where
             output: writer,
             this_block: Vec::with_capacity(blocksize),
             ciphertext_bytes: 0,
+            completed,
         };
         Ok(result)
     }
@@ -385,6 +389,7 @@ where
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
+        println!("DONE");
         if !self.this_block.is_empty() {
             // make sure we "fill up" the final block and write it
             let leftover = self.context.blocksize - self.this_block.len();
@@ -407,6 +412,9 @@ where
         meta.write(&mut self.output)?;
 
         self.output.write_all(&offset.to_be_bytes())?;
+        if let Some(completion_cb) = self.completed {
+            completion_cb(&cap);
+        }
         Ok((cap, self.output))
     }
 }

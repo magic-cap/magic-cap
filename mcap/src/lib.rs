@@ -104,6 +104,7 @@ use magic_cap::{
 };
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 pub mod tests;
@@ -114,7 +115,8 @@ pub mod tests;
 pub fn main_encrypt(
     output: &mut impl Write,
     plain_text: &Path,
-    output_fname: &Path,
+    output_fname: &Option<PathBuf>,
+    collection: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
 
@@ -133,16 +135,26 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    let output_file = File::create(output_fname)?;
-    let mut bufw = std::io::BufWriter::new(output_file);
+    let mut cryptor: ImmutableBuilder<BufWriter<File>> = if let Some(output_fname) = output_fname {
+        let output_file = File::create(output_fname)?;
+        ImmutableBuilder::new(4096, BufWriter::new(output_file), None)?
+    } else {
+        if let Some(collection) = collection {
+            let mut collection = ImmutableDirectoryCollection::create(collection.clone())?;
+            collection.insert(4096)?
+        } else {
+            todo!();//Err(MagicCapError::IOError(std::io::Error::other("whatevs")))
+        }
+    };
+    //let mut bufw = BufWriter::new(output_file);
 
     let mut plaintext: Vec<u8> = vec![0u8; 4096];
-    let mut cryptor = ImmutableBuilder::new(4096, &mut bufw)?;
 
     let mut r = input_file.read(&mut plaintext)?;
     while r != 0 {
         plaintext.resize(r, 0);
-        let _ = cryptor.write(&plaintext)?;
+        let zz = cryptor.write(&plaintext)?;
+        println!("ASDFASDF {}", zz);
         r = input_file.read(&mut plaintext)?;
     }
     let (cap, _) = cryptor.done()?;
