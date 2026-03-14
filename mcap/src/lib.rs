@@ -187,13 +187,12 @@ pub fn main_decrypt(
         let f = std::fs::File::open(input_fname)?;
         Immutable::read(&mut std::io::BufReader::new(f))
     } else {
-        //let root = collection.ok_or(default_collection);
         if let Some(root) = collection {
             let collect = ImmutableDirectoryCollection::create(root.clone())?;
             let locid: ImmutableIdentifier = (&cap).into();
             collect.open(&locid)
         } else {
-            Err(MagicCapError::NoCapability)
+            Err(MagicCapError::GenericError("Must provide either --ciphertext or --collection".to_string()))
         }
     };
 
