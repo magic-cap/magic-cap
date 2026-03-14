@@ -6,7 +6,7 @@ fn main() {
     let mut ciphertext: Vec<u8> = vec![];
 
     // create an encrypted immutable + associated ReadCap
-    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext).unwrap();
+    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext, None).unwrap();
     cryptor.write(&plaintext).unwrap();
     // .write() may be called any number of times with any size data
     let (cap, ciphertext) = cryptor.done().unwrap();
