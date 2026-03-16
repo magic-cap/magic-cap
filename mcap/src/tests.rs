@@ -1,9 +1,11 @@
-
 #[cfg(test)]
 pub mod test {
-    use super::*;
     use proptest::prelude::*;
     use tempfile::tempdir;
+    use std::fs::File;
+    use std::io::{Read, Write};
+    use magic_cap::err::MagicCapError;
+    use crate::{main_decrypt, main_encrypt, main_verify, main_reduce};
 
     #[test]
     fn reduce_unknown() {
@@ -50,7 +52,7 @@ pub mod test {
 
             // confirm that "decrypt" can turn back into plaintext
             let mut output = vec!();
-            main_decrypt(&mut output, capstr, &cipher, &round).unwrap();
+            main_decrypt(&mut output, capstr, &None, &Some(cipher), &round).unwrap();
 
             let mut og = String::new();
             let mut other = String::new();
