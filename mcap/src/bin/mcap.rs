@@ -14,7 +14,7 @@ Create, read and verify Magic Cap strings and encrypted data.
 
 Data is a file containing encrypted data and associated metadata.
 
-A Read Cap is a string containing information to decrypt a corresponding Data.
+A Read Cap is a string containing secret information to decrypt a corresponding Data.
 
 A Verify Cap has the power to confirm that the data is correct.
 Any Read Cap may be turned into a Verify Cap.

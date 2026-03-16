@@ -106,6 +106,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+pub mod tests;
+
 /// Implementation of "mcap encrypt"
 /// This is the top level function for easy use of this crate by applications or other libraries.
 /// This function does not consider memory use, but instead just does the thing using all the memory.

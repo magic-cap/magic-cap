@@ -1,24 +1,27 @@
-
 #[cfg(test)]
 pub mod test {
-    use super::*;
+    use crate::{main_decrypt, main_encrypt, main_reduce, main_verify};
+    use magic_cap::err::MagicCapError;
     use proptest::prelude::*;
+    use std::fs::File;
+    use std::io::{Read, Write};
     use tempfile::tempdir;
 
     #[test]
     fn reduce_unknown() {
         let capstr = "mcap0x_deadbeef";
-        let mut output = vec!();
+        let mut output = vec![];
         if let Err(x) = main_reduce(&mut output, capstr) {
             match x {
                 MagicCapError::InvalidCap(_) => (),
-                _ => {panic!("Unexpected error")},
+                _ => {
+                    panic!("Unexpected error")
+                }
             }
         } else {
             panic!("Expected an error");
         }
     }
-
 
     proptest! {
         #[test]
@@ -50,7 +53,7 @@ pub mod test {
 
             // confirm that "decrypt" can turn back into plaintext
             let mut output = vec!();
-            main_decrypt(&mut output, capstr, &cipher, &round).unwrap();
+            main_decrypt(&mut output, capstr, &None, &Some(cipher), &round).unwrap();
 
             let mut og = String::new();
             let mut other = String::new();
