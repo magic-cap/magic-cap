@@ -1,26 +1,27 @@
 #[cfg(test)]
 pub mod test {
+    use crate::{main_decrypt, main_encrypt, main_reduce, main_verify};
+    use magic_cap::err::MagicCapError;
     use proptest::prelude::*;
-    use tempfile::tempdir;
     use std::fs::File;
     use std::io::{Read, Write};
-    use magic_cap::err::MagicCapError;
-    use crate::{main_decrypt, main_encrypt, main_verify, main_reduce};
+    use tempfile::tempdir;
 
     #[test]
     fn reduce_unknown() {
         let capstr = "mcap0x_deadbeef";
-        let mut output = vec!();
+        let mut output = vec![];
         if let Err(x) = main_reduce(&mut output, capstr) {
             match x {
                 MagicCapError::InvalidCap(_) => (),
-                _ => {panic!("Unexpected error")},
+                _ => {
+                    panic!("Unexpected error")
+                }
             }
         } else {
             panic!("Expected an error");
         }
     }
-
 
     proptest! {
         #[test]
