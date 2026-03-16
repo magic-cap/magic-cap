@@ -28,9 +28,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="2.7953596"
-     inkscape:cx="406.03004"
-     inkscape:cy="175.46937"
+     inkscape:zoom="3.2583881"
+     inkscape:cx="448.99501"
+     inkscape:cy="120.15143"
      inkscape:window-width="3840"
      inkscape:window-height="2083"
      inkscape:window-x="0"
@@ -72,7 +72,7 @@
        transform="translate(-65.79457,-3.4883894)"><tspan
          x="154.1541"
          y="115.51992"
-         id="tspan1450">+</tspan></text><path
+         id="tspan2089">+</tspan></text><path
        style="fill:none;stroke:#000000;stroke-width:0.831212;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 216.31207,88.916606 v 21.639174 h 15.02456 v 4.6302 l 8.12649,-16.158509 -8.12649,-14.93006 v 4.819195 z"
        id="path3925"
@@ -186,7 +186,7 @@
          style="font-style:italic;font-variant:normal;font-weight:200;font-stretch:normal;font-size:6.50103px;font-family:'Source Sans Pro';-inkscape-font-specification:'Source Sans Pro Ultra-Light Italic';stroke-width:0.270876px"
          x="88.209328"
          y="140.74799">and</tspan></text><g
-       id="g1405"><rect
+       id="g2044"><rect
          style="fill:#c3dbd0;fill-opacity:1;fill-rule:evenodd;stroke:#344133;stroke-width:0.694467;stroke-linecap:round;stroke-linejoin:bevel;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          id="rect3923"
          width="84.880402"
@@ -209,9 +209,9 @@
            x="145.16194"
            y="125.01702"><tspan
    style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Medium'"
-   id="tspan3746">mcap</tspan>:0:r:<tspan
+   id="tspan3746">mcap</tspan>0r<tspan
    style="fill:#17a2b8;stroke:#106e7d"
-   id="tspan3752">ERdX5Ly3...qdBhr5jOotaM</tspan>:<tspan
+   id="tspan3752">ERdX5Ly3...qdBhr5jOotaM</tspan><tspan
    style="stroke:#721c24"
    id="tspan3758">ACSS...adfadsf</tspan></tspan></text></g><text
        xml:space="preserve"
