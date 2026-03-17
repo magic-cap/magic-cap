@@ -139,7 +139,11 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
             std::fs::rename(uploaded, fname).unwrap();
         });
 
-        let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter, Some(Box::new(completed)))?;
+        let builder = ImmutableBuilder::<BufWriter<File>>::new(
+            blocksize,
+            bufwriter,
+            Some(Box::new(completed)),
+        )?;
         Ok(builder)
     }
 }

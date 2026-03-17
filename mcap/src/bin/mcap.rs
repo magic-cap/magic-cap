@@ -43,12 +43,26 @@ enum Commands {
 
         // todo: shae says we can put these in a group .. see
         // https://stackoverflow.com/questions/76315540/how-do-i-require-one-of-the-two-clap-options/76315811#76315811
-        #[arg(long, value_name("PATH"), help("root direction of a ciphertext collection"))]
+        #[arg(
+            long,
+            value_name("PATH"),
+            help("root direction of a ciphertext collection")
+        )]
         collection: Option<PathBuf>,
-        #[arg(short, long, value_name("FNAME"), help("path to a .mcap ciphertext file"))]
+        #[arg(
+            short,
+            long,
+            value_name("FNAME"),
+            help("path to a .mcap ciphertext file")
+        )]
         ciphertext: Option<PathBuf>,
 
-        #[arg(short, long, value_name("FNAME"), help("path to write plaintext to (default: stdout)"))]
+        #[arg(
+            short,
+            long,
+            value_name("FNAME"),
+            help("path to write plaintext to (default: stdout)")
+        )]
         plaintext: Option<PathBuf>,
         // #[arg(short, long)]
         // crypt_text: PathBuf,

@@ -103,8 +103,8 @@ use magic_cap::{
     ImmutableIdentifier, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::BufWriter;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 pub mod tests;
@@ -143,7 +143,7 @@ pub fn main_encrypt(
             let mut collection = ImmutableDirectoryCollection::create(collection.clone())?;
             collection.insert(4096)?
         } else {
-            todo!();//Err(MagicCapError::IOError(std::io::Error::other("whatevs")))
+            todo!(); //Err(MagicCapError::IOError(std::io::Error::other("whatevs")))
         }
     };
     //let mut bufw = BufWriter::new(output_file);
@@ -192,7 +192,9 @@ pub fn main_decrypt(
             let locid: ImmutableIdentifier = (&cap).into();
             collect.open(&locid)
         } else {
-            Err(MagicCapError::GenericError("Must provide either --ciphertext or --collection".to_string()))
+            Err(MagicCapError::GenericError(
+                "Must provide either --ciphertext or --collection".to_string(),
+            ))
         }
     };
 

@@ -367,7 +367,11 @@ where
 
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
-    pub fn new(blocksize: usize, mut writer: W, completed: Option<BuilderDoneCb>) -> Result<Self, MagicCapError> {
+    pub fn new(
+        blocksize: usize,
+        mut writer: W,
+        completed: Option<BuilderDoneCb>,
+    ) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
 
