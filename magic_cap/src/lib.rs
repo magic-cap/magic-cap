@@ -330,6 +330,8 @@ pub struct ImmutableReadCap {
 
 // without Seek on the output, we require it on the input
 
+type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
+
 /// Manage context to incrementally encrypt to an underlying [`Write`]
 ///
 /// Instances of this are used to build up an [`Immutable`] by writing
@@ -339,7 +341,6 @@ pub struct ImmutableReadCap {
 /// To retrieve the ``Immutable`` you must call ``done`` which
 /// consumes the ``ImmutableBuilder`` and finalizes the metadata and
 /// offsets in the output.
-
 pub struct ImmutableBuilder<W>
 where
     W: Write,
@@ -348,7 +349,7 @@ where
     output: W,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
-    completed: Option<Box<dyn FnOnce(&ImmutableReadCap)>>,
+    completed: Option<BuilderDoneCb>,
 }
 
 // feb 3: see the history: we have a version that takes a "&mut Write"
@@ -366,7 +367,7 @@ where
 
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
-    pub fn new(blocksize: usize, mut writer: W, completed: Option<Box<dyn FnOnce(&ImmutableReadCap)>>) -> Result<Self, MagicCapError> {
+    pub fn new(blocksize: usize, mut writer: W, completed: Option<BuilderDoneCb>) -> Result<Self, MagicCapError> {
         println!("zzzz");
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1

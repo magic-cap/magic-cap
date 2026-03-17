@@ -4,7 +4,6 @@ use data_encoding::HEXLOWER;
 use std::fmt;
 use std::fs::File;
 use std::io::BufWriter;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 // todo: might want a more fine-grained API so we do "get_metadata"
