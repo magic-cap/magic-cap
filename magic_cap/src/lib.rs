@@ -368,7 +368,6 @@ where
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(blocksize: usize, mut writer: W, completed: Option<BuilderDoneCb>) -> Result<Self, MagicCapError> {
-        println!("zzzz");
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
 
@@ -390,7 +389,6 @@ where
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
-        println!("DONE");
         if !self.this_block.is_empty() {
             // make sure we "fill up" the final block and write it
             let leftover = self.context.blocksize - self.this_block.len();
