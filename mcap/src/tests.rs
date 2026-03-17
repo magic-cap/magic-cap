@@ -35,7 +35,7 @@ pub mod test {
             }  // close tmp
             let cipher = outd.path().join("cipher");
             let mut output = vec!();
-            main_encrypt(&mut output, &plain, &cipher).unwrap();
+            main_encrypt(&mut output, &plain, &Some(cipher.clone()), &None).unwrap();
 
             let capstr: &str = std::str::from_utf8(&output)?.trim_end();
             let round = outd.path().join("decrypted");
@@ -53,7 +53,7 @@ pub mod test {
 
             // confirm that "decrypt" can turn back into plaintext
             let mut output = vec!();
-            main_decrypt(&mut output, capstr, &None, &Some(cipher), &round).unwrap();
+            main_decrypt(&mut output, capstr, &None, &Some(cipher), &Some(round.clone())).unwrap();
 
             let mut og = String::new();
             let mut other = String::new();
