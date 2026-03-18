@@ -10,7 +10,7 @@ fn encode(block_size: usize, num_bytes: usize) -> () {
     let mut ciphertext: Vec<u8> = vec![]; //vec![0u8; 4096];
 
     // create an encrypted immutable + associated ReadCap
-    let mut cryptor = ImmutableBuilder::new(block_size, &mut ciphertext).unwrap();
+    let mut cryptor = ImmutableBuilder::new(block_size, &mut ciphertext, None).unwrap();
     cryptor.write(&plaintext).unwrap();
     let (_cap, ciphertext) = cryptor.done().unwrap();
     assert!(ciphertext.len() > num_bytes);
