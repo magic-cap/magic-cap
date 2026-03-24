@@ -28,17 +28,19 @@ struct Cli {
 enum Commands {
     #[command(about = "turn plaintext into a Magic Cap + ciphertext")]
     Encrypt {
-        #[arg(short, long)]
+        // non-optional source of data
         plaintext: PathBuf,
+
         #[arg(short, long)]
         ciphertext: Option<PathBuf>,
+
         #[arg(long)]
         collection: Option<PathBuf>,
     },
 
     #[command(about = "turn a Magic Cap + ciphertext into plaintext")]
     Decrypt {
-        #[arg(long, value_name("MAGIC_CAP"))]
+        // non-optional magic-cap string
         cap: String,
 
         // todo: shae says we can put these in a group .. see
@@ -49,6 +51,7 @@ enum Commands {
             help("root direction of a ciphertext collection")
         )]
         collection: Option<PathBuf>,
+
         #[arg(
             short,
             long,
