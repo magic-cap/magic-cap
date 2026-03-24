@@ -181,6 +181,17 @@ None of this depends on any service or network interactions.
 We are excited to see the practical uses of this!
 While we definitely have more features to layer on top, we believe this is already useful.
 
+** Collections of Ciphertext
+
+Using ``mcap encrypt`` and ``mcap decrypt`` requires telling the program from where to read (or to where to write) the cipertext.
+It can be extra work to remember which Read Cap goes with which ciphertext.
+
+There is "Locator" string which can be dirived from both a Read Cap or a Verify Cap.
+This string is designed as a way for someone with one of these Caps to locate the corresponding ciphertext.
+
+Using the ``--collection`` option to either ``mcap decrypt`` or ``mcap encrypt`` allows leaving off the ``--ciphertext`` parameter.
+Instead, ciphertexts will be located relative to the root directory (specified by ``--collection``) using their "Locator" string.
+
 
 * Where From and Where To
 
