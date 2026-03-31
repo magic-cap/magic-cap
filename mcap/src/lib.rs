@@ -99,7 +99,7 @@
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCollection, ImmutableDirectoryCollection,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog,
     ImmutableIdentifier, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
 use std::fs::File;
@@ -116,7 +116,7 @@ pub fn main_encrypt(
     output: &mut impl Write,
     plain_text: &Path,
     output_fname: &Option<PathBuf>,
-    collection: &Option<PathBuf>,
+    catalog: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
 
@@ -139,9 +139,9 @@ pub fn main_encrypt(
         let output_file = File::create(output_fname)?;
         ImmutableBuilder::new(4096, BufWriter::new(output_file), None)?
     } else {
-        if let Some(collection) = collection {
-            let mut collection = ImmutableDirectoryCollection::create(collection.clone())?;
-            collection.insert(4096)?
+        if let Some(catalog) = catalog {
+            let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
+            catalog.insert(4096)?
         } else {
             todo!(); //Err(MagicCapError::IOError(std::io::Error::other("whatevs")))
         }
@@ -163,21 +163,21 @@ pub fn main_encrypt(
     Ok(())
 }
 
-//static default_collection: PathBuf = PathBuf::from("~/.magicap");
+//static default_catalog: PathBuf = PathBuf::from("~/.magicap");
 
 /// "mcap decrypt"
 pub fn main_decrypt(
     //    input: &mut impl Read,
     output: &mut impl Write,
     cap: &str,
-    collection: &Option<PathBuf>,
+    catalog: &Option<PathBuf>,
     input_fname: &Option<PathBuf>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
-    if collection.is_some() && input_fname.is_some() {
-        // could be error, could say "if filename doesn't exist then use collection"
+    if catalog.is_some() && input_fname.is_some() {
+        // could be error, could say "if filename doesn't exist then use catalog"
         //
-        // take a Enum in here that is a Collection OR a input_fname
+        // take a Enum in here that is a Catalog OR a input_fname
         // so we can only do one
         todo!();
     }
@@ -187,13 +187,13 @@ pub fn main_decrypt(
         let f = std::fs::File::open(input_fname)?;
         Immutable::read(&mut std::io::BufReader::new(f))
     } else {
-        if let Some(root) = collection {
-            let collect = ImmutableDirectoryCollection::create(root.clone())?;
+        if let Some(root) = catalog {
+            let collect = ImmutableDirectoryCatalog::create(root.clone())?;
             let locid: ImmutableIdentifier = (&cap).into();
             collect.open(&locid)
         } else {
             Err(MagicCapError::GenericError(
-                "Must provide either --ciphertext or --collection".to_string(),
+                "Must provide either --ciphertext or --catalog".to_string(),
             ))
         }
     };

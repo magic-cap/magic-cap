@@ -157,20 +157,20 @@ fn invalid_caps() {
 }
 
 #[test]
-fn find_collection_basic() {
+fn find_catalog_basic() {
     let tmpd = TempDir::new().unwrap();
     let tmp = tmpd.path().to_owned();
-    let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
+    let mut catalog = ImmutableDirectoryCatalog::create(tmp).unwrap();
 
     let message = b"To light a candle is to cast a shadow...";
-    let mut builder = collection.insert(4096).unwrap();
+    let mut builder = catalog.insert(4096).unwrap();
     builder.write(message).unwrap();
     let (cap, _) = builder.done().unwrap();
     // note: we have to drop "writer", which is the "_" above, so it
     // flushes / closes properly
 
     let id: ImmutableIdentifier = (&cap).into();
-    let immutable = collection.open(&id).unwrap();
+    let immutable = catalog.open(&id).unwrap();
     let data = cap.decrypt(&immutable).unwrap();
     assert_eq!(message, data.as_slice());
 }

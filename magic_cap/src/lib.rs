@@ -77,16 +77,16 @@
 //! ```
 //!
 
-mod collection;
+mod catalog;
 pub mod err;
 
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
 
-// todo: re-export some stuff from collection
-pub use collection::ImmutableCollection;
-pub use collection::ImmutableDirectoryCollection;
-pub use collection::ImmutableIdentifier;
+// todo: re-export some stuff from catalog
+pub use catalog::ImmutableCatalog;
+pub use catalog::ImmutableDirectoryCatalog;
+pub use catalog::ImmutableIdentifier;
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
@@ -827,9 +827,9 @@ impl Immutable {
 
 // todo: probably want something like "Into" for "plaintext" of an Immutable to convert to str, or BufReader, or ....
 //
-// "something like": let reader: BufReader = collection.get_immutable(ImmutableReadCap).unwrap().into();
-// "something like": let data: Vec<u8> = collection.get_immutable(ImmutableReadCap).unwrap().into();
-// "something like": let datastr: String = collection.get_immutable(ImmutableReadCap).unwrap().into();
+// "something like": let reader: BufReader = catalog.get_immutable(ImmutableReadCap).unwrap().into();
+// "something like": let data: Vec<u8> = catalog.get_immutable(ImmutableReadCap).unwrap().into();
+// "something like": let datastr: String = catalog.get_immutable(ImmutableReadCap).unwrap().into();
 
 pub struct ImmutableCiphertextStream<R>
 where
