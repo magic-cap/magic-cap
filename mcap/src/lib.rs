@@ -143,6 +143,7 @@ pub fn main_encrypt(
             let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
             catalog.insert(4096)?
         } else {
+            println!("ohai");
             todo!(); //Err(MagicCapError::IOError(std::io::Error::other("whatevs")))
         }
     };

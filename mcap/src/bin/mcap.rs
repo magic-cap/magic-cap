@@ -73,7 +73,6 @@ enum Commands {
 
     #[command(about = "Confirm a ciphertext is valid")]
     Verify {
-        #[arg(long)]
         cap: String,
 
         #[arg(short, long)]

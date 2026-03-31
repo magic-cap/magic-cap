@@ -36,10 +36,11 @@ We explore the basics before explaining what they mean.
 Encrypt "README.org" into: 1) a file containing ciphertext (and metadata) and 2) a Magic Cap string:
 #+name: encrypt
 #+begin_src bash :results output
-cargo run -- encrypt README.org > ciphertext
+cargo run -- encrypt README.org --ciphertext encrypted
 #+end_src
 
 #+RESULTS: encrypt
+: mcap0rgE06AlaV0CtRdRQK38LYi-RKYmJgj7iFz_daTeEmIk1MAUEJQ10IUbbAenOsLX3f
 
 Now, we have two things: "a Data File" and "a Magic Cap string".
 The latter is =mcap0r<base64-encoded data>=
@@ -47,11 +48,11 @@ The latter is =mcap0r<base64-encoded data>=
 Before we break that down, lets convert the DataFile + Magic Cap string back into this README!
 
 #+begin_src bash :results output :var MCAP=encrypt
-  cargo run -- decrypt --ciphertext ciphertext --cap ${MCAP} --plaintext plain
+  cargo run -- decrypt --ciphertext encrypted ${MCAP} --plaintext plain
 #+end_src
 
 #+RESULTS:
-: Wrote 10375 bytes of plaintext to "plain".
+: Wrote 16499 bytes of plaintext to "plain".
 
 
 We can confirm that they're the same:
@@ -93,17 +94,17 @@ The mcap to unlock it is: =mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752p
 If you're using "cargo" a command-line to do that is:
 
 #+begin_src sh
-  cargo run -- decrypt --ciphertext kitten.mcap --cap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g --plaintext kitten.jpeg
+  cargo run -- decrypt --ciphertext kitten.mcap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g --plaintext kitten.jpeg
 #+end_src
 
 #+RESULTS:
-: kitten.jpeg
+: Wrote 306199 bytes of plaintext to "kitten.jpeg".
 
 We have found an amazing cat picture from a public domain source[fn:1] for your viewing pleasure.
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
 #+begin_src sh
-  cargo run -- verify --ciphertext kitten.mcap --cap mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4
+  cargo run -- verify --ciphertext kitten.mcap mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4
 #+end_src
 
 #+RESULTS:
