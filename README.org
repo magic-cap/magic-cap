@@ -36,11 +36,10 @@ We explore the basics before explaining what they mean.
 Encrypt "README.org" into: 1) a file containing ciphertext (and metadata) and 2) a Magic Cap string:
 #+name: encrypt
 #+begin_src bash :results output
-cargo run -- encrypt --plaintext README.org ciphertext
+cargo run -- encrypt README.org > ciphertext
 #+end_src
 
 #+RESULTS: encrypt
-: mcap0rn36cf_726tzxsj55BDdJuD0FqFeLNvUvnYWti8MYCDtq6FVZ31ERUdXgk76uimTM
 
 Now, we have two things: "a Data File" and "a Magic Cap string".
 The latter is =mcap0r<base64-encoded data>=
@@ -181,16 +180,36 @@ None of this depends on any service or network interactions.
 We are excited to see the practical uses of this!
 While we definitely have more features to layer on top, we believe this is already useful.
 
-** Collections of Ciphertext
+** Catalogs of Ciphertext
 
 Using ``mcap encrypt`` and ``mcap decrypt`` requires telling the program from where to read (or to where to write) the cipertext.
-It can be extra work to remember which Read Cap goes with which ciphertext.
+It is extra work to remember which Read Cap goes with which ciphertext.
 
-There is "Locator" string which can be dirived from both a Read Cap or a Verify Cap.
+There exist "Locator" strings which can be dirived from both a Read Cap or a Verify Cap.
 This string is designed as a way for someone with one of these Caps to locate the corresponding ciphertext.
 
-Using the ``--collection`` option to either ``mcap decrypt`` or ``mcap encrypt`` allows leaving off the ``--ciphertext`` parameter.
-Instead, ciphertexts will be located relative to the root directory (specified by ``--collection``) using their "Locator" string.
+Using the ``--catalog`` option to either ``mcap decrypt`` or ``mcap encrypt`` allows leaving off the ``--ciphertext`` parameter.
+Instead, ciphertexts will be located relative to the root directory (specified by ``--catalog``) using their "Locator" string.
+
+*** Catalog Example
+
+We have included an example of "Catalog" usage in this repository.
+The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalog``:
+
+| bruennhilde.jpeg         | mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB |
+| cat-on-shoulder.jpeg     | mcap0rkPgNO_PLPHYnsF21xsuZWclI8Eodt3198G99I3bbgwTcfvRs0AqvJn6vJ0FvBd29 |
+| kittens-in-basket.jpeg   | mcap0r0H3nq1ecRFORya6czK8kKwejLpKrvzXTtjQUicqwVt7Fc_G2zfxP3Y174gxWjq_L |
+| the-cook.jpeg            | mcap0rUMgHUlMK6fb19D3CHII-NLpgwsaGM8xGYpsXJzDELyaR-PnhNiSaudTksLaJaoY7 |
+| three-jolly-kittens.jpeg | mcap0rQOVWH5aeWoZtCJ8GThDs8hSWfcJm0UMAaswgoifCIN1yA0AtLIGfFy-aJRW_7hzP |
+
+We can decode one of these without "knowing" which ones goes with which Read Cap.
+Note that the output goes to stdout by default, so we re-direct it to a file here.
+
+#+begin_src sh
+  cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > kitten.jpeg
+#+end_src
+
+#+RESULTS:
 
 
 * Where From and Where To

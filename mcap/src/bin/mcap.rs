@@ -35,7 +35,7 @@ enum Commands {
         ciphertext: Option<PathBuf>,
 
         #[arg(long)]
-        collection: Option<PathBuf>,
+        catalog: Option<PathBuf>,
     },
 
     #[command(about = "turn a Magic Cap + ciphertext into plaintext")]
@@ -48,9 +48,9 @@ enum Commands {
         #[arg(
             long,
             value_name("PATH"),
-            help("root direction of a ciphertext collection")
+            help("root direction of a ciphertext catalog")
         )]
-        collection: Option<PathBuf>,
+        catalog: Option<PathBuf>,
 
         #[arg(
             short,
@@ -90,17 +90,17 @@ fn main() {
         Some(Commands::Encrypt {
             plaintext,
             ciphertext,
-            collection,
-        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext, collection),
+            catalog,
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext, catalog),
         Some(Commands::Decrypt {
             cap,
-            collection,
+            catalog,
             ciphertext,
             plaintext,
         }) => main_decrypt(
             &mut std::io::stdout(),
             cap,
-            collection,
+            catalog,
             ciphertext,
             plaintext,
         ),
