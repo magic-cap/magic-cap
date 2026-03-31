@@ -99,8 +99,8 @@
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog,
-    ImmutableIdentifier, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
 use std::fs::File;
 use std::io::BufWriter;
@@ -144,8 +144,9 @@ pub fn main_encrypt(
             catalog.insert(4096)?
         } else {
             // no output file AND no catalog, so user wants ciphertext on stdout
-            let stdio = std::io::stdout();//.lock();
-            let mut cryptor: ImmutableBuilder<std::io::Stdout> = ImmutableBuilder::new(4096, stdio, None)?;
+            let stdio = std::io::stdout(); //.lock();
+            let mut cryptor: ImmutableBuilder<std::io::Stdout> =
+                ImmutableBuilder::new(4096, stdio, None)?;
 
             // FIXME: TODO: this "crypto" is a different type than the
             // other "cryptor", because ImmutableBuilder has it's
