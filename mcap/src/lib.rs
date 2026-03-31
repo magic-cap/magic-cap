@@ -143,8 +143,32 @@ pub fn main_encrypt(
             let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
             catalog.insert(4096)?
         } else {
-            println!("ohai");
-            todo!(); //Err(MagicCapError::IOError(std::io::Error::other("whatevs")))
+            // no output file AND no catalog, so user wants ciphertext on stdout
+            let stdio = std::io::stdout();//.lock();
+            let mut cryptor: ImmutableBuilder<std::io::Stdout> = ImmutableBuilder::new(4096, stdio, None)?;
+
+            // FIXME: TODO: this "crypto" is a different type than the
+            // other "cryptor", because ImmutableBuilder has it's
+            // "writer" type as a generic -- so it's part of the type,
+            // and we can't have one variable that points at
+            // ImmutableBuilder<File> OR ImmutableBuilder<Stdio>
+            // .. using Box<dyn Write> gets rid of the generic, but
+            // then the "consume / un-consume" pattern on done()
+            // doesn't work .. see the "stream.rs" example for why
+
+            let mut plaintext: Vec<u8> = vec![0u8; 4096];
+
+            let mut r = input_file.read(&mut plaintext)?;
+            while r != 0 {
+                plaintext.resize(r, 0);
+                let _ = cryptor.write(&plaintext)?;
+                r = input_file.read(&mut plaintext)?;
+            }
+            let (cap, _) = cryptor.done()?;
+
+            let capstr = format!("{}", cap);
+            writeln!(output, "{}", capstr)?;
+            return Ok(());
         }
     };
     //let mut bufw = BufWriter::new(output_file);
