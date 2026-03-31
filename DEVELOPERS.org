@@ -1,0 +1,39 @@
+* Catalog next steps
+
+- thinking a little about "network caps"
+- right now we can do something like this:
+
+  cargo run -- decrypt --catalog ./kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > kitten.jpeg
+
+- generalizing a bit, "--catalog <network-read-cap>" could generalize
+  to any sort of "place to get ciphertext" (github, S3, ...)
+- ...and for "mcap encrypt" it needs "--catalog <network-write-cap>"
+
+- What do those "network caps" look like?
+- Next step: a "network-read-cap" for GitHub (_and_ "local file store")
+  - _could_ it just be as simple as a URI for now?
+    file:///home/meejah/src/magic_cap/kitten-catalog
+    https://github.com
+
+- Write-caps get harder, because you need permissions or authority or credentials "or something".
+  - git@github.com:...... (not great, because "ambient" perms, from your SSH schmoo)
+  - s3:.....? (insert screaming)
+
+- So in like general we probably want something both more structured and more opaque
+  - net0wfm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_
+    (where we can encode whatever binary or ascii in there as required)
+
+- There are some advantages to "ambient" collection-caps, like the
+  filesystem one: you don't "leak" much information (and zero actual
+  credentials) so you can share it with others more easily -- and if
+  they have (or are granted) the right permissions, then it'll work
+
+- Similar for "a github read-cap": might not work at first, but if I
+  "invite" you to the repo, all of a sudden it does (and it doesn't
+  burn in an SSH private key or something)
+
+- might want a top-level / human-readable way to distinguish "ambient
+  authority" network caps from "embedded authority" network caps
+  (e.g. an "embedded" file-system cap might have "username +
+  password + path", obviously something you don't want to share .. and
+  probably not something we want to implement!)
