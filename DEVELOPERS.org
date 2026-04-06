@@ -1,3 +1,11 @@
+* Running
+
+- "cargo run" will run "mcap"
+- tests:
+  - cargo test
+  - cargo bench
+  - cargo llvm-cov --html
+
 * Catalog next steps
 
 - thinking a little about "network caps"
