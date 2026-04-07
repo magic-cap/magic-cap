@@ -5,14 +5,17 @@ fn main() {
     let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
     let mut ciphertext: Vec<u8> = vec![];
 
-    // create an encrypted immutable + associated ReadCap
+    // Create an encrypted immutable + associated ReadCap.
+    // We're using "Vec<u8>" as a Write implementation here, but it
+    // could be a File or Stdout).
     let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext, None).unwrap();
     cryptor.write(&plaintext).unwrap();
     // .write() may be called any number of times with any size data
     let (cap, ciphertext) = cryptor.done().unwrap();
     println!("ciphertext: {} bytes", ciphertext.len());
 
-    // using the encrypted immutable and ReadCap, get back the ciperhtext
+    // Using the encrypted immutable data and ReadCap, get back the
+    // plaintext
     let ctext = ciphertext.as_slice();
     let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
     let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
