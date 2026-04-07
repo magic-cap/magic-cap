@@ -1,3 +1,11 @@
+"""
+This encodes all of the kitten pictures in data/kittens/ into
+immutable caps in the catalog at data/root/
+
+The corresponding Read Caps for each file are put in
+data/root/kittens-anthology.txt
+"""
+
 import os
 import subprocess
 from pathlib import Path
