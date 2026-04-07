@@ -204,7 +204,7 @@ The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalo
 | three-jolly-kittens.jpeg | mcap0rQOVWH5aeWoZtCJ8GThDs8hSWfcJm0UMAaswgoifCIN1yA0AtLIGfFy-aJRW_7hzP |
 
 We can decode one of these without "knowing" which ones goes with which Read Cap.
-Note that the output goes to stdout by default, so we re-direct it to a file here.
+Note that the output goes to stdout by default.
 
 #+begin_src sh
   cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB | display
