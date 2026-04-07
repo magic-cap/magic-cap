@@ -20,5 +20,8 @@ for k in os.listdir(kittens):
     cap = subprocess.check_output(args)
     caps[k] = cap.strip().decode("utf8")
 
-for k in sorted(caps.keys()):
-    print(f"{k:>30} {caps[k]}")
+with Path("data/kittens-anthology.txt").open("w") as f:
+    for k in sorted(caps.keys()):
+        line = f"{k:>30} {caps[k]}"
+        print(line)
+        f.write(line + "\n")

@@ -207,7 +207,7 @@ We can decode one of these without "knowing" which ones goes with which Read Cap
 Note that the output goes to stdout by default, so we re-direct it to a file here.
 
 #+begin_src sh
-  cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > kitten.jpeg
+  cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB | display
 #+end_src
 
 #+RESULTS:
