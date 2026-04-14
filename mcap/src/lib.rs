@@ -224,7 +224,7 @@ pub fn main_decrypt(
         }
     };
 
-    match cap.decrypt(&imm?) {
+    match cap.decrypt(&mut imm?) {
         Ok(plain) => {
             if let Some(outfile) = outfile {
                 let mut out = std::fs::File::create(outfile)?;
@@ -261,9 +261,9 @@ pub fn main_decrypt(
 pub fn main_verify(cap: &str, input_fname: &Path) -> Result<(), MagicCapError> {
     let cap = ImmutableVerifyCap::try_from(cap)?;
     let f = std::fs::File::open(input_fname)?;
-    let imm = Immutable::read(&mut std::io::BufReader::new(f))?;
+    let mut imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
-    cap.verify(&imm)?;
+    cap.verify(&mut imm)?;
     Ok(())
 }
 

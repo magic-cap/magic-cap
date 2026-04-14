@@ -15,7 +15,9 @@ fn main() {
     println!("ciphertext: {} bytes", ciphertext.len());
 
     // Using the encrypted immutable data and ReadCap, get back the
-    // plaintext
+    // plaintext (note that Immutable::read() loads all the ciphertext
+    // into memory -- see stream_read.rs for an example that streams
+    // the ciphertext in.
     let ctext = ciphertext.as_slice();
     let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
     let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
