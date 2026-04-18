@@ -693,19 +693,19 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 
 #[derive(Debug, PartialEq)]
 /// Access all ciphertext via a [`Read`] provider
-pub struct EncryptedImmutableReader<R>
+pub struct EncryptedImmutableReader<'a, R>
 where
-    R: Read + Seek,
+    R: Read + Seek + 'a,
 {
-    provider: R,
+    provider: &'a mut R,
     blocks: u64,
     offset: u64,
     blocksize: u32,
 }
 
-impl<R> EncryptedImmutable for EncryptedImmutableReader<R>
+impl<'a, R> EncryptedImmutable for EncryptedImmutableReader<'a, R>
 where
-    R: Read + Seek,
+    R: Read + Seek + 'a,
 {
     fn total_blocks(&self) -> usize {
         self.blocks as usize
@@ -849,7 +849,11 @@ impl Immutable {
     /// Similar to ``read`` but doesn't read all the ciphertext blocks
     /// into memory at once, instead accessing the provided reader
     /// as-needed to access the ciphertext on-demand.
-    pub fn stream<R>(mut reader: R) -> Result<Immutable, MagicCapError>
+
+    // so .. we still return an "Immutable", but it's backend thing is
+    // set up to read "on demand" (and we've changed the Immtuable API
+    // to support both)
+    pub fn stream<'a, R>(mut reader: &R) -> Result<Immutable, MagicCapError>
     where
         R: Read + std::io::Seek,
     {
@@ -876,29 +880,23 @@ impl Immutable {
 
         // read the metadata first so we know blocksize etc
         reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
-        let bs = metadata.block_size;
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(reader)?;
 
-        // we have our metadata, now read the ciphertext
-        reader.seek(std::io::SeekFrom::Start(4 + 4))?;
-        let mut chunks =
-            Vec::with_capacity(metadata.blocks as usize * metadata.block_size as usize);
-        for _ in 0..metadata.blocks {
-            let mut chunk = vec![0u8; metadata.block_size as usize];
-            reader.read_exact(chunk.as_mut_slice())?;
-            chunks.push(chunk);
-        }
+        // we have our metadata, now set up an on-demand reader to our
+        // underlying data source
+        let ondemand = Box::new(
+            EncryptedImmutableReader {
+                provider: &mut reader,
+                blocks: metadata.blocks,
+                offset: 4 + 4,
+                blocksize: metadata.block_size,
+            }
+        );
 
-        // todo: ImmutableVerifyCap.decrypt checks the merkle root but maybe we want to do it here (too)?
-        // (yes, we read through all the ciphertext above so perhaps ONLY check here?)
+        // todo: have we checked that the merkle root matches each block?
         Ok(Immutable {
             metadata,
-            data_provider: Box::new(
-                EncryptedImmutableMemory {
-                    blocks: chunks,
-                    _block_size: bs,  // how is metadata moved?
-                }
-            ),
+            data_provider: ondemand,
         })
     }
 
