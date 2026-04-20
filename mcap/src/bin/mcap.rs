@@ -10,10 +10,9 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(version = "25.12.1")]
 #[command(about = "
-  __ _  ___ ____  ______  _______  ___
- /  ' \\/ _ `/ _ `/ / __/ / __/ _ `/ _ \\
-/_/_/_/\\_,_/\\_, /_/\\__/  \\__/\\_,_/ .__/
-           /___/                /_/
+   ┌┬┐┌─┐┌─┐┬┌─┐    ┌─┐┌─┐┌─┐
+   │││├─┤│ ┬││      │  ├─┤├─┘
+   ┴ ┴┴ ┴└─┘┴└─┘    └─┘┴ ┴┴
 
 Create, read and verify Magic Cap strings and encrypted data.
 
