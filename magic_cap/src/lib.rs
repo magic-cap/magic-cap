@@ -280,7 +280,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // can we use iterators more directly here instead of for loop? e.g.:
         let mut leaves: Vec<[u8; 32]> = vec![];
         for i in 0..immutable.data_provider.total_blocks() {
-            let mut leaf = vec![0u8; immutable.data_provider.total_blocks()];
+            let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
             immutable.data_provider.get_block(i, &mut leaf)?;
             let lh = TahoeLeaf::hash(&mut leaf);
             leaves.push(lh);
@@ -775,14 +775,14 @@ impl ImmutableMetadata {
 /// Represents everything to do with an [`Immutable`] except the
 /// [`ImmutableCap`] itself. That is, this represents the [`Immutable`]'s
 /// metadata and a way to access the ciphertext.
-pub struct Immutable {
+pub struct Immutable<'a> {
     //    pub cap: Option<ImmutableCap>,
     pub metadata: ImmutableMetadata,
     // todo: do we want Arc() here too? So we can implement Clone nicely?
-    pub data_provider: Box<dyn EncryptedImmutable>, // Box<dyn ..> here so we're Sized
+    pub data_provider: Box<dyn EncryptedImmutable + 'a>, // Box<dyn ..> here so we're Sized
 }
 
-impl Immutable {
+impl<'a> Immutable<'a> {
     /// Deserialize an Immutable from the given input stream.
     ///
     /// The serialized format stores the metadata near the end of the
@@ -793,7 +793,7 @@ impl Immutable {
     /// All of the ciphertext is read into memory. For larger files it
     /// may be better to use the ``stream`` function instead.
     ///
-    pub fn read<R>(mut reader: R) -> Result<Immutable, MagicCapError>
+    pub fn read<'b, R>(mut reader: R) -> Result<Immutable<'b>, MagicCapError>
     where
         R: Read + std::io::Seek,
     {
@@ -853,7 +853,7 @@ impl Immutable {
     // so .. we still return an "Immutable", but it's backend thing is
     // set up to read "on demand" (and we've changed the Immtuable API
     // to support both)
-    pub fn stream<'a, R>(mut reader: &R) -> Result<Immutable, MagicCapError>
+    pub fn stream<'b, R>(reader: &'b mut R) -> Result<Immutable<'b>, MagicCapError>
     where
         R: Read + std::io::Seek,
     {
@@ -880,13 +880,13 @@ impl Immutable {
 
         // read the metadata first so we know blocksize etc
         reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(reader)?;
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut *reader)?;
 
         // we have our metadata, now set up an on-demand reader to our
         // underlying data source
         let ondemand = Box::new(
             EncryptedImmutableReader {
-                provider: &mut reader,
+                provider: reader,
                 blocks: metadata.blocks,
                 offset: 4 + 4,
                 blocksize: metadata.block_size,
@@ -903,7 +903,7 @@ impl Immutable {
     pub fn encrypt<R>(
         source: R,
         blocksize: usize, // just make this u32 to match metadata?
-    ) -> Result<(ImmutableCap, Immutable), MagicCapError>
+    ) -> Result<(ImmutableCap, Immutable<'a>), MagicCapError>
     where
         R: Read,
     {

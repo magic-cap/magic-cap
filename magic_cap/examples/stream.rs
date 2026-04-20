@@ -19,7 +19,7 @@ fn main() {
     // into memory -- see stream_read.rs for an example that streams
     // the ciphertext in.
     let ctext = ciphertext.as_slice();
-    let immutable = Immutable::read(Cursor::new(ctext)).unwrap();
-    let decrypted: Vec<u8> = cap.decrypt(&immutable).unwrap();
+    let mut immutable = Immutable::read(Cursor::new(ctext)).unwrap();
+    let decrypted: Vec<u8> = cap.decrypt(&mut immutable).unwrap();
     assert_eq!(plaintext, decrypted);
 }

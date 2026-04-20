@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
 // smarter about the seeks? (speculative)!
-pub trait ImmutableCatalog {
+pub trait ImmutableCatalog<'a> {
     // todo: probably want "load" vs. "stream" API here
-    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
+    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn insert(
         &mut self,
@@ -96,8 +96,8 @@ impl ImmutableDirectoryCatalog {
     }
 }
 
-impl ImmutableCatalog for ImmutableDirectoryCatalog {
-    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError> {
+impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
+    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
         // 1. convert identifier to &str (base64? base32?)
         // 2. strip first 2 (more?) chars off
         // 3. look in root/<2 chars>/<entire id>
