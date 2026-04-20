@@ -14,6 +14,10 @@ use clap::{Parser, Subcommand};
    │││├─┤│ ┬││      │  ├─┤├─┘
    ┴ ┴┴ ┴└─┘┴└─┘    └─┘┴ ┴┴
 
+▄▄   ▄▄  ▄▄▄   ▄▄▄▄ ▄▄  ▄▄▄▄    ▄▄▄▄  ▄▄▄  ▄▄▄▄  
+██▀▄▀██ ██▀██ ██ ▄▄ ██ ██▀▀▀   ██▀▀▀ ██▀██ ██▄█▀ 
+██   ██ ██▀██ ▀███▀ ██ ▀████   ▀████ ██▀██ ██    
+
 Create, read and verify Magic Cap strings and encrypted data.
 
 Data is a file containing encrypted data and associated metadata.
