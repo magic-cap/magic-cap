@@ -711,7 +711,6 @@ where
         self.blocks as usize
     }
 
-    // can we just demand a "block_size: u32" _attribute_ in the Trait?
     fn block_size(&self) -> u32 {
         self.block_size
     }
@@ -734,6 +733,7 @@ where
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
+// todo: we want encrypted metadata (as well)
 pub struct ImmutableMetadata {
     // morally-equivalent to Tahoe's UEB
     pub size: u64,
