@@ -221,8 +221,12 @@ pub trait ImmutableVerifier {
 }
 
 pub trait ReadCap: ImmutableVerifier {
-
-    fn decrypt_one_block(&self, immutable: &mut Immutable, block: usize, plaintext: &mut [u8]) -> Result<(), MagicCapError>;
+    fn decrypt_one_block(
+        &self,
+        immutable: &mut Immutable,
+        block: usize,
+        plaintext: &mut [u8],
+    ) -> Result<(), MagicCapError>;
 
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
 
@@ -244,9 +248,12 @@ pub fn decrypt_all(cap: &impl ReadCap, immutable: &mut Immutable) -> Result<Vec<
 /// naive "random access" read-cap function
 /// think: refactor?
 pub trait RandomAccessReadCap: ReadCap {
-    fn decrypt_block(&self, immutable: &mut Immutable, block: usize) -> Result<Vec<u8>, MagicCapError>;
+    fn decrypt_block(
+        &self,
+        immutable: &mut Immutable,
+        block: usize,
+    ) -> Result<Vec<u8>, MagicCapError>;
 }
-
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to confirm the ciphertext is valid, but cannot
@@ -541,14 +548,17 @@ impl ReadCap for ImmutableReadCap {
     // - something "higher level" (e.g. an Iterator) drives a "encrypt / decrypt everything" flow
     // - (so essentially take out the alloc's and inner-loops from existing decrypt/encrypt
 
-    fn decrypt_one_block(&self, immutable: &mut Immutable, block: usize, plaintext: &mut [u8]) -> Result<(), MagicCapError> {
+    fn decrypt_one_block(
+        &self,
+        immutable: &mut Immutable,
+        block: usize,
+        plaintext: &mut [u8],
+    ) -> Result<(), MagicCapError> {
         if plaintext.len() != immutable.data_provider.block_size() as usize {
-            return Err(
-                MagicCapError::WrongDataSize(
-                    plaintext.len(),
-                    immutable.data_provider.block_size() as usize,
-                )
-            );
+            return Err(MagicCapError::WrongDataSize(
+                plaintext.len(),
+                immutable.data_provider.block_size() as usize,
+            ));
         }
         if !self.verify.corresponds_to(immutable) {
             return Err(MagicCapError::McapMetadataDiscordant());
@@ -569,7 +579,8 @@ impl ReadCap for ImmutableReadCap {
         let mut key = TahoeAesCtr::new(&self.key.into(), &iv.into());
         // to get the IV correct for our block we tell the key the
         // bytes offset
-        key.try_seek(block * immutable.data_provider.block_size() as usize).unwrap();
+        key.try_seek(block * immutable.data_provider.block_size() as usize)
+            .unwrap();
 
         // load the ciphertext into the provided slice, and decrypt in-place
         let _ = immutable.data_provider.get_block(block, plaintext);
@@ -579,7 +590,10 @@ impl ReadCap for ImmutableReadCap {
         let leaf_hash = TahoeLeaf::hash(plaintext);
         if leaf_hash != immutable.metadata.merkle_leaves[block] {
             // todo: better error?
-            println!("block didn't match {:?} vs {:?}", leaf_hash, immutable.metadata.merkle_leaves[block]);
+            println!(
+                "block didn't match {:?} vs {:?}",
+                leaf_hash, immutable.metadata.merkle_leaves[block]
+            );
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -762,12 +776,10 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 
     fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
         if buf.len() != self.blocks[0].len() {
-            Err(
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    format!("buf is {} but blocksize is {}", buf.len(), self._block_size),
-                )
-            )
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self._block_size),
+            ))
         } else {
             buf.copy_from_slice(&self.blocks[index]);
             Ok(self.blocks[index].len())
@@ -801,12 +813,10 @@ where
 
     fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
         if buf.len() != self.block_size as usize {
-            Err(
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
-                )
-            )
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+            ))
         } else {
             let offset = self.offset + (index as u64 * self.block_size as u64);
             self.provider.seek(std::io::SeekFrom::Start(offset))?;
@@ -932,12 +942,10 @@ impl<'a> Immutable<'a> {
         // (yes, we read through all the ciphertext above so perhaps ONLY check here?)
         Ok(Immutable {
             metadata,
-            data_provider: Box::new(
-                EncryptedImmutableMemory {
-                    blocks: chunks,
-                    _block_size: bs,  // how does 'metadata' get moved? where?
-                }
-            ),
+            data_provider: Box::new(EncryptedImmutableMemory {
+                blocks: chunks,
+                _block_size: bs, // how does 'metadata' get moved? where?
+            }),
         })
     }
 
@@ -992,14 +1000,12 @@ impl<'a> Immutable<'a> {
 
         // we have our metadata, now set up an on-demand reader to our
         // underlying data source
-        let ondemand = Box::new(
-            EncryptedImmutableReader {
-                provider: reader,
-                blocks: metadata.blocks,
-                offset: 4 + 4,
-                block_size: metadata.block_size,
-            }
-        );
+        let ondemand = Box::new(EncryptedImmutableReader {
+            provider: reader,
+            blocks: metadata.blocks,
+            offset: 4 + 4,
+            block_size: metadata.block_size,
+        });
 
         // todo: have we checked that the merkle root matches each block?
         Ok(Immutable {

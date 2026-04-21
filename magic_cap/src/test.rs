@@ -110,7 +110,8 @@ fn handcrafted_filesystem_round_trip_stream() {
 
     // stream just one block out .. we only HAVE one block, but hey
     let mut plain: Vec<u8> = vec![0u8; blocksize];
-    cap.decrypt_one_block(&mut imm, 0, &mut plain[0..blocksize]).unwrap();
+    cap.decrypt_one_block(&mut imm, 0, &mut plain[0..blocksize])
+        .unwrap();
     assert_eq!(input[0..2], plain);
 }
 
