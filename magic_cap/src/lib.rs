@@ -700,7 +700,7 @@ where
     provider: &'a mut R,
     blocks: u64,
     offset: u64,
-    blocksize: u32,
+    block_size: u32,
 }
 
 impl<'a, R> EncryptedImmutable for EncryptedImmutableReader<'a, R>
@@ -713,21 +713,21 @@ where
 
     // can we just demand a "block_size: u32" _attribute_ in the Trait?
     fn block_size(&self) -> u32 {
-        self.blocksize
+        self.block_size
     }
 
     fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
-        if buf.len() != self.blocksize as usize {
+        if buf.len() != self.block_size as usize {
             Err(
                 std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    format!("buf is {} but blocksize is {}", buf.len(), self.blocksize),
+                    format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
                 )
             )
         } else {
-            let offset = self.offset + (index as u64 * self.blocksize as u64);
+            let offset = self.offset + (index as u64 * self.block_size as u64);
             self.provider.seek(std::io::SeekFrom::Start(offset))?;
-            Ok(self.blocksize as usize)
+            Ok(self.block_size as usize)
         }
     }
 }
@@ -889,7 +889,7 @@ impl<'a> Immutable<'a> {
                 provider: reader,
                 blocks: metadata.blocks,
                 offset: 4 + 4,
-                blocksize: metadata.block_size,
+                block_size: metadata.block_size,
             }
         );
 
