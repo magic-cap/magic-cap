@@ -89,7 +89,7 @@ pub use catalog::ImmutableDirectoryCatalog;
 pub use catalog::ImmutableIdentifier;
 
 // why can't we use KeyInit ?!
-use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
+use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
@@ -221,13 +221,32 @@ pub trait ImmutableVerifier {
 }
 
 pub trait ReadCap: ImmutableVerifier {
+
+    fn decrypt_one_block(&self, immutable: &mut Immutable, block: usize, plaintext: &mut [u8]) -> Result<(), MagicCapError>;
+
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
+
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: BufWriter<File>,
+        writer: BufWriter<File>, // probably want "dyn Write" or so? why demand a File here?
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
 }
+
+/// IDEA: maybe this returns an iterator instead? But this is the
+/// "inner loop" from old "decrypt()" method, which iterates ALL the
+/// blocks
+/*
+pub fn decrypt_all(cap: &impl ReadCap, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
+    todo!()
+}*/
+
+/// naive "random access" read-cap function
+/// think: refactor?
+pub trait RandomAccessReadCap: ReadCap {
+    fn decrypt_block(&self, immutable: &mut Immutable, block: usize) -> Result<Vec<u8>, MagicCapError>;
+}
+
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to confirm the ciphertext is valid, but cannot
@@ -328,6 +347,12 @@ pub struct ImmutableReadCap {
     // JUST the key here, and create the AES-CTR on-demend for
     // encryption / decryption. Yes, keys are 16-bytes in Tahoe.
     key: [u8; 16], // used by: ctr::Ctr128BE<aes::Aes128>
+
+    // this is built up incrementally by "decrypt_one_block" as we
+    // encounter blocks of ciphertext. these are "alleged leaf hashes"
+    // and MUST match the metdata leaf hashes (those ones we confirm
+    // vs. the root hash in the Capability string)
+    leaves: Vec<[u8; 32]>,
 }
 
 // without Seek on the output, we require it on the input
@@ -511,6 +536,60 @@ impl ReadCap for ImmutableReadCap {
     ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
     //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)
 
+    // refactor: what if we do this?
+    // - the ReadCap trait has "encrypt one block" ("decrypt one block") methods
+    // - something "higher level" (e.g. an Iterator) drives a "encrypt / decrypt everything" flow
+    // - (so essentially take out the alloc's and inner-loops from existing decrypt/encrypt
+
+    fn decrypt_one_block(&self, immutable: &mut Immutable, block: usize, plaintext: &mut [u8]) -> Result<(), MagicCapError> {
+        if plaintext.len() != immutable.data_provider.block_size() as usize {
+            return Err(
+                MagicCapError::WrongDataSize(
+                    plaintext.len(),
+                    immutable.data_provider.block_size() as usize,
+                )
+            );
+        }
+        if !self.verify.corresponds_to(immutable) {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+
+        // both "fn read" and "fn stream" check that the merkle_leaves
+        // correspond to the ciphertext_root in the metadata on load
+
+        // todo:
+        // 1. incremental "leaves" construction
+        //  - partial-proofs required
+        //  - "seek" for the IV stuff
+        // 2. if we've never seen this block yet, fill in the leaf hash
+        // 3. how do we do partial proofs on the FIRST leaf?
+        // (oh: we STORE all the leaves in the metadata .. so confirm the root hash, then can confirm per-leaf)
+
+        let iv = [0u8; 16]; // 16 bytes of 0's
+        let mut key = TahoeAesCtr::new(&self.key.into(), &iv.into());
+        // to get the IV correct for our block we tell the key the
+        // bytes offset
+        key.try_seek(block * immutable.data_provider.block_size() as usize).unwrap();
+
+        // load the ciphertext into the provided slice, and decrypt in-place
+        let _ = immutable.data_provider.get_block(block, plaintext);
+
+        println!("plaintext: {:?}", plaintext);
+
+        let leaf_hash = TahoeLeaf::hash(plaintext);
+        if leaf_hash != immutable.metadata.merkle_leaves[block] {
+            // todo: better error?
+            println!("block didn't match {:?} vs {:?}", leaf_hash, immutable.metadata.merkle_leaves[block]);
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+
+        // decrypt the data in-place
+        key.apply_keystream(plaintext);
+
+        // done: the caller has plaintext now
+        Ok(())
+    }
+
     /// turn an existing ReadCap plus associated Immutable back into
     /// the original plaintext (double-checks that this Immutable
     /// corresponds to the ReadCap first).
@@ -535,6 +614,9 @@ impl ReadCap for ImmutableReadCap {
         for i in 0..immutable.data_provider.total_blocks() {
             let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
             immutable.data_provider.get_block(i, &mut leaf)?;
+            // TODO: this just checks that the metadata.leaves
+            // _matches_ this hash instead of creating a whole merkle
+            // tree here
             let lh = TahoeLeaf::hash(&leaf);
             leaves.push(lh);
         }
@@ -552,6 +634,7 @@ impl ReadCap for ImmutableReadCap {
             return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
         }
 
+        // XXX flip this outside
         for block_idx in 0..immutable.data_provider.total_blocks() {
             let mut block: Vec<u8> = vec![0u8; immutable.data_provider.block_size() as usize];
             immutable.data_provider.get_block(block_idx, &mut block)?;
@@ -629,6 +712,7 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
             verify: ImmutableVerifyCap {
                 metadata_hash: vec_to_array(keymeta[0..32].to_vec())?,
             },
+            leaves: vec![],
         })
     }
 }
@@ -726,6 +810,7 @@ where
         } else {
             let offset = self.offset + (index as u64 * self.block_size as u64);
             self.provider.seek(std::io::SeekFrom::Start(offset))?;
+            self.provider.read_exact(buf)?;
             Ok(self.block_size as usize)
         }
     }
@@ -823,6 +908,16 @@ impl<'a> Immutable<'a> {
         let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
         let bs = metadata.block_size;
 
+        // check that the leaves correspond to the root -- does
+        // rmp_serde give us hook so that we can check on every load?
+        // (i.e. so we CAN'T load a metdata that has mismatched
+        // merkle_leaves + ciphertext_root.
+        let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&metadata.merkle_leaves);
+        let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
+        if merkle_root != metadata.ciphertext_root {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+
         // we have our metadata, now read the ciphertext
         reader.seek(std::io::SeekFrom::Start(4 + 4))?;
         let mut chunks =
@@ -864,6 +959,9 @@ impl<'a> Immutable<'a> {
             return Err(MagicCapError::InvalidCapTag(tag));
         }
 
+        // TODO: a bunch of this method is IDENTICAL to "fn read()"
+        // above -- we should unify them!
+
         // read the version number, we only understand 0x01
         let mut version = [0u8; 4];
         reader.read_exact(&mut version)?;
@@ -881,6 +979,16 @@ impl<'a> Immutable<'a> {
         // read the metadata first so we know blocksize etc
         reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
         let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut *reader)?;
+
+        // check that the leaves correspond to the root -- does
+        // rmp_serde give us hook so that we can check on every load?
+        // (i.e. so we CAN'T load a metdata that has mismatched
+        // merkle_leaves + ciphertext_root.
+        let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&metadata.merkle_leaves);
+        let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
+        if merkle_root != metadata.ciphertext_root {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
 
         // we have our metadata, now set up an on-demand reader to our
         // underlying data source
@@ -1030,11 +1138,17 @@ impl EncryptionContext {
             ciphertext_root: merkle_root,
         };
 
-        // todo: 2-tuple of cap, metadata ... but want to unify with "Immutable" maybe?
+        // create 'blank' all-0 leaves of the correct size
+        let mut leaves = Vec::with_capacity(metadata.blocks as usize);
+        for _ in 0..metadata.blocks {
+            leaves.push([0u8; 32]);
+        }
+
         Ok((
             ImmutableReadCap {
                 key: melf.key_bytes,
                 verify: ImmutableVerifyCap::from(&metadata),
+                leaves,
             },
             metadata,
         ))
