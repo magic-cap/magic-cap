@@ -135,11 +135,14 @@ fn main() {
 
     let cli = Cli::parse();
     let result = match &cli.command {
+        // if the MCAP output went to stdout a user will have a pretty
+        // hard time separating the data file from the mcap string, so
+        // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
             ciphertext,
             catalog,
-        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext, catalog),
+        }) => main_encrypt(&mut std::io::stderr(), plaintext, ciphertext, catalog),
         Some(Commands::Decrypt {
             cap,
             catalog,
