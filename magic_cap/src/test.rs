@@ -50,9 +50,9 @@ fn doc_example_verify() {
     let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
         .try_into()
         .unwrap();
-    let ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
+    let mut ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
     assert!(verifycap.corresponds_to(&ciphertext));
-    verifycap.verify(&ciphertext).unwrap();
+    verifycap.verify(&mut ciphertext).unwrap();
 }
 
 #[test]
@@ -83,9 +83,32 @@ fn handcrafted_filesystem_round_trip() {
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let data = std::io::BufReader::new(fm);
-    let imm2 = Immutable::read(data).unwrap();
-    let plain_text = cap.decrypt(&imm2).unwrap();
+    let mut imm2 = Immutable::read(data).unwrap();
+    let plain_text = cap.decrypt(&mut imm2).unwrap();
     assert_eq!(input, plain_text);
+}
+
+#[test]
+fn handcrafted_filesystem_round_trip_stream() {
+    let blocksize = 2;
+    let input: Vec<u8> = b"abcdef".to_vec();
+    let tmp = TempDir::new().unwrap();
+
+    let fm = File::create(tmp.path().join("encrypted")).unwrap();
+    let cap =
+        ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize).unwrap();
+
+    let fm = File::open(tmp.path().join("encrypted")).unwrap();
+    let mut data = std::io::BufReader::new(fm);
+    let mut imm = Immutable::stream(&mut data).unwrap();
+
+    println!("{:?}", imm.metadata.merkle_leaves);
+
+    // stream just one block out .. we only HAVE one block, but hey
+    let mut plain: Vec<u8> = vec![0u8; blocksize];
+    cap.decrypt_one_block(&mut imm, 0, &mut plain[0..blocksize])
+        .unwrap();
+    assert_eq!(input[0..2], plain);
 }
 
 #[test]
@@ -157,21 +180,21 @@ fn invalid_caps() {
 }
 
 #[test]
-fn find_collection_basic() {
+fn find_catalog_basic() {
     let tmpd = TempDir::new().unwrap();
     let tmp = tmpd.path().to_owned();
-    let mut collection = ImmutableDirectoryCollection::create(tmp).unwrap();
+    let mut catalog = ImmutableDirectoryCatalog::create(tmp).unwrap();
 
     let message = b"To light a candle is to cast a shadow...";
-    let mut builder = collection.insert(4096).unwrap();
-    builder.write(message).unwrap();
+    let mut builder = catalog.insert(4096).unwrap();
+    let _written_amount = builder.write(message).unwrap();
     let (cap, _) = builder.done().unwrap();
     // note: we have to drop "writer", which is the "_" above, so it
     // flushes / closes properly
 
     let id: ImmutableIdentifier = (&cap).into();
-    let immutable = collection.open(&id).unwrap();
-    let data = cap.decrypt(&immutable).unwrap();
+    let mut immutable = catalog.open(&id).unwrap();
+    let data = cap.decrypt(&mut immutable).unwrap();
     assert_eq!(message, data.as_slice());
 }
 
@@ -183,9 +206,9 @@ proptest! {
 
     #[test]
     fn round_trip(s in "\\PC+") {
-        let (cap, immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (cap, mut immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Read(readcap) = cap {
-            let round = readcap.decrypt(&immutable).unwrap();
+            let round = readcap.decrypt(&mut immutable).unwrap();
             assert!(s.as_bytes() == round);
         } else {
             assert!(false);
@@ -195,12 +218,12 @@ proptest! {
     #[test]
     fn verify_fails_corrupted_ciphertext(s in "\\PC+") {
         let (cap0, _immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
-        let (_cap1, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (_cap1, mut immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Read(rcap) = cap0 {
             let rcap0 = rcap.clone();
             let vcap: ImmutableVerifyCap = rcap.into();
-            assert!(vcap.verify(&immutable1).is_err());
-            assert!(rcap0.verify(&immutable1).is_err());
+            assert!(vcap.verify(&mut immutable1).is_err());
+            assert!(rcap0.verify(&mut immutable1).is_err());
         } else {
             panic!("asdf");
         }
@@ -208,9 +231,9 @@ proptest! {
 
     #[test]
     fn test_verify(s in "\\PC+") {
-        let (cap, immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (cap, mut immutable) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         if let ImmutableCap::Verify(verifycap) = cap {
-            assert!(verifycap.verify(&immutable).is_ok());
+            assert!(verifycap.verify(&mut immutable).is_ok());
         }
     }
 
@@ -219,12 +242,12 @@ proptest! {
         // we cannot decrypt the ciphertext
         let (cap0, immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         let (_, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
-        let failed = Immutable {
+        let mut failed = Immutable {
             metadata: immutable1.metadata,
             data_provider: immutable0.data_provider,
         };
         if let ImmutableCap::Verify(verifycap) = cap0 {
-            assert!(verifycap.verify(&failed).is_err());
+            assert!(verifycap.verify(&mut failed).is_err());
         }
     }
 
@@ -233,12 +256,12 @@ proptest! {
         // the metadata doesn't verify
         let (cap0, immutable0) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         let (_, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
-        let failed = Immutable {
+        let mut failed = Immutable {
             metadata: immutable1.metadata,
             data_provider: immutable0.data_provider,
         };
         if let ImmutableCap::Verify(verifycap) = cap0 {
-            assert!(verifycap.verify(&failed).is_err());
+            assert!(verifycap.verify(&mut failed).is_err());
         }
     }
 
@@ -251,7 +274,7 @@ proptest! {
         // try inverting various pieces of the merkle tree
         corrupt_root[idx] ^= 0xff;
 
-        let corrupted = Immutable{
+        let mut corrupted = Immutable{
             metadata: ImmutableMetadata{
                 ciphertext_root: corrupt_root,
                 ..immutable.metadata
@@ -261,7 +284,7 @@ proptest! {
 
         // this decrypt should fail, because we messed up the merkle root above
         if let ImmutableCap::Read(readcap) = cap {
-            let round = readcap.decrypt(&corrupted);
+            let round = readcap.decrypt(&mut corrupted);
             assert!(round.is_err());
         } else {
             assert!(false);
@@ -272,12 +295,12 @@ proptest! {
     fn wrong_mcap(s in "\\PC+") {
         // if we use the wrong mcap string against valid
         // metadata+cipherttext, it should still be an error
-        let (_, immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
+        let (_, mut immutable1) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
         let (cap2, _) = Immutable::encrypt(s.as_bytes(), 4096).unwrap();
 
         // this decrypt should fail
         if let ImmutableCap::Read(readcap2) = cap2 {
-            let round = readcap2.decrypt(&immutable1);
+            let round = readcap2.decrypt(&mut immutable1);
             if round.is_ok() {
                 assert!(false);
             }
@@ -301,11 +324,11 @@ proptest! {
         let mut b: Vec<u8> = vec![0; s as usize];
         b.resize(s as usize, 0u8);
         getrandom::fill(b.as_mut_slice()).unwrap();
-        let (cap, immutable) = Immutable::encrypt(b.as_slice(), 4096).unwrap();
+        let (cap, mut immutable) = Immutable::encrypt(b.as_slice(), 4096).unwrap();
         println!("{:?} {:?}" , immutable.metadata.size, immutable.metadata.blocks);
         assert!(immutable.metadata.size == s);
         if let ImmutableCap::Read(readcap) = cap {
-            let round = readcap.decrypt(&immutable).unwrap();
+            let round = readcap.decrypt(&mut immutable).unwrap();
             assert!(b.as_slice() == round);
         } else {
             assert!(false);
@@ -319,11 +342,11 @@ proptest! {
         let mut b: Vec<u8> = vec![0; s as usize];
         b.resize(s as usize, 0u8);
         getrandom::fill(b.as_mut_slice()).unwrap();
-        let (cap, immutable) = Immutable::encrypt(b.as_slice(), block_size).unwrap();
+        let (cap, mut immutable) = Immutable::encrypt(b.as_slice(), block_size).unwrap();
         println!("{:?} {:?}" , immutable.metadata.size, immutable.metadata.blocks);
         assert!(immutable.metadata.size == s);
         if let ImmutableCap::Read(readcap) = cap {
-            let round = readcap.decrypt(&immutable).unwrap();
+            let round = readcap.decrypt(&mut immutable).unwrap();
             assert_eq!(b, round);
         } else {
             assert!(false);
@@ -350,6 +373,7 @@ proptest! {
             verify: ImmutableVerifyCap {
                 metadata_hash,
             },
+            leaves: vec![],
         };
         let human_readable: String = format!("{}", cap);
         let round_cap = ImmutableReadCap::try_from(human_readable.as_str()).unwrap();
@@ -373,8 +397,8 @@ proptest! {
 
         let fm = File::open(tmp.path().join("encrypted"))?;
         let data = std::io::BufReader::new(fm);
-        let imm2 = Immutable::read(data).unwrap();
-        let plain_text = cap.decrypt(&imm2).unwrap();
+        let mut imm2 = Immutable::read(data).unwrap();
+        let plain_text = cap.decrypt(&mut imm2).unwrap();
         assert_eq!(input, plain_text);
     }
 }

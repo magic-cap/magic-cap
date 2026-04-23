@@ -99,10 +99,11 @@
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCollection, ImmutableDirectoryCollection,
-    ImmutableIdentifier, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
 use std::fs::File;
+use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
@@ -114,7 +115,8 @@ pub mod tests;
 pub fn main_encrypt(
     output: &mut impl Write,
     plain_text: &Path,
-    output_fname: &Path,
+    output_fname: &Option<PathBuf>,
+    catalog: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
 
@@ -133,11 +135,46 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    let output_file = File::create(output_fname)?;
-    let mut bufw = std::io::BufWriter::new(output_file);
+    let mut cryptor: ImmutableBuilder<BufWriter<File>> = if let Some(output_fname) = output_fname {
+        let output_file = File::create(output_fname)?;
+        ImmutableBuilder::new(4096, BufWriter::new(output_file), None)?
+    } else {
+        if let Some(catalog) = catalog {
+            let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
+            catalog.insert(4096)?
+        } else {
+            // no output file AND no catalog, so user wants ciphertext on stdout
+            let stdio = std::io::stdout(); //.lock();
+            let mut cryptor: ImmutableBuilder<std::io::Stdout> =
+                ImmutableBuilder::new(4096, stdio, None)?;
+
+            // FIXME: TODO: this "crypto" is a different type than the
+            // other "cryptor", because ImmutableBuilder has it's
+            // "writer" type as a generic -- so it's part of the type,
+            // and we can't have one variable that points at
+            // ImmutableBuilder<File> OR ImmutableBuilder<Stdio>
+            // .. using Box<dyn Write> gets rid of the generic, but
+            // then the "consume / un-consume" pattern on done()
+            // doesn't work .. see the "stream.rs" example for why
+
+            let mut plaintext: Vec<u8> = vec![0u8; 4096];
+
+            let mut r = input_file.read(&mut plaintext)?;
+            while r != 0 {
+                plaintext.resize(r, 0);
+                let _ = cryptor.write(&plaintext)?;
+                r = input_file.read(&mut plaintext)?;
+            }
+            let (cap, _) = cryptor.done()?;
+
+            let capstr = format!("{}", cap);
+            writeln!(output, "{}", capstr)?;
+            return Ok(());
+        }
+    };
+    //let mut bufw = BufWriter::new(output_file);
 
     let mut plaintext: Vec<u8> = vec![0u8; 4096];
-    let mut cryptor = ImmutableBuilder::new(4096, &mut bufw)?;
 
     let mut r = input_file.read(&mut plaintext)?;
     while r != 0 {
@@ -152,21 +189,21 @@ pub fn main_encrypt(
     Ok(())
 }
 
-//static default_collection: PathBuf = PathBuf::from("~/.magicap");
+//static default_catalog: PathBuf = PathBuf::from("~/.magicap");
 
 /// "mcap decrypt"
 pub fn main_decrypt(
     //    input: &mut impl Read,
     output: &mut impl Write,
     cap: &str,
-    collection: &Option<PathBuf>,
+    catalog: &Option<PathBuf>,
     input_fname: &Option<PathBuf>,
-    outfile: &PathBuf,
+    outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
-    if collection.is_some() && input_fname.is_some() {
-        // could be error, could say "if filename doesn't exist then use collection"
+    if catalog.is_some() && input_fname.is_some() {
+        // could be error, could say "if filename doesn't exist then use catalog"
         //
-        // take a Enum in here that is a Collection OR a input_fname
+        // take a Enum in here that is a Catalog OR a input_fname
         // so we can only do one
         todo!();
     }
@@ -176,31 +213,38 @@ pub fn main_decrypt(
         let f = std::fs::File::open(input_fname)?;
         Immutable::read(&mut std::io::BufReader::new(f))
     } else {
-        //let root = collection.ok_or(default_collection);
-        if let Some(root) = collection {
-            let collect = ImmutableDirectoryCollection::create(root.clone())?;
+        if let Some(root) = catalog {
+            let collect = ImmutableDirectoryCatalog::create(root.clone())?;
             let locid: ImmutableIdentifier = (&cap).into();
             collect.open(&locid)
         } else {
-            Err(MagicCapError::NoCapability)
+            Err(MagicCapError::GenericError(
+                "Must provide either --ciphertext or --catalog".to_string(),
+            ))
         }
     };
 
-    match cap.decrypt(&imm?) {
+    match cap.decrypt(&mut imm?) {
         Ok(plain) => {
-            let mut out = std::fs::File::create(outfile)?;
-            out.write_all(plain.as_slice())?;
-            match outfile.to_str() {
-                Some(of) => {
-                    writeln!(
-                        output,
-                        "Wrote {} bytes of plaintext to \"{}\".",
-                        plain.len(),
-                        of,
-                    )?;
-                    Ok(())
+            if let Some(outfile) = outfile {
+                let mut out = std::fs::File::create(outfile)?;
+                out.write_all(plain.as_slice())?;
+                match outfile.to_str() {
+                    Some(of) => {
+                        writeln!(
+                            output,
+                            "Wrote {} bytes of plaintext to \"{}\".",
+                            plain.len(),
+                            of,
+                        )?;
+                        Ok(())
+                    }
+                    None => Ok(()),
                 }
-                None => Ok(()),
+            } else {
+                let mut out = std::io::stdout();
+                out.write_all(plain.as_slice())?;
+                Ok(())
             }
         }
         Err(e) => match &e {
@@ -217,9 +261,9 @@ pub fn main_decrypt(
 pub fn main_verify(cap: &str, input_fname: &Path) -> Result<(), MagicCapError> {
     let cap = ImmutableVerifyCap::try_from(cap)?;
     let f = std::fs::File::open(input_fname)?;
-    let imm = Immutable::read(&mut std::io::BufReader::new(f))?;
+    let mut imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
-    cap.verify(&imm)?;
+    cap.verify(&mut imm)?;
     Ok(())
 }
 

@@ -4,20 +4,19 @@ use data_encoding::HEXLOWER;
 use std::fmt;
 use std::fs::File;
 use std::io::BufWriter;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
 // smarter about the seeks? (speculative)!
-pub trait ImmutableCollection {
+pub trait ImmutableCatalog<'a> {
     // todo: probably want "load" vs. "stream" API here
-    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError>;
+    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError>;
+    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -76,62 +75,29 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
 // OR: could create a new one in a "well known place" and uses that
 // (this is nice because then it actually works)
 
-/// a file-system implementation of [`ImmutableCollection`] which
+/// a file-system implementation of [`ImmutableCatalog`] which
 /// stores magic-caps in a struture similar to Git
 /// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
-pub struct ImmutableDirectoryCollection {
+#[derive(Debug)]
+pub struct ImmutableDirectoryCatalog {
     root: PathBuf,
 }
 
-impl ImmutableDirectoryCollection {
-    pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCollection, MagicCapError> {
+impl ImmutableDirectoryCatalog {
+    pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCatalog, MagicCapError> {
         if !root.is_dir() {
             return Err(MagicCapError::NotDirectory());
         }
         // todo: consider putting a README or similar in here that
         // both more-accurately marks this as an
-        // ImmutableDirectoryCollection and also explains to a human
+        // ImmutableDirectoryCatalog and also explains to a human
         // what this is.
-        Ok(ImmutableDirectoryCollection { root })
+        Ok(ImmutableDirectoryCatalog { root })
     }
 }
 
-pub struct ImmutableDirectoryCollectionBuilder<W>
-where
-    W: Write,
-{
-    builder: ImmutableBuilder<W>,
-    completed: Box<dyn FnOnce(&ImmutableReadCap)>,
-}
-
-impl<W> ImmutableDirectoryCollectionBuilder<W>
-where
-    W: Write,
-{
-    pub fn done(self) -> Result<(ImmutableReadCap, W), MagicCapError> {
-        let (cap, w) = self.builder.done()?;
-        // 1. tell collection we're done inserting
-        (self.completed)(&cap);
-        // 2. return to parent
-        Ok((cap, w))
-    }
-}
-
-impl<W> Write for ImmutableDirectoryCollectionBuilder<W>
-where
-    W: Write,
-{
-    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        self.builder.write(buf)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.builder.flush()
-    }
-}
-
-impl ImmutableCollection for ImmutableDirectoryCollection {
-    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable, MagicCapError> {
+impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
+    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
         // 1. convert identifier to &str (base64? base32?)
         // 2. strip first 2 (more?) chars off
         // 3. look in root/<2 chars>/<entire id>
@@ -146,7 +112,7 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableDirectoryCollectionBuilder<BufWriter<File>>, MagicCapError> {
+    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
         // 3. return the builder with Write to our ephemeral file
@@ -173,7 +139,11 @@ impl ImmutableCollection for ImmutableDirectoryCollection {
             std::fs::rename(uploaded, fname).unwrap();
         });
 
-        let builder = ImmutableBuilder::<BufWriter<File>>::new(blocksize, bufwriter)?;
-        Ok(ImmutableDirectoryCollectionBuilder::<BufWriter<File>> { builder, completed })
+        let builder = ImmutableBuilder::<BufWriter<File>>::new(
+            blocksize,
+            bufwriter,
+            Some(Box::new(completed)),
+        )?;
+        Ok(builder)
     }
 }

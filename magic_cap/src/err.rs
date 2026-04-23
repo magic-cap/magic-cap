@@ -56,4 +56,7 @@ pub enum MagicCapError {
 
     #[error("ImmutableDirectoryCollection must be a directory")]
     NotDirectory(),
+
+    #[error("{0}")]
+    GenericError(String),
 }

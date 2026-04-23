@@ -10,6 +10,10 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(version = "25.12.1")]
 #[command(about = "
+        ┏┳┓┏━┓┏━╸╻┏━╸        ┏━╸┏━┓┏━┓
+O------ ┃┃┃┣━┫┃╺┓┃┃    ---   ┃  ┣━┫┣━┛ ------O
+        ╹ ╹╹ ╹┗━┛╹┗━╸        ┗━╸╹ ╹╹
+
 Create, read and verify Magic Cap strings and encrypted data.
 
 Data is a file containing encrypted data and associated metadata.
@@ -28,32 +32,51 @@ struct Cli {
 enum Commands {
     #[command(about = "turn plaintext into a Magic Cap + ciphertext")]
     Encrypt {
-        #[arg(short, long)]
+        // non-optional source of data
         plaintext: PathBuf,
-        ciphertext: PathBuf,
+
+        #[arg(short, long)]
+        ciphertext: Option<PathBuf>,
+
+        #[arg(long)]
+        catalog: Option<PathBuf>,
     },
 
     #[command(about = "turn a Magic Cap + ciphertext into plaintext")]
     Decrypt {
-        #[arg(long)]
+        // non-optional magic-cap string
         cap: String,
 
         // todo: shae says we can put these in a group .. see
         // https://stackoverflow.com/questions/76315540/how-do-i-require-one-of-the-two-clap-options/76315811#76315811
-        #[arg(long)]
-        collection: Option<PathBuf>,
-        #[arg(short, long)]
+        #[arg(
+            long,
+            value_name("PATH"),
+            help("root direction of a ciphertext catalog")
+        )]
+        catalog: Option<PathBuf>,
+
+        #[arg(
+            short,
+            long,
+            value_name("FNAME"),
+            help("path to a .mcap ciphertext file")
+        )]
         ciphertext: Option<PathBuf>,
 
-        #[arg(short, long)]
-        plaintext: PathBuf,
+        #[arg(
+            short,
+            long,
+            value_name("FNAME"),
+            help("path to write plaintext to (default: stdout)")
+        )]
+        plaintext: Option<PathBuf>,
         // #[arg(short, long)]
         // crypt_text: PathBuf,
     },
 
     #[command(about = "Confirm a ciphertext is valid")]
     Verify {
-        #[arg(long)]
         cap: String,
 
         #[arg(short, long)]
@@ -70,24 +93,18 @@ fn main() {
         Some(Commands::Encrypt {
             plaintext,
             ciphertext,
-        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext),
+            catalog,
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, ciphertext, catalog),
         Some(Commands::Decrypt {
             cap,
-            collection,
+            catalog,
             ciphertext,
             plaintext,
-        }) => main_decrypt(
-            &mut std::io::stdout(),
-            cap,
-            collection,
-            ciphertext,
-            plaintext,
-        ),
+        }) => main_decrypt(&mut std::io::stdout(), cap, catalog, ciphertext, plaintext),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         None => Ok(()),
     };
-
     if let Err(e) = result {
         println!("Error: {}", e);
         std::process::exit(2);

@@ -77,19 +77,19 @@
 //! ```
 //!
 
-mod collection;
+mod catalog;
 pub mod err;
 
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
 
-// todo: re-export some stuff from collection
-pub use collection::ImmutableCollection;
-pub use collection::ImmutableDirectoryCollection;
-pub use collection::ImmutableIdentifier;
+// todo: re-export some stuff from catalog
+pub use catalog::ImmutableCatalog;
+pub use catalog::ImmutableDirectoryCatalog;
+pub use catalog::ImmutableIdentifier;
 
 // why can't we use KeyInit ?!
-use aes::cipher::{KeyIvInit, StreamCipher}; // we'll need StreamCipherSeek for random access decryption
+use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
@@ -217,16 +217,42 @@ pub enum ImmutableCap {
 }
 
 pub trait ImmutableVerifier {
-    fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError>;
+    fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError>;
 }
 
 pub trait ReadCap: ImmutableVerifier {
-    fn decrypt(&self, immutable: &Immutable) -> Result<Vec<u8>, MagicCapError>;
+    fn decrypt_one_block(
+        &self,
+        immutable: &mut Immutable,
+        block: usize,
+        plaintext: &mut [u8],
+    ) -> Result<(), MagicCapError>;
+
+    fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
+
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: BufWriter<File>,
+        writer: BufWriter<File>, // probably want "dyn Write" or so? why demand a File here?
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
+}
+
+/*
+/// IDEA: maybe this returns an iterator instead? But this is the
+/// "inner loop" from old "decrypt()" method, which iterates ALL the
+/// blocks
+pub fn decrypt_all(cap: &impl ReadCap, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
+    todo!()
+}*/
+
+/// naive "random access" read-cap function
+/// think: refactor?
+pub trait RandomAccessReadCap: ReadCap {
+    fn decrypt_block(
+        &self,
+        immutable: &mut Immutable,
+        block: usize,
+    ) -> Result<Vec<u8>, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -269,7 +295,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
     /// merkle tree of hashes of each block matches the root in the
     /// metadata). This traverses all the bytes of ciphertext (to hash
     /// them).
-    fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError> {
+    fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError> {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
@@ -279,8 +305,10 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 
         // can we use iterators more directly here instead of for loop? e.g.:
         let mut leaves: Vec<[u8; 32]> = vec![];
-        for i in 0..immutable.data_provider.get_total_blocks() {
-            let lh = TahoeLeaf::hash(immutable.data_provider.get_block(i));
+        for i in 0..immutable.data_provider.total_blocks() {
+            let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
+            immutable.data_provider.get_block(i, &mut leaf)?;
+            let lh = TahoeLeaf::hash(&leaf);
             leaves.push(lh);
         }
         fill_empty_merkle_leaves(&mut leaves);
@@ -326,9 +354,17 @@ pub struct ImmutableReadCap {
     // JUST the key here, and create the AES-CTR on-demend for
     // encryption / decryption. Yes, keys are 16-bytes in Tahoe.
     key: [u8; 16], // used by: ctr::Ctr128BE<aes::Aes128>
+
+    // this is built up incrementally by "decrypt_one_block" as we
+    // encounter blocks of ciphertext. these are "alleged leaf hashes"
+    // and MUST match the metdata leaf hashes (those ones we confirm
+    // vs. the root hash in the Capability string)
+    leaves: Vec<[u8; 32]>,
 }
 
 // without Seek on the output, we require it on the input
+
+type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 
 /// Manage context to incrementally encrypt to an underlying [`Write`]
 ///
@@ -347,6 +383,7 @@ where
     output: W,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
+    completed: Option<BuilderDoneCb>,
 }
 
 // feb 3: see the history: we have a version that takes a "&mut Write"
@@ -364,7 +401,11 @@ where
 
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
-    pub fn new(blocksize: usize, mut writer: W) -> Result<Self, MagicCapError> {
+    pub fn new(
+        blocksize: usize,
+        mut writer: W,
+        completed: Option<BuilderDoneCb>,
+    ) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // tag
         writer.write_all(&1u32.to_be_bytes())?; // version == 1
 
@@ -373,6 +414,7 @@ where
             output: writer,
             this_block: Vec::with_capacity(blocksize),
             ciphertext_bytes: 0,
+            completed,
         };
         Ok(result)
     }
@@ -407,6 +449,9 @@ where
         meta.write(&mut self.output)?;
 
         self.output.write_all(&offset.to_be_bytes())?;
+        if let Some(completion_cb) = self.completed {
+            completion_cb(&cap);
+        }
         Ok((cap, self.output))
     }
 }
@@ -432,9 +477,9 @@ where
                 Err(err) => return Err(std::io::Error::other(err)),
             };
             // write out a block
-            let written = self.output.write(&encrypted_block)?;
-            local_written += written;
-            self.ciphertext_bytes += written;
+            self.output.write_all(&encrypted_block)?;
+            local_written += encrypted_block.len();
+            self.ciphertext_bytes += encrypted_block.len();
         }
         Ok(local_written)
         // todo: we're basically "just hosed" if anything errors in
@@ -495,10 +540,74 @@ impl ReadCap for ImmutableReadCap {
         Ok(cap)
     }
 
+    ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
+    //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)
+
+    // refactor: what if we do this?
+    // - the ReadCap trait has "encrypt one block" ("decrypt one block") methods
+    // - something "higher level" (e.g. an Iterator) drives a "encrypt / decrypt everything" flow
+    // - (so essentially take out the alloc's and inner-loops from existing decrypt/encrypt
+
+    fn decrypt_one_block(
+        &self,
+        immutable: &mut Immutable,
+        block: usize,
+        plaintext: &mut [u8],
+    ) -> Result<(), MagicCapError> {
+        if plaintext.len() != immutable.data_provider.block_size() as usize {
+            return Err(MagicCapError::WrongDataSize(
+                plaintext.len(),
+                immutable.data_provider.block_size() as usize,
+            ));
+        }
+        if !self.verify.corresponds_to(immutable) {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+
+        // both "fn read" and "fn stream" check that the merkle_leaves
+        // correspond to the ciphertext_root in the metadata on load
+
+        // todo:
+        // 1. incremental "leaves" construction
+        //  - partial-proofs required
+        //  - "seek" for the IV stuff
+        // 2. if we've never seen this block yet, fill in the leaf hash
+        // 3. how do we do partial proofs on the FIRST leaf?
+        // (oh: we STORE all the leaves in the metadata .. so confirm the root hash, then can confirm per-leaf)
+
+        let iv = [0u8; 16]; // 16 bytes of 0's
+        let mut key = TahoeAesCtr::new(&self.key.into(), &iv.into());
+        // to get the IV correct for our block we tell the key the
+        // bytes offset
+        key.try_seek(block * immutable.data_provider.block_size() as usize)
+            .unwrap();
+
+        // load the ciphertext into the provided slice, and decrypt in-place
+        let _ = immutable.data_provider.get_block(block, plaintext);
+
+        println!("plaintext: {:?}", plaintext);
+
+        let leaf_hash = TahoeLeaf::hash(plaintext);
+        if leaf_hash != immutable.metadata.merkle_leaves[block] {
+            // todo: better error?
+            println!(
+                "block didn't match {:?} vs {:?}",
+                leaf_hash, immutable.metadata.merkle_leaves[block]
+            );
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+
+        // decrypt the data in-place
+        key.apply_keystream(plaintext);
+
+        // done: the caller has plaintext now
+        Ok(())
+    }
+
     /// turn an existing ReadCap plus associated Immutable back into
     /// the original plaintext (double-checks that this Immutable
     /// corresponds to the ReadCap first).
-    fn decrypt(&self, immutable: &Immutable) -> Result<Vec<u8>, MagicCapError> {
+    fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
         let mut plaintext: Vec<u8> = Vec::with_capacity(immutable.metadata.size as usize);
         let iv = [0u8; 16]; // 16 bytes of 0's
         // before anything else, we check that the capability
@@ -516,8 +625,13 @@ impl ReadCap for ImmutableReadCap {
         // can we use iterators more directly here instead of for loop? e.g.:
         // let mut leaves: Vec<[u8; 32]> = cipher.iter().map(|x| TahoeLeaf::hash(x)).collect();
         let mut leaves: Vec<[u8; 32]> = vec![];
-        for i in 0..immutable.data_provider.get_total_blocks() {
-            let lh = TahoeLeaf::hash(immutable.data_provider.get_block(i));
+        for i in 0..immutable.data_provider.total_blocks() {
+            let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
+            immutable.data_provider.get_block(i, &mut leaf)?;
+            // TODO: this just checks that the metadata.leaves
+            // _matches_ this hash instead of creating a whole merkle
+            // tree here
+            let lh = TahoeLeaf::hash(&leaf);
             leaves.push(lh);
         }
         fill_empty_merkle_leaves(&mut leaves);
@@ -534,8 +648,10 @@ impl ReadCap for ImmutableReadCap {
             return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
         }
 
-        for block_idx in 0..immutable.data_provider.get_total_blocks() {
-            let mut block: Vec<u8> = immutable.data_provider.get_block(block_idx).to_vec();
+        // XXX flip this outside
+        for block_idx in 0..immutable.data_provider.total_blocks() {
+            let mut block: Vec<u8> = vec![0u8; immutable.data_provider.block_size() as usize];
+            immutable.data_provider.get_block(block_idx, &mut block)?;
             key.apply_keystream(&mut block);
             plaintext.append(&mut block);
         }
@@ -547,7 +663,7 @@ impl ReadCap for ImmutableReadCap {
 }
 
 impl ImmutableVerifier for ImmutableReadCap {
-    fn verify(&self, immutable: &Immutable) -> Result<(), MagicCapError> {
+    fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError> {
         self.verify.verify(immutable)
     }
 }
@@ -610,6 +726,7 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
             verify: ImmutableVerifyCap {
                 metadata_hash: vec_to_array(keymeta[0..32].to_vec())?,
             },
+            leaves: vec![],
         })
     }
 }
@@ -630,9 +747,13 @@ fn vec_to_array<T, const BLOCKSIZE: usize>(v: Vec<T>) -> Result<[T; BLOCKSIZE], 
 /// Specification of how to access all ciphertext, which are stored in blocks.
 pub trait EncryptedImmutable {
     // naive API:
-    fn get_total_blocks(&self) -> usize;
-    fn get_block(&self, index: usize) -> &[u8];
-    // todo: block-size?
+    fn total_blocks(&self) -> usize;
+    fn block_size(&self) -> u32;
+
+    /// get all the ciphertext for a particular block. it is an error
+    /// if the size of "buf" is not equal to the block-size. returns
+    /// the number of bytes read.
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -641,41 +762,73 @@ pub struct EncryptedImmutableMemory {
     // morally-equivalent to "all the blocks / segments"
     // todo: _can_ we make this a Vec<&[u8]> or do we just not know Rust and "this is the way"?
     pub blocks: Vec<Vec<u8>>,
+    _block_size: u32,
 }
 
 impl EncryptedImmutable for EncryptedImmutableMemory {
-    fn get_total_blocks(&self) -> usize {
+    fn total_blocks(&self) -> usize {
         self.blocks.len()
     }
 
-    fn get_block(&self, index: usize) -> &[u8] {
-        &self.blocks[index]
+    fn block_size(&self) -> u32 {
+        self._block_size
+    }
+
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.len() != self.blocks[0].len() {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self._block_size),
+            ))
+        } else {
+            buf.copy_from_slice(&self.blocks[index]);
+            Ok(self.blocks[index].len())
+        }
     }
 }
 
 #[derive(Debug, PartialEq)]
 /// Access all ciphertext via a [`Read`] provider
-pub struct EncryptedImmutableReader<R>
+pub struct EncryptedImmutableReader<'a, R>
 where
-    R: Read,
+    R: Read + Seek + 'a,
 {
-    provider: R,
+    provider: &'a mut R,
+    blocks: u64,
+    offset: u64,
+    block_size: u32,
 }
 
-/*
-impl<R> EncryptedImmutable for EncryptedImmutableReader<R>  where R: Read{
-    fn get_total_blocks(&self) -> usize {
-        self.blocks.len()
+impl<'a, R> EncryptedImmutable for EncryptedImmutableReader<'a, R>
+where
+    R: Read + Seek + 'a,
+{
+    fn total_blocks(&self) -> usize {
+        self.blocks as usize
     }
 
-    fn get_block(&self, index: usize) -> &[u8] {
-        &self.blocks[index] // stolen from memory
+    fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.len() != self.block_size as usize {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+            ))
+        } else {
+            let offset = self.offset + (index as u64 * self.block_size as u64);
+            self.provider.seek(std::io::SeekFrom::Start(offset))?;
+            self.provider.read_exact(buf)?;
+            Ok(self.block_size as usize)
+        }
     }
 }
-*/
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
+// todo: we want encrypted metadata (as well)
 pub struct ImmutableMetadata {
     // morally-equivalent to Tahoe's UEB
     pub size: u64,
@@ -717,14 +870,14 @@ impl ImmutableMetadata {
 /// Represents everything to do with an [`Immutable`] except the
 /// [`ImmutableCap`] itself. That is, this represents the [`Immutable`]'s
 /// metadata and a way to access the ciphertext.
-pub struct Immutable {
+pub struct Immutable<'a> {
     //    pub cap: Option<ImmutableCap>,
     pub metadata: ImmutableMetadata,
     // todo: do we want Arc() here too? So we can implement Clone nicely?
-    pub data_provider: Box<dyn EncryptedImmutable>, // Box<dyn ..> here so we're Sized
+    pub data_provider: Box<dyn EncryptedImmutable + 'a>, // Box<dyn ..> here so we're Sized
 }
 
-impl Immutable {
+impl<'a> Immutable<'a> {
     /// Deserialize an Immutable from the given input stream.
     ///
     /// The serialized format stores the metadata near the end of the
@@ -732,7 +885,10 @@ impl Immutable {
     /// to the end before returning to near the start to read
     /// encrypted blocks of data.
     ///
-    pub fn read<R>(mut reader: R) -> Result<Immutable, MagicCapError>
+    /// All of the ciphertext is read into memory. For larger files it
+    /// may be better to use the ``stream`` function instead.
+    ///
+    pub fn read<'b, R>(mut reader: R) -> Result<Immutable<'b>, MagicCapError>
     where
         R: Read + std::io::Seek,
     {
@@ -760,6 +916,17 @@ impl Immutable {
         // read the metadata first so we know blocksize etc
         reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
         let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
+        let bs = metadata.block_size;
+
+        // check that the leaves correspond to the root -- does
+        // rmp_serde give us hook so that we can check on every load?
+        // (i.e. so we CAN'T load a metdata that has mismatched
+        // merkle_leaves + ciphertext_root.
+        let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&metadata.merkle_leaves);
+        let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
+        if merkle_root != metadata.ciphertext_root {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
 
         // we have our metadata, now read the ciphertext
         reader.seek(std::io::SeekFrom::Start(4 + 4))?;
@@ -775,14 +942,81 @@ impl Immutable {
         // (yes, we read through all the ciphertext above so perhaps ONLY check here?)
         Ok(Immutable {
             metadata,
-            data_provider: Box::new(EncryptedImmutableMemory { blocks: chunks }),
+            data_provider: Box::new(EncryptedImmutableMemory {
+                blocks: chunks,
+                _block_size: bs, // how does 'metadata' get moved? where?
+            }),
+        })
+    }
+
+    /// Similar to ``read`` but doesn't read all the ciphertext blocks
+    /// into memory at once, instead accessing the provided reader
+    /// as-needed to access the ciphertext on-demand.
+    // so .. we still return an "Immutable", but it's backend thing is
+    // set up to read "on demand" (and we've changed the Immtuable API
+    // to support both)
+    pub fn stream<'b, R>(reader: &'b mut R) -> Result<Immutable<'b>, MagicCapError>
+    where
+        R: Read + std::io::Seek,
+    {
+        // read the tag and verify this is an mcap file
+        let mut tag = [0u8; 4];
+        reader.read_exact(&mut tag)?;
+        if tag != *b"mcap" {
+            return Err(MagicCapError::InvalidCapTag(tag));
+        }
+
+        // TODO: a bunch of this method is IDENTICAL to "fn read()"
+        // above -- we should unify them!
+
+        // read the version number, we only understand 0x01
+        let mut version = [0u8; 4];
+        reader.read_exact(&mut version)?;
+        let version: u32 = u32::from_be_bytes(version);
+        if version != 1 {
+            return Err(MagicCapError::InvalidCapVersion(version));
+        }
+        // the offset to the metadata is at the end of the file, the last 8 bytes
+        reader.seek(std::io::SeekFrom::End(-8))?;
+        // find the offset to metadata
+        let mut metadata = [0u8; 8];
+        reader.read_exact(&mut metadata)?;
+        let metadata_offset: u64 = u64::from_be_bytes(metadata);
+
+        // read the metadata first so we know blocksize etc
+        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut *reader)?;
+
+        // check that the leaves correspond to the root -- does
+        // rmp_serde give us hook so that we can check on every load?
+        // (i.e. so we CAN'T load a metdata that has mismatched
+        // merkle_leaves + ciphertext_root.
+        let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&metadata.merkle_leaves);
+        let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
+        if merkle_root != metadata.ciphertext_root {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+
+        // we have our metadata, now set up an on-demand reader to our
+        // underlying data source
+        let ondemand = Box::new(EncryptedImmutableReader {
+            provider: reader,
+            blocks: metadata.blocks,
+            offset: 4 + 4,
+            block_size: metadata.block_size,
+        });
+
+        // todo: have we checked that the merkle root matches each block?
+        Ok(Immutable {
+            metadata,
+            data_provider: ondemand,
         })
     }
 
     pub fn encrypt<R>(
         source: R,
-        blocksize: usize,
-    ) -> Result<(ImmutableCap, Immutable), MagicCapError>
+        blocksize: usize, // just make this u32 to match metadata?
+    ) -> Result<(ImmutableCap, Immutable<'a>), MagicCapError>
     where
         R: Read,
     {
@@ -808,6 +1042,7 @@ impl Immutable {
                 metadata,
                 data_provider: Box::new(EncryptedImmutableMemory {
                     blocks: ciphertext_blocks,
+                    _block_size: blocksize as u32,
                 }),
             },
         ))
@@ -816,9 +1051,9 @@ impl Immutable {
 
 // todo: probably want something like "Into" for "plaintext" of an Immutable to convert to str, or BufReader, or ....
 //
-// "something like": let reader: BufReader = collection.get_immutable(ImmutableReadCap).unwrap().into();
-// "something like": let data: Vec<u8> = collection.get_immutable(ImmutableReadCap).unwrap().into();
-// "something like": let datastr: String = collection.get_immutable(ImmutableReadCap).unwrap().into();
+// "something like": let reader: BufReader = catalog.get_immutable(ImmutableReadCap).unwrap().into();
+// "something like": let data: Vec<u8> = catalog.get_immutable(ImmutableReadCap).unwrap().into();
+// "something like": let datastr: String = catalog.get_immutable(ImmutableReadCap).unwrap().into();
 
 pub struct ImmutableCiphertextStream<R>
 where
@@ -908,11 +1143,17 @@ impl EncryptionContext {
             ciphertext_root: merkle_root,
         };
 
-        // todo: 2-tuple of cap, metadata ... but want to unify with "Immutable" maybe?
+        // create 'blank' all-0 leaves of the correct size
+        let mut leaves = Vec::with_capacity(metadata.blocks as usize);
+        for _ in 0..metadata.blocks {
+            leaves.push([0u8; 32]);
+        }
+
         Ok((
             ImmutableReadCap {
                 key: melf.key_bytes,
                 verify: ImmutableVerifyCap::from(&metadata),
+                leaves,
             },
             metadata,
         ))

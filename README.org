@@ -36,11 +36,11 @@ We explore the basics before explaining what they mean.
 Encrypt "README.org" into: 1) a file containing ciphertext (and metadata) and 2) a Magic Cap string:
 #+name: encrypt
 #+begin_src bash :results output
-cargo run -- encrypt --plaintext README.org ciphertext
+cargo run -- encrypt README.org --ciphertext encrypted
 #+end_src
 
 #+RESULTS: encrypt
-: mcap0rn36cf_726tzxsj55BDdJuD0FqFeLNvUvnYWti8MYCDtq6FVZ31ERUdXgk76uimTM
+: mcap0rgE06AlaV0CtRdRQK38LYi-RKYmJgj7iFz_daTeEmIk1MAUEJQ10IUbbAenOsLX3f
 
 Now, we have two things: "a Data File" and "a Magic Cap string".
 The latter is =mcap0r<base64-encoded data>=
@@ -48,11 +48,11 @@ The latter is =mcap0r<base64-encoded data>=
 Before we break that down, lets convert the DataFile + Magic Cap string back into this README!
 
 #+begin_src bash :results output :var MCAP=encrypt
-  cargo run -- decrypt --ciphertext ciphertext --cap ${MCAP} --plaintext plain
+  cargo run -- decrypt --ciphertext encrypted ${MCAP} --plaintext plain
 #+end_src
 
 #+RESULTS:
-: Wrote 10375 bytes of plaintext to "plain".
+: Wrote 16499 bytes of plaintext to "plain".
 
 
 We can confirm that they're the same:
@@ -94,17 +94,17 @@ The mcap to unlock it is: =mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752p
 If you're using "cargo" a command-line to do that is:
 
 #+begin_src sh
-  cargo run -- decrypt --ciphertext kitten.mcap --cap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g --plaintext kitten.jpeg
+  cargo run -- decrypt --ciphertext kitten.mcap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g --plaintext kitten.jpeg
 #+end_src
 
 #+RESULTS:
-: kitten.jpeg
+: Wrote 306199 bytes of plaintext to "kitten.jpeg".
 
 We have found an amazing cat picture from a public domain source[fn:1] for your viewing pleasure.
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
 #+begin_src sh
-  cargo run -- verify --ciphertext kitten.mcap --cap mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4
+  cargo run -- verify --ciphertext kitten.mcap mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4
 #+end_src
 
 #+RESULTS:
@@ -180,6 +180,37 @@ None of this depends on any service or network interactions.
 
 We are excited to see the practical uses of this!
 While we definitely have more features to layer on top, we believe this is already useful.
+
+** Catalogs of Ciphertext
+
+Using ``mcap encrypt`` and ``mcap decrypt`` requires telling the program from where to read (or to where to write) the cipertext.
+It is extra work to remember which Read Cap goes with which ciphertext.
+
+There exist "Locator" strings which can be dirived from both a Read Cap or a Verify Cap.
+This string is designed as a way for someone with one of these Caps to locate the corresponding ciphertext.
+
+Using the ``--catalog`` option to either ``mcap decrypt`` or ``mcap encrypt`` allows leaving off the ``--ciphertext`` parameter.
+Instead, ciphertexts will be located relative to the root directory (specified by ``--catalog``) using their "Locator" string.
+
+*** Catalog Example
+
+We have included an example of "Catalog" usage in this repository.
+The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalog``:
+
+| bruennhilde.jpeg         | mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB |
+| cat-on-shoulder.jpeg     | mcap0rkPgNO_PLPHYnsF21xsuZWclI8Eodt3198G99I3bbgwTcfvRs0AqvJn6vJ0FvBd29 |
+| kittens-in-basket.jpeg   | mcap0r0H3nq1ecRFORya6czK8kKwejLpKrvzXTtjQUicqwVt7Fc_G2zfxP3Y174gxWjq_L |
+| the-cook.jpeg            | mcap0rUMgHUlMK6fb19D3CHII-NLpgwsaGM8xGYpsXJzDELyaR-PnhNiSaudTksLaJaoY7 |
+| three-jolly-kittens.jpeg | mcap0rQOVWH5aeWoZtCJ8GThDs8hSWfcJm0UMAaswgoifCIN1yA0AtLIGfFy-aJRW_7hzP |
+
+We can decode one of these without "knowing" which ones goes with which Read Cap.
+Note that the output goes to stdout by default.
+
+#+begin_src sh
+  cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB | display
+#+end_src
+
+#+RESULTS:
 
 
 * Where From and Where To
