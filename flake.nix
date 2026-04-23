@@ -4,52 +4,60 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     rust-overlay = { url = "github:oxalica/rust-overlay"; };
   };
-  outputs = { nixpkgs, rust-overlay, ... }:
-    let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs { inherit system; };
-    in {
-      packages.${system}.default =
-        let
-          pkgs = import nixpkgs { inherit system; };
-            in pkgs.rustPlatform.buildRustPackage {
-              pname = "magic_cap";
-              buildInputs = [ ];
-              version = "0.1.0";
-              cargoLock.lockFile = ./Cargo.lock;
-              src = pkgs.lib.cleanSource ./.;
-            };
-            devShells.${system}.default =
-              let pkgs = import nixpkgs {
-                    inherit system;
-                    overlays = [ (import rust-overlay) ];
-                    config.allowUnfree = true;
-                  };
-              in
-                pkgs.mkShell {
-                  packages = with pkgs; [
-                    llvmPackages.llvm
-                    (rust-bin.stable.latest.default.override {
-                      extensions = [ "rust-analyzer" "rust-src" "llvm-tools-preview" ];
-                    })
-                    cargo
-                    cargo-autoinherit
-                    cargo-depgraph
-                    cargo-duplicates
-                    cargo-edit
-                    cargo-llvm-cov
-                    cargo-wizard
-                    clippy
-                    gnuplot
-                  ];
-                };
-      apps.${system}.cov = {
+  outputs = { self, nixpkgs, rust-overlay, ... }:
+  let
+    system = "x86_64-linux";
+    pkgs = import nixpkgs { inherit system; };
+  in {
+    packages.${system}.default =
+      let
+        pkgs = import nixpkgs { inherit system; };
+      in pkgs.rustPlatform.buildRustPackage {
+        pname = "magic-cap";
+        buildInputs = [ ];
+        version = "0.1.0";
+        cargoLock.lockFile = ./Cargo.lock;
+        src = pkgs.lib.cleanSource ./.;
+        meta.mainProgram = "mcap";
+      };
+    devShells.${system}.default =
+      let pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ (import rust-overlay) ];
+        config.allowUnfree = true;
+      };
+      in
+        pkgs.mkShell {
+          packages = with pkgs; [
+            llvmPackages.llvm
+            (rust-bin.stable.latest.default.override {
+              extensions = [ "rust-analyzer" "rust-src" "llvm-tools-preview" ];
+            })
+            cargo
+            cargo-autoinherit
+            cargo-depgraph
+            cargo-duplicates
+            cargo-edit
+            cargo-llvm-cov
+            cargo-wizard
+            clippy
+            gnuplot
+          ];
+        };
+    apps.${system} = {
+      cov = {
         type = "app";
         program = pkgs.lib.getExe (pkgs.writeShellScriptBin "cov" ''
-          #!env bash
           cargo llvm-cov --html
           firefox --new-tab --url ./target/llvm-cov/html/index.html
-          '');
+        '');
+      };
+      memuse = {
+        type = "app";
+        program = pkgs.lib.getExe (pkgs.writeShellScriptBin "memuse" ''
+          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=dhat --mode=heap -- ${pkgs.lib.getExe self.packages.${system}.default}
+        '');
       };
     };
+  };
 }
