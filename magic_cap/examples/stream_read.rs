@@ -9,7 +9,7 @@ fn main() {
     // We're using "Vec<u8>" as a Write implementation here, but it
     // could be a File or Stdout).
     let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext, None).unwrap();
-    cryptor.write(&plaintext).unwrap();
+    let _written_amount = cryptor.write(&plaintext).unwrap();
     // .write() may be called any number of times with any size data
     let (cap, ciphertext) = cryptor.done().unwrap();
     println!("ciphertext: {} bytes", ciphertext.len());

@@ -237,10 +237,10 @@ pub trait ReadCap: ImmutableVerifier {
     ) -> Result<ImmutableReadCap, MagicCapError>;
 }
 
+/*
 /// IDEA: maybe this returns an iterator instead? But this is the
 /// "inner loop" from old "decrypt()" method, which iterates ALL the
 /// blocks
-/*
 pub fn decrypt_all(cap: &impl ReadCap, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
     todo!()
 }*/
@@ -308,7 +308,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         for i in 0..immutable.data_provider.total_blocks() {
             let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
             immutable.data_provider.get_block(i, &mut leaf)?;
-            let lh = TahoeLeaf::hash(&mut leaf);
+            let lh = TahoeLeaf::hash(&leaf);
             leaves.push(lh);
         }
         fill_empty_merkle_leaves(&mut leaves);
@@ -952,7 +952,6 @@ impl<'a> Immutable<'a> {
     /// Similar to ``read`` but doesn't read all the ciphertext blocks
     /// into memory at once, instead accessing the provided reader
     /// as-needed to access the ciphertext on-demand.
-
     // so .. we still return an "Immutable", but it's backend thing is
     // set up to read "on demand" (and we've changed the Immtuable API
     // to support both)

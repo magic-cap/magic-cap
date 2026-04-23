@@ -98,7 +98,7 @@ fn handcrafted_filesystem_round_trip_stream() {
     let cap = ImmutableReadCap::encrypt(
         input.clone(),
         std::io::BufWriter::new(fm),
-        blocksize as usize,
+        blocksize,
     )
     .unwrap();
 
@@ -191,7 +191,7 @@ fn find_catalog_basic() {
 
     let message = b"To light a candle is to cast a shadow...";
     let mut builder = catalog.insert(4096).unwrap();
-    builder.write(message).unwrap();
+    let _written_amount = builder.write(message).unwrap();
     let (cap, _) = builder.done().unwrap();
     // note: we have to drop "writer", which is the "_" above, so it
     // flushes / closes properly
