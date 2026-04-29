@@ -46,8 +46,17 @@
           ];
         };
     apps.${system} = {
+
+      paramtest = {
+        type = "app";
+        program = pkgs.lib.getExe (pkgs.writeShellScriptBin "paramtest" ''
+          echo ''${1:-defaultvalue}
+        '');
+      };
+
       cov = {
         type = "app";
+        meta.description = "run tests and report coverage by opening a new firefox tab.";
         program = pkgs.lib.getExe (pkgs.writeShellScriptBin "cov" ''
           cargo llvm-cov --html
           ${pkgs.firefox} --new-tab --url ./target/llvm-cov/html/index.html
@@ -55,9 +64,17 @@
       };
       memuse = {
         type = "app";
+        meta.description = "run valgrind wrapping magic-cap, report the max heap usage.";
         program = pkgs.lib.getExe (pkgs.writeShellScriptBin "memuse" ''
-          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=massif --time-unit=B --massif-out-file=data/heap.usage.massif -- ${pkgs.lib.getExe self.packages.${system}.default} encrypt kitten.mcap --ciphertext kitten.mcap.mcap
-          ${pkgs.lib.getExe pkgs.ripgrep} mem_heap_B data/heap.usage.massif|cut -d '=' -f 2|sort -r -g|head -n 1
+          INPUT=''${1:-kitten.mcap}
+          if [ -f $INPUT ]; then
+          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=massif --time-unit=B --massif-out-file=data/heap.usage.massif -- ${pkgs.lib.getExe self.packages.${system}.default} encrypt $INPUT --ciphertext data/kitten.mcap.mcap
+          HEAP=''$(${pkgs.lib.getExe pkgs.ripgrep} mem_heap_B data/heap.usage.massif|cut -d '=' -f 2|sort -r -g|head -n 1)
+          SIZE=''$(du -b $INPUT)
+          echo "Max heap usage of $HEAP bytes for encoding $SIZE bytes"
+          # Clearly I am bad at doing math in the shell.
+          # echo "Max heap used is ''$(printf '2.f\n' "$(($HEAP*100/$SIZE))e-2") percent of the input file."
+          fi
         '');
       };
     };
