@@ -42,6 +42,7 @@
             cargo-wizard
             clippy
             gnuplot
+            valgrind
           ];
         };
     apps.${system} = {
@@ -49,13 +50,14 @@
         type = "app";
         program = pkgs.lib.getExe (pkgs.writeShellScriptBin "cov" ''
           cargo llvm-cov --html
-          firefox --new-tab --url ./target/llvm-cov/html/index.html
+          ${pkgs.firefox} --new-tab --url ./target/llvm-cov/html/index.html
         '');
       };
       memuse = {
         type = "app";
         program = pkgs.lib.getExe (pkgs.writeShellScriptBin "memuse" ''
-          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=dhat --mode=heap -- ${pkgs.lib.getExe self.packages.${system}.default}
+          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=massif --time-unit=B --massif-out-file=data/heap.usage.massif -- ${pkgs.lib.getExe self.packages.${system}.default} encrypt kitten.mcap --ciphertext kitten.mcap.mcap
+          ${pkgs.lib.getExe pkgs.ripgrep} mem_heap_B data/heap.usage.massif|cut -d '=' -f 2|sort -r -g|head -n 1
         '');
       };
     };
