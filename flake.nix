@@ -68,12 +68,11 @@
         program = pkgs.lib.getExe (pkgs.writeShellScriptBin "memuse" ''
           INPUT=''${1:-kitten.mcap}
           if [ -f $INPUT ]; then
-          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=massif --time-unit=B --massif-out-file=data/heap.usage.massif -- ${pkgs.lib.getExe self.packages.${system}.default} encrypt $INPUT --ciphertext data/kitten.mcap.mcap
+          ${pkgs.lib.getExe' pkgs.valgrind "valgrind"} --tool=massif --time-unit=B --massif-out-file=data/heap.usage.massif -- ${pkgs.lib.getExe self.packages.${system}.default} encrypt $INPUT --ciphertext data/output.mcap
           HEAP=''$(${pkgs.lib.getExe pkgs.ripgrep} mem_heap_B data/heap.usage.massif|cut -d '=' -f 2|sort -r -g|head -n 1)
-          SIZE=''$(du -b $INPUT)
+          SIZE=''$(du -b $INPUT|cut -f 1)
           echo "Max heap usage of $HEAP bytes for encoding $SIZE bytes"
-          # Clearly I am bad at doing math in the shell.
-          # echo "Max heap used is ''$(printf '2.f\n' "$(($HEAP*100/$SIZE))e-2") percent of the input file."
+          echo "Max heap used is ''$(($HEAP*100/$SIZE)) percent of the input file."
           fi
         '');
       };
