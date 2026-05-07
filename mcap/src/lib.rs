@@ -102,10 +102,12 @@ use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
+use tempfile::NamedTempFile;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use url::Url;
 
 pub mod tests;
 
@@ -198,8 +200,13 @@ pub fn main_decrypt(
     cap: &str,
     catalog: &Option<PathBuf>,
     input_fname: &Option<PathBuf>,
+    input_url: &Option<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
+    if input_fname.is_some() && input_url.is_some() {
+        todo!();
+        // similar to below, use type system to say "either PathBuf OR Url"
+    }
     if catalog.is_some() && input_fname.is_some() {
         // could be error, could say "if filename doesn't exist then use catalog"
         //
@@ -208,6 +215,30 @@ pub fn main_decrypt(
         todo!();
     }
     let cap = ImmutableReadCap::try_from(cap)?;
+
+    if let Some(url) = input_url {
+        // FIXME: we're just downloading the thing to a temporary spot
+        // .. really want to do something more complex here so we can
+        // fetch the metadata, then fetch each block on-demand
+        let client = reqwest::blocking::Client::new();
+        let url2 = url.clone();
+        let resp = client.get(url2);
+        println!("{:?}", resp);
+        let result = resp.send();
+        if let Ok(result) = result {
+            println!("{:?}", result);
+            if let Ok(data) = result.bytes() {
+                let tmp = NamedTempFile::new()?;
+                println!("{:?}", data.len());
+                tmp.as_file().write_all(&data);
+                // ideally could like "assign" to --cipertext and continue?
+                let p: PathBuf = tmp.path().into();
+                println!("{:?}", p);
+                //input_fname = &Some(p);
+                tmp.keep();
+            }
+        }
+    }
 
     let imm: Result<Immutable, MagicCapError> = if let Some(input_fname) = input_fname {
         let f = std::fs::File::open(input_fname)?;

@@ -4,6 +4,7 @@ use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify};
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
 // using tahoe libs.
 use std::path::PathBuf;
+use url::Url;
 
 use clap::{Parser, Subcommand};
 
@@ -69,6 +70,14 @@ enum Commands {
         #[arg(
             short,
             long,
+            value_name("URL"),
+            help("url of the ciphertext file")
+        )]
+        url: Option<Url>,
+
+        #[arg(
+            short,
+            long,
             value_name("FNAME"),
             help("path to write plaintext to (default: stdout)")
         )]
@@ -101,8 +110,9 @@ fn main() {
             cap,
             catalog,
             ciphertext,
+            url,
             plaintext,
-        }) => main_decrypt(&mut std::io::stdout(), cap, catalog, ciphertext, plaintext),
+        }) => main_decrypt(&mut std::io::stdout(), cap, catalog, ciphertext, url, plaintext),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         None => Ok(()),
