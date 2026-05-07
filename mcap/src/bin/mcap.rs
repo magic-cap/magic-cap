@@ -22,6 +22,8 @@ A Read Cap is a string containing secret information to decrypt a corresponding 
 
 A Verify Cap has the power to confirm that the data is correct.
 Any Read Cap may be turned into a Verify Cap.
+
+Anyone with both the Data and corresponding Read Cap may re-create the plaintext.
 ")]
 struct Cli {
     #[command(subcommand)]
