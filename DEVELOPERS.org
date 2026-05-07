@@ -6,6 +6,16 @@
   - cargo bench
   - cargo llvm-cov --html
 
+For memory use, there is a Nix flake for setup too.
+  - nix run '.#memuse'
+  - this should output something like:
+
+        Max heap usage of 60087 bytes for encoding 311615 bytes
+        Max heap used is 19 percent of the input file.
+
+(On Debian, you can get the required Nix setup via "apt install
+nix-setup-systemd" followed by adding your user to "nix-users")
+
 * Catalog next steps
 
 - thinking a little about "network caps"
