@@ -99,9 +99,9 @@
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
-    ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap
 };
+use reqwest::header::HeaderMap;
 use tempfile::NamedTempFile;
 use std::fs::File;
 use std::io::BufWriter;
@@ -220,23 +220,52 @@ pub fn main_decrypt(
         // FIXME: we're just downloading the thing to a temporary spot
         // .. really want to do something more complex here so we can
         // fetch the metadata, then fetch each block on-demand
-        let client = reqwest::blocking::Client::new();
-        let url2 = url.clone();
-        let resp = client.get(url2);
-        println!("{:?}", resp);
-        let result = resp.send();
+        let mut headers = HeaderMap::new();
+        headers.insert("Range", "bytes=-8".parse().unwrap());
+        let result = reqwest::blocking::Client::new()
+            .get(url.clone())
+            .headers(headers)
+            .send();
+
         if let Ok(result) = result {
-            println!("{:?}", result);
-            if let Ok(data) = result.bytes() {
-                let tmp = NamedTempFile::new()?;
-                println!("{:?}", data.len());
-                tmp.as_file().write_all(&data);
-                // ideally could like "assign" to --cipertext and continue?
-                let p: PathBuf = tmp.path().into();
-                println!("{:?}", p);
-                //input_fname = &Some(p);
-                tmp.keep();
-            }
+            //println!("{:?}", result);
+            let offset = result.bytes().unwrap();
+            let offraw: Vec<u8> = offset.into();
+            let offslice: [u8; 8] = offraw.try_into().unwrap();
+            let off: u64 = u64::from_be_bytes(offslice);
+            //println!("bytes {:?} {:?}", offslice, off);
+
+            // okay so NOW we could also request "Range: bytes=<offset>-" to get the metadata
+            headers = HeaderMap::new();
+            headers.insert("Range", format!("bytes={}-", off).parse().unwrap());
+
+            let result = reqwest::blocking::Client::new()
+                .get(url.clone())
+                .headers(headers)
+                .send()
+                .unwrap();
+            //println!("{:?}", result);
+            let metadata_raw: Vec<u8> = result.bytes().unwrap().into();
+            //println!("{} bytes", metadata_raw.len());
+            let mut mdbytes = metadata_raw.as_slice();
+            let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes).unwrap();
+            //println!("size={} blocks={} block_size={}", metadata.size, metadata.blocks, metadata.block_size);
+
+            // stream the ciphertext directly into the decryptor
+            let mut output = std::io::stdout().lock();
+            let mut decryptor = cap.decrypt_stream(metadata, &mut output)?;
+
+            headers = HeaderMap::new();
+            headers.insert("Range", format!("bytes=8-{}", off).parse().unwrap());
+
+            // first 8 bytes are "mcap" + 32-byte version
+
+            let mut result = reqwest::blocking::Client::new()
+                .get(url.clone())
+                .headers(headers)
+                .send()
+                .unwrap();
+            result.copy_to(&mut decryptor);
         }
     }
 

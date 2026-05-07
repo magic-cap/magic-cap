@@ -1389,6 +1389,7 @@ dependencies = [
  "magic_cap",
  "proptest",
  "reqwest",
+ "rmp-serde",
  "tempfile",
  "url",
 ]

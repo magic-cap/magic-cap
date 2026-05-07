@@ -220,6 +220,74 @@ pub trait ImmutableVerifier {
     fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError>;
 }
 
+pub struct ImmutableDecryptor<'a, W> where
+    W: Write
+{
+    plain_output: &'a mut W,
+    metadata: ImmutableMetadata,
+    key: TahoeAesCtr,
+    this_block: Vec<u8>,
+    this_block_num: usize,
+    //plaintext_bytes: usize,
+}
+
+impl<'a, W> ImmutableDecryptor<'a, W> where
+    W: Write
+{
+    pub fn new(key: TahoeAesCtr, metadata: ImmutableMetadata, plain_output: &'a mut W) -> ImmutableDecryptor<'a, W> {
+        let bs = metadata.block_size as usize;
+        let iv = [0u8; 16]; // 16 bytes of 0's
+        Self {
+            key,
+            plain_output,
+            metadata,
+            this_block: Vec::with_capacity(bs),
+            this_block_num: 0,
+        }
+    }
+}
+
+impl<'a, W> Write for ImmutableDecryptor<'a, W> where
+    W: Write
+{
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        // when decrypting a block, must:
+        // - check hash of ciphertext matches merkle leaf
+        //   - (we already checked root corresponds to hash?)
+        //   - (we already checked that leaves construct the same root?)
+        // - decrypt it, write to output
+        self.this_block.write(buf)?;
+        let mut local_written = 0;
+        let bs: usize = self.metadata.block_size as usize;
+        while self.this_block.len() >= bs {
+            // cut off a block's worth at the front
+            let mut this_block_bytes: Vec<u8> =
+                self.this_block.drain(0..bs).collect();
+
+            // does it correspond?
+            let h = TahoeLeaf::hash(this_block_bytes.as_slice());
+            if h != self.metadata.merkle_leaves[self.this_block_num] {
+                panic!("Leaf hash mismatch");
+            }
+            self.this_block_num += 1;
+
+            // decrypt the block
+            self.key.apply_keystream(&mut this_block_bytes);
+
+            // write out plaintext block
+            self.plain_output.write_all(&this_block_bytes)?;
+            local_written += this_block_bytes.len();
+        }
+        Ok(local_written)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        // 1. can we honour this by writing "part of a block"
+        // immediately (and then writing the rest when it comes in?)
+        todo!()
+    }
+}
+
 pub trait ReadCap: ImmutableVerifier {
     fn decrypt_one_block(
         &self,
@@ -229,6 +297,12 @@ pub trait ReadCap: ImmutableVerifier {
     ) -> Result<(), MagicCapError>;
 
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
+
+    fn decrypt_stream<'a, W>(
+        &'a self,
+        meta: ImmutableMetadata,
+        output: &'a mut W,
+    ) -> Result<ImmutableDecryptor<W>, MagicCapError> where W: Write;
 
     fn encrypt(
         plaintext: Vec<u8>,
@@ -542,6 +616,17 @@ impl ReadCap for ImmutableReadCap {
 
     ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
     //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)
+
+    // is this friend shaped?
+    // probably need / want to pass in Metadata too?
+    // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
+    fn decrypt_stream<'a, W>(&'a self, meta: ImmutableMetadata, output: &'a mut W) -> Result<ImmutableDecryptor<W>, MagicCapError> where W: Write {
+        let iv = [0u8; 16]; // 16 bytes of 0's
+        let key = TahoeAesCtr::new(&self.key.into(), &iv.into());
+        Ok(
+            ImmutableDecryptor::new(key, meta, output)
+        )
+    }
 
     // refactor: what if we do this?
     // - the ReadCap trait has "encrypt one block" ("decrypt one block") methods
@@ -1139,7 +1224,7 @@ impl EncryptionContext {
             size: melf.datasize as u64,
             blocks: melf.datasize.div_ceil(melf.blocksize) as u64,
             block_size: melf.blocksize as u32,
-            merkle_leaves, // todo: store all merkle leaf nodes in here
+            merkle_leaves,
             ciphertext_root: merkle_root,
         };
 
