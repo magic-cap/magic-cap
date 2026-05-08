@@ -6,7 +6,7 @@ use tempfile::TempDir;
 #[test]
 fn golden_tahoe_tagged_hash() {
     let gold = b"\xee\x19\x0f\x82\xb1\x962\xaf\xf9\x97\x18SN\xd8\x96y0\xc4\xf8\xd1\x8fEqh\xab\r27\xae\r\x95\x0b";
-    let alleged = tagged_hash::<32>(b"foo", b"bar");
+    let alleged = tahoe::tagged_hash::<32>(b"foo", b"bar");
     assert_eq!(*gold, alleged);
 }
 
