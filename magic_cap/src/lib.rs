@@ -257,7 +257,6 @@ impl<'a, W> Write for ImmutableDecryptor<'a, W> where
         //   - (we already checked that leaves construct the same root?)
         // - decrypt it, write to output
         self.this_block.write(buf)?;
-        let mut local_written = 0;
         let bs: usize = self.metadata.block_size as usize;
         while self.this_block.len() >= bs {
             // cut off a block's worth at the front
@@ -276,9 +275,8 @@ impl<'a, W> Write for ImmutableDecryptor<'a, W> where
 
             // write out plaintext block
             self.plain_output.write_all(&this_block_bytes)?;
-            local_written += this_block_bytes.len();
         }
-        Ok(local_written)
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {

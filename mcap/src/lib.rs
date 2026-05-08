@@ -217,10 +217,8 @@ pub fn main_decrypt(
     let cap = ImmutableReadCap::try_from(cap)?;
 
     if let Some(url) = input_url {
-        // FIXME: we're just downloading the thing to a temporary spot
-        // .. really want to do something more complex here so we can
-        // fetch the metadata, then fetch each block on-demand
         let mut headers = HeaderMap::new();
+        // read the last 8 bytes to get the metadata offset
         headers.insert("Range", "bytes=-8".parse().unwrap());
         let result = reqwest::blocking::Client::new()
             .get(url.clone())
@@ -235,7 +233,9 @@ pub fn main_decrypt(
             let off: u64 = u64::from_be_bytes(offslice);
             //println!("bytes {:?} {:?}", offslice, off);
 
-            // okay so NOW we could also request "Range: bytes=<offset>-" to get the metadata
+            // request the metadata bytes (note that we're also
+            // reading the last-8-bytes but serde ignores that
+            // successfully)
             headers = HeaderMap::new();
             headers.insert("Range", format!("bytes={}-", off).parse().unwrap());
 
@@ -251,21 +251,24 @@ pub fn main_decrypt(
             let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes).unwrap();
             //println!("size={} blocks={} block_size={}", metadata.size, metadata.blocks, metadata.block_size);
 
-            // stream the ciphertext directly into the decryptor
+            // now we request 'all the rest of the bytes' and stream
+            // them into the decryptor (which will write to the output
+            // Write-able)
             let mut output = std::io::stdout().lock();
             let mut decryptor = cap.decrypt_stream(metadata, &mut output)?;
 
+            // skip the first 8 bytes, which are "mcap" + 32-byte version
+            // TODO: check those (version == 1 is the only one)
             headers = HeaderMap::new();
             headers.insert("Range", format!("bytes=8-{}", off).parse().unwrap());
-
-            // first 8 bytes are "mcap" + 32-byte version
-
             let mut result = reqwest::blocking::Client::new()
                 .get(url.clone())
                 .headers(headers)
                 .send()
                 .unwrap();
-            result.copy_to(&mut decryptor);
+            // streams the incoming data to the decryptor object
+            result.copy_to(&mut decryptor).unwrap();
+            return Ok(());
         }
     }
 
