@@ -102,7 +102,6 @@ use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap
 };
 use reqwest::header::HeaderMap;
-use tempfile::NamedTempFile;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
@@ -140,40 +139,38 @@ pub fn main_encrypt(
     let mut cryptor: ImmutableBuilder<BufWriter<File>> = if let Some(output_fname) = output_fname {
         let output_file = File::create(output_fname)?;
         ImmutableBuilder::new(4096, BufWriter::new(output_file), None)?
+    } else if let Some(catalog) = catalog {
+        let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
+        catalog.insert(4096)?
     } else {
-        if let Some(catalog) = catalog {
-            let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
-            catalog.insert(4096)?
-        } else {
-            // no output file AND no catalog, so user wants ciphertext on stdout
-            let stdio = std::io::stdout(); //.lock();
-            let mut cryptor: ImmutableBuilder<std::io::Stdout> =
-                ImmutableBuilder::new(4096, stdio, None)?;
+        // no output file AND no catalog, so user wants ciphertext on stdout
+        let stdio = std::io::stdout(); //.lock();
+        let mut cryptor: ImmutableBuilder<std::io::Stdout> =
+            ImmutableBuilder::new(4096, stdio, None)?;
 
-            // FIXME: TODO: this "crypto" is a different type than the
-            // other "cryptor", because ImmutableBuilder has it's
-            // "writer" type as a generic -- so it's part of the type,
-            // and we can't have one variable that points at
-            // ImmutableBuilder<File> OR ImmutableBuilder<Stdio>
-            // .. using Box<dyn Write> gets rid of the generic, but
-            // then the "consume / un-consume" pattern on done()
-            // doesn't work .. see the "stream.rs" example for why
+        // FIXME: TODO: this "cryptor" is a different type than the
+        // other "cryptor", because ImmutableBuilder has its "writer"
+        // type as a generic -- so it's part of the type, and we can't
+        // have one variable that points at ImmutableBuilder<File> OR
+        // ImmutableBuilder<Stdio> .. using Box<dyn Write> gets rid of
+        // the generic, but then the "consume / un-consume" pattern on
+        // done() doesn't work .. see the "stream.rs" example for why
 
-            let mut plaintext: Vec<u8> = vec![0u8; 4096];
+        let mut plaintext: Vec<u8> = vec![0u8; 4096];
 
-            let mut r = input_file.read(&mut plaintext)?;
-            while r != 0 {
-                plaintext.resize(r, 0);
-                let _ = cryptor.write(&plaintext)?;
-                r = input_file.read(&mut plaintext)?;
-            }
-            let (cap, _) = cryptor.done()?;
-
-            let capstr = format!("{}", cap);
-            writeln!(output, "{}", capstr)?;
-            return Ok(());
+        let mut r = input_file.read(&mut plaintext)?;
+        while r != 0 {
+            plaintext.resize(r, 0);
+            let _ = cryptor.write(&plaintext)?;
+            r = input_file.read(&mut plaintext)?;
         }
+        let (cap, _) = cryptor.done()?;
+
+        let capstr = format!("{}", cap);
+        writeln!(output, "{}", capstr)?;
+        return Ok(());
     };
+
     //let mut bufw = BufWriter::new(output_file);
 
     let mut plaintext: Vec<u8> = vec![0u8; 4096];

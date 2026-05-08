@@ -145,7 +145,6 @@ impl<'a, W> ImmutableDecryptor<'a, W> where
 {
     pub fn new(key: TahoeAesCtr, metadata: ImmutableMetadata, plain_output: &'a mut W) -> ImmutableDecryptor<'a, W> {
         let bs = metadata.block_size as usize;
-        let iv = [0u8; 16]; // 16 bytes of 0's
         Self {
             key,
             plain_output,
@@ -209,7 +208,7 @@ pub trait ReadCap: ImmutableVerifier {
         &'a self,
         meta: ImmutableMetadata,
         output: &'a mut W,
-    ) -> Result<ImmutableDecryptor<W>, MagicCapError> where W: Write;
+    ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError> where W: Write;
 
     fn encrypt(
         plaintext: Vec<u8>,
@@ -537,7 +536,7 @@ impl ReadCap for ImmutableReadCap {
     // is this friend shaped?
     // probably need / want to pass in Metadata too?
     // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
-    fn decrypt_stream<'a, W>(&'a self, meta: ImmutableMetadata, output: &'a mut W) -> Result<ImmutableDecryptor<W>, MagicCapError> where W: Write {
+    fn decrypt_stream<'a, W>(&'a self, meta: ImmutableMetadata, output: &'a mut W) -> Result<ImmutableDecryptor<'a, W>, MagicCapError> where W: Write {
         Ok(
             ImmutableDecryptor::new(self.create_tahoe_key(), meta, output)
         )

@@ -1,4 +1,4 @@
-use rs_merkle::{Hasher, MerkleTree};
+use rs_merkle::Hasher;
 use sha2::{Digest, Sha256};
 
 /// Produce a "tagged hash" by concatenating a netstring of the tag
