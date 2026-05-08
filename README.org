@@ -45,7 +45,10 @@ Humans use the CLI.
 The CLI uses subcommands.
 We explore the basics before explaining what they mean.
 
-Encrypt "README.org" into: 1) a file containing ciphertext (and metadata) and 2) a Magic Cap string:
+Encrypt "README.org" into:
+1) a file containing ciphertext (and metadata) and
+2) a Magic Cap string:
+
 #+name: encrypt
 #+begin_src bash :results output
 cargo run -- encrypt README.org --ciphertext encrypted
