@@ -99,7 +99,8 @@
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
 use reqwest::header::HeaderMap;
 use std::fs::File;
@@ -239,8 +240,7 @@ pub fn main_decrypt(
             let result = reqwest::blocking::Client::new()
                 .get(url.clone())
                 .headers(headers)
-                .send()
-                ?;
+                .send()?;
             //println!("{:?}", result);
             let metadata_raw: Vec<u8> = result.bytes()?.into();
             //println!("{} bytes", metadata_raw.len());

@@ -67,12 +67,7 @@ enum Commands {
         )]
         ciphertext: Option<PathBuf>,
 
-        #[arg(
-            short,
-            long,
-            value_name("URL"),
-            help("url of the ciphertext file")
-        )]
+        #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
         url: Option<Url>,
 
         #[arg(
@@ -112,7 +107,14 @@ fn main() {
             ciphertext,
             url,
             plaintext,
-        }) => main_decrypt(&mut std::io::stdout(), cap, catalog, ciphertext, url, plaintext),
+        }) => main_decrypt(
+            &mut std::io::stdout(),
+            cap,
+            catalog,
+            ciphertext,
+            url,
+            plaintext,
+        ),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         None => Ok(()),

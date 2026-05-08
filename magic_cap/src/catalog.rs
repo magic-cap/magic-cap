@@ -1,6 +1,6 @@
 use crate::err::MagicCapError;
-use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap};
 use crate::tahoe::tagged_hash;
+use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap};
 use data_encoding::HEXLOWER;
 use std::fmt;
 use std::fs::File;

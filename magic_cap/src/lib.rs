@@ -80,8 +80,8 @@
 //!
 
 mod catalog;
-mod tahoe;
 pub mod err;
+mod tahoe;
 
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
@@ -110,7 +110,6 @@ use std::io::prelude::*;
 
 use err::MagicCapError;
 
-
 // ImmutableVerifyCap and ImmutableReadCap are morally-equivalent to
 // the "capability-string" from Tahoe. e.g.
 //     "URI:CHK:<key>:<ueb-hash>:<needed-shares>:<total-shares>:<size>"
@@ -129,8 +128,9 @@ pub trait ImmutableVerifier {
     fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError>;
 }
 
-pub struct ImmutableDecryptor<'a, W> where
-    W: Write
+pub struct ImmutableDecryptor<'a, W>
+where
+    W: Write,
 {
     plain_output: &'a mut W,
     metadata: ImmutableMetadata,
@@ -140,10 +140,15 @@ pub struct ImmutableDecryptor<'a, W> where
     //plaintext_bytes: usize,
 }
 
-impl<'a, W> ImmutableDecryptor<'a, W> where
-    W: Write
+impl<'a, W> ImmutableDecryptor<'a, W>
+where
+    W: Write,
 {
-    pub fn new(key: TahoeAesCtr, metadata: ImmutableMetadata, plain_output: &'a mut W) -> ImmutableDecryptor<'a, W> {
+    pub fn new(
+        key: TahoeAesCtr,
+        metadata: ImmutableMetadata,
+        plain_output: &'a mut W,
+    ) -> ImmutableDecryptor<'a, W> {
         let bs = metadata.block_size as usize;
         Self {
             key,
@@ -155,8 +160,9 @@ impl<'a, W> ImmutableDecryptor<'a, W> where
     }
 }
 
-impl<'a, W> Write for ImmutableDecryptor<'a, W> where
-    W: Write
+impl<'a, W> Write for ImmutableDecryptor<'a, W>
+where
+    W: Write,
 {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         // when decrypting a block, must:
@@ -168,8 +174,7 @@ impl<'a, W> Write for ImmutableDecryptor<'a, W> where
         let bs: usize = self.metadata.block_size as usize;
         while self.this_block.len() >= bs {
             // cut off a block's worth at the front
-            let mut this_block_bytes: Vec<u8> =
-                self.this_block.drain(0..bs).collect();
+            let mut this_block_bytes: Vec<u8> = self.this_block.drain(0..bs).collect();
 
             // does it correspond?
             let h = TahoeLeaf::hash(this_block_bytes.as_slice());
@@ -208,7 +213,9 @@ pub trait ReadCap: ImmutableVerifier {
         &'a self,
         meta: ImmutableMetadata,
         output: &'a mut W,
-    ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError> where W: Write;
+    ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
+    where
+        W: Write;
 
     fn encrypt(
         plaintext: Vec<u8>,
@@ -350,7 +357,6 @@ impl ImmutableReadCap {
         TahoeAesCtr::new(&self.key.into(), &iv.into())
     }
 }
-
 
 // without Seek on the output, we require it on the input
 
@@ -536,10 +542,19 @@ impl ReadCap for ImmutableReadCap {
     // is this friend shaped?
     // probably need / want to pass in Metadata too?
     // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
-    fn decrypt_stream<'a, W>(&'a self, meta: ImmutableMetadata, output: &'a mut W) -> Result<ImmutableDecryptor<'a, W>, MagicCapError> where W: Write {
-        Ok(
-            ImmutableDecryptor::new(self.create_tahoe_key(), meta, output)
-        )
+    fn decrypt_stream<'a, W>(
+        &'a self,
+        meta: ImmutableMetadata,
+        output: &'a mut W,
+    ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
+    where
+        W: Write,
+    {
+        Ok(ImmutableDecryptor::new(
+            self.create_tahoe_key(),
+            meta,
+            output,
+        ))
     }
 
     // refactor: what if we do this?
