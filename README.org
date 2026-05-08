@@ -33,8 +33,8 @@ If you're lucky and don't want to read a lot, you can decrypt and display our ex
 cargo run -- decrypt --url https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g | display
 #+end_src
 
-An error about "broken pipe" probably means you don't have `display
-<http://www.graphicsmagick.org/>`_ installed; you could redirect to a
+An error about "broken pipe" probably means you don't have "display"
+by http://www.graphicsmagick.org/ installed; you could redirect to a
 file with ``> kitten.jpeg`` instead.
 
 * Using This Crate
