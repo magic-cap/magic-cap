@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 pub trait ImmutableCatalog<'a> {
     // todo: probably want "load" vs. "stream" API here
     // todo: and stream() vs stream_async() probably
-    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
+    fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn insert(
         &mut self,
@@ -99,7 +99,7 @@ impl ImmutableDirectoryCatalog {
 }
 
 impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
-    fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
+    fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
         // 1. convert identifier to &str (base64? base32?)
         // 2. strip first 2 (more?) chars off
         // 3. look in root/<2 chars>/<entire id>

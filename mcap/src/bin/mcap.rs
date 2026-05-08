@@ -1,4 +1,4 @@
-use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify};
+use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify, main_debug_locator};
 
 // b'\xbd\xe1\xb4\x19\xc1+\xa9\xe8\xd9h\xc6u\xe5\xea\x01'
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
@@ -30,6 +30,18 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 }
+
+
+#[derive(Subcommand)]
+#[command(arg_required_else_help(true))]
+enum DebugCommands {
+    #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id")]
+    Locator {
+        capstr: String,
+    }
+}
+
+
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
 enum Commands {
@@ -55,6 +67,7 @@ enum Commands {
         #[arg(
             long,
             value_name("PATH"),
+            env("MCAP_CATALOG"),
             help("root directory of a ciphertext catalog")
         )]
         catalog: Option<PathBuf>,
@@ -91,6 +104,12 @@ enum Commands {
 
     #[command(about = "Make a less-powerful Cap (i.e. Read -> Verify)")]
     Reduce { cap: String },
+
+    #[command(about = "Debugging tools. Be careful copy-pasting any of these from untrusted sources")]
+    Debug {
+        #[command(subcommand)]
+        command: Option<DebugCommands>,
+    },
 }
 
 fn main() {
@@ -117,6 +136,10 @@ fn main() {
         ),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
+        Some(Commands::Debug { command }) => match command {
+            Some(DebugCommands::Locator{ capstr }) => main_debug_locator(capstr),
+            None => Ok(()),
+        }
         None => Ok(()),
     };
     if let Err(e) = result {

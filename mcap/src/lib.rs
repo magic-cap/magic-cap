@@ -275,7 +275,7 @@ pub fn main_decrypt(
     } else if let Some(root) = catalog {
         let collect = ImmutableDirectoryCatalog::create(root.clone())?;
         let locid: ImmutableIdentifier = (&cap).into();
-        collect.open(&locid)
+        collect.load(&locid)
     } else {
         Err(MagicCapError::GenericError(
             "Must provide either --ciphertext or --catalog".to_string(),
@@ -335,6 +335,15 @@ pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapErr
     } else {
         writeln!(output, "Unknown kind of cap.")?;
         return Err(MagicCapError::InvalidCap(cap.to_string()));
+    }
+    Ok(())
+}
+
+/// "mcap debug *"
+pub fn main_debug_locator(capstr: &String) -> Result<(), MagicCapError> {
+    if let Ok::<ImmutableReadCap, _>(cap) = capstr.as_str().try_into() {
+        let id: ImmutableIdentifier = cap.into();
+        println!("{}", id);
     }
     Ok(())
 }
