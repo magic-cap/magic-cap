@@ -434,6 +434,16 @@ pub struct ImmutableReadCap {
     leaves: Vec<[u8; 32]>,
 }
 
+impl ImmutableReadCap {
+    /// use the raw key material to initialize a Tahoe-style symmetric
+    /// encryption primitive
+    pub fn create_tahoe_key(&self) -> TahoeAesCtr {
+        let iv = [0u8; 16]; // 16 bytes of 0's
+        TahoeAesCtr::new(&self.key.into(), &iv.into())
+    }
+}
+
+
 // without Seek on the output, we require it on the input
 
 type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
@@ -619,10 +629,8 @@ impl ReadCap for ImmutableReadCap {
     // probably need / want to pass in Metadata too?
     // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
     fn decrypt_stream<'a, W>(&'a self, meta: ImmutableMetadata, output: &'a mut W) -> Result<ImmutableDecryptor<W>, MagicCapError> where W: Write {
-        let iv = [0u8; 16]; // 16 bytes of 0's
-        let key = TahoeAesCtr::new(&self.key.into(), &iv.into());
         Ok(
-            ImmutableDecryptor::new(key, meta, output)
+            ImmutableDecryptor::new(self.create_tahoe_key(), meta, output)
         )
     }
 
@@ -658,8 +666,7 @@ impl ReadCap for ImmutableReadCap {
         // 3. how do we do partial proofs on the FIRST leaf?
         // (oh: we STORE all the leaves in the metadata .. so confirm the root hash, then can confirm per-leaf)
 
-        let iv = [0u8; 16]; // 16 bytes of 0's
-        let mut key = TahoeAesCtr::new(&self.key.into(), &iv.into());
+        let mut key = self.create_tahoe_key();
         // to get the IV correct for our block we tell the key the
         // bytes offset
         key.try_seek(block * immutable.data_provider.block_size() as usize)
@@ -692,7 +699,6 @@ impl ReadCap for ImmutableReadCap {
     /// corresponds to the ReadCap first).
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
         let mut plaintext: Vec<u8> = Vec::with_capacity(immutable.metadata.size as usize);
-        let iv = [0u8; 16]; // 16 bytes of 0's
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
@@ -703,7 +709,7 @@ impl ReadCap for ImmutableReadCap {
         // todo: streaming decryption also goes into the ReadCapability, somehow
         // -> EncryptionContext equiv gets created by some fn in the trait
         // todo: the actual decrypt code should be moved into "impl Read for ReadCapabilty"
-        let mut key = TahoeAesCtr::new(&self.key.into(), &iv.into());
+        let mut key = self.create_tahoe_key();
 
         // can we use iterators more directly here instead of for loop? e.g.:
         // let mut leaves: Vec<[u8; 32]> = cipher.iter().map(|x| TahoeLeaf::hash(x)).collect();
