@@ -269,22 +269,20 @@ pub fn main_decrypt(
         }
     }
 
-    let imm: Result<Immutable, MagicCapError> = if let Some(input_fname) = input_fname {
+    let immutable = if let Some(input_fname) = input_fname {
         let f = std::fs::File::open(input_fname)?;
         Immutable::read(&mut std::io::BufReader::new(f))
+    } else if let Some(root) = catalog {
+        let collect = ImmutableDirectoryCatalog::create(root.clone())?;
+        let locid: ImmutableIdentifier = (&cap).into();
+        collect.open(&locid)
     } else {
-        if let Some(root) = catalog {
-            let collect = ImmutableDirectoryCatalog::create(root.clone())?;
-            let locid: ImmutableIdentifier = (&cap).into();
-            collect.open(&locid)
-        } else {
-            Err(MagicCapError::GenericError(
-                "Must provide either --ciphertext or --catalog".to_string(),
-            ))
-        }
+        Err(MagicCapError::GenericError(
+            "Must provide either --ciphertext or --catalog".to_string(),
+        ))
     };
 
-    match cap.decrypt(&mut imm?) {
+    match cap.decrypt(&mut immutable?) {
         Ok(plain) => {
             if let Some(outfile) = outfile {
                 let mut out = std::fs::File::create(outfile)?;
