@@ -25,6 +25,18 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 #+NAME:   fig:encrypt
 [[./diagrams/mcap-encrypt.svg]]
 
+* Try It Right Now!
+
+If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
+
+#+begin_src bash
+cargo run -- decrypt --url https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g | display
+#+end_src
+
+An error about "broken pipe" probably means you don't have `display
+<http://www.graphicsmagick.org/>`_ installed; you could redirect to a
+file with ``> kitten.jpeg`` instead.
+
 * Using This Crate
 
 Rust programmers can use the Rust APIs directly.
