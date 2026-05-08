@@ -227,7 +227,7 @@ pub fn main_decrypt(
 
         if let Ok(result) = result {
             //println!("{:?}", result);
-            let offset = result.bytes().unwrap();
+            let offset = result.bytes()?;
             let offraw: Vec<u8> = offset.into();
             let offslice: [u8; 8] = offraw.try_into().unwrap();
             let off: u64 = u64::from_be_bytes(offslice);
@@ -243,12 +243,12 @@ pub fn main_decrypt(
                 .get(url.clone())
                 .headers(headers)
                 .send()
-                .unwrap();
+                ?;
             //println!("{:?}", result);
-            let metadata_raw: Vec<u8> = result.bytes().unwrap().into();
+            let metadata_raw: Vec<u8> = result.bytes()?.into();
             //println!("{} bytes", metadata_raw.len());
             let mut mdbytes = metadata_raw.as_slice();
-            let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes).unwrap();
+            let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
             //println!("size={} blocks={} block_size={}", metadata.size, metadata.blocks, metadata.block_size);
 
             // now we request 'all the rest of the bytes' and stream
@@ -267,7 +267,7 @@ pub fn main_decrypt(
                 .send()
                 .unwrap();
             // streams the incoming data to the decryptor object
-            result.copy_to(&mut decryptor).unwrap();
+            result.copy_to(&mut decryptor)?;
             return Ok(());
         }
     }

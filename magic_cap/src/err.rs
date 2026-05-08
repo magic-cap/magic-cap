@@ -57,6 +57,9 @@ pub enum MagicCapError {
     #[error("ImmutableDirectoryCollection must be a directory")]
     NotDirectory(),
 
+    #[error("Cannot download")]
+    ReqwestError(#[from] reqwest::Error),
+
     #[error("{0}")]
     GenericError(String),
 }

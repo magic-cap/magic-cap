@@ -1373,6 +1373,7 @@ dependencies = [
  "getrandom 0.4.2",
  "include-doc",
  "proptest",
+ "reqwest",
  "rmp-serde",
  "rs_merkle",
  "serde",
