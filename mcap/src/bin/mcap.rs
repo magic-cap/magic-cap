@@ -55,7 +55,7 @@ enum Commands {
         #[arg(
             long,
             value_name("PATH"),
-            help("root direction of a ciphertext catalog")
+            help("root directory of a ciphertext catalog")
         )]
         catalog: Option<PathBuf>,
 

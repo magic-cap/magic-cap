@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 // smarter about the seeks? (speculative)!
 pub trait ImmutableCatalog<'a> {
     // todo: probably want "load" vs. "stream" API here
+    // todo: and stream() vs stream_async() probably
     fn open(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn insert(
