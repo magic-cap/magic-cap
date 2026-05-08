@@ -19,8 +19,9 @@
 //! amount of data ("the cap").
 //!
 //! The resulting (fixed, tiny) Magic Cap string can combined with the
-//! data file for the secret data; either part by itself cannot learn
-//! the secret data.
+//! Data file to re-create the plaintext; either part by itself does
+//! not reveal the original data. The Data can thus be put on
+//! untrusted storage (and retrieved later).
 //!
 //! The "Magic Cap" string is short (70 bytes) and can fit in TPMs or
 //! other secure storage.  Any interesting uses come when thinking
@@ -46,6 +47,7 @@
 //! The entire Magic Cap should be treated as a secret -- because it is!
 //! It is an identifier you can later use to retrieve the original
 //! plaintext (and share offline, etc -- more on those features later)
+//! Combining a Magic Cap and its corresponding Data yields the plaintext.
 //!
 //! There is a reduced-power string called a Verify Cap which can be
 //! directly derived from the Read Cap (offline, with no server
