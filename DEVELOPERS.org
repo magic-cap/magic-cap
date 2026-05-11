@@ -52,6 +52,27 @@ A "Read Cap" (or "Verify Cap") "corresponds to" a given Data if it may decrypt (
   (note: flattens the on-disc format to one directory!)
 - 'mcap publish <catalog-path> <output-path>'
 
+REST API as implemented by the output of "mcap publish" is:
+
+- <root> (some hard-to-guess or otherwise "secrit" URL? if you care about disclosing how many + size of publish?)
+  - /magic-cap-catalog: JSON with keys:
+    - "version": 0
+  - /<location-id>
+    - /metadata: the MsgPack-encoded metadata
+    - /ciphertext: all the blocks of ciphertext, in order
+
+-> so, could make a RemoteHttpCatalog type or similar, to access one of these
+   double-check root/magic-cap-catalog == {"version": 0}
+   turn ImmutableIdentifier -> metadata + ciphertext
+
+   (do we really want a "push consumer" API so instead of asking
+   "get_block(12)" from the above .. which would basically have to do
+   range-requests for each block?? .. we could instead just say
+   "download it all" and get blocks as they come?
+
+   but wait! can't we do that already?
+   ...okay lets write "mcap decrypt --url https://meejah.ca/mcap/..."
+
 ** network caps
 
 - thinking a little about "network caps"
