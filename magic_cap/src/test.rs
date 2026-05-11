@@ -193,7 +193,7 @@ fn find_catalog_basic() {
     // flushes / closes properly
 
     let id: ImmutableIdentifier = (&cap).into();
-    let mut immutable = catalog.open(&id).unwrap();
+    let mut immutable = catalog.load(&id).unwrap();
     let data = cap.decrypt(&mut immutable).unwrap();
     assert_eq!(message, data.as_slice());
 }
