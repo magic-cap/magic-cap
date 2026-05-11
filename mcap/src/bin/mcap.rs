@@ -1,4 +1,4 @@
-use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify, main_debug_locator};
+use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify, main_publish, main_debug_locator};
 
 // b'\xbd\xe1\xb4\x19\xc1+\xa9\xe8\xd9h\xc6u\xe5\xea\x01'
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
@@ -105,6 +105,12 @@ enum Commands {
     #[command(about = "Make a less-powerful Cap (i.e. Read -> Verify)")]
     Reduce { cap: String },
 
+    #[command(about = "Create a Catalog suitable for static hosting")]
+    Publish {
+        catalog: PathBuf,
+        output: PathBuf,
+    },
+
     #[command(about = "Debugging tools. Be careful copy-pasting any of these from untrusted sources")]
     Debug {
         #[command(subcommand)]
@@ -136,6 +142,7 @@ fn main() {
         ),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
+        Some(Commands::Publish { catalog, output }) => main_publish(catalog, output),
         Some(Commands::Debug { command }) => match command {
             Some(DebugCommands::Locator{ capstr }) => main_debug_locator(capstr),
             None => Ok(()),

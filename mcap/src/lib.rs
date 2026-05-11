@@ -109,6 +109,8 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use url::Url;
 
+use walkdir::WalkDir;
+
 pub mod tests;
 
 /// Implementation of "mcap encrypt"
@@ -339,7 +341,69 @@ pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapErr
     Ok(())
 }
 
-/// "mcap debug *"
+/// "mcap publish"
+pub fn main_publish(catalog: &PathBuf, output: &PathBuf) -> Result<(), MagicCapError> {
+    println!("publish {:?} to {:?}", catalog, output);
+    if output.exists() {
+        panic!("output exists");
+    }
+
+    std::fs::create_dir(output.as_path())?;
+    {
+        // tell passers-by what this directory is for
+        let mut readme = output.clone();
+        readme.push("README");
+        let mut readme = std::fs::File::create(readme.as_path())?;
+        readme.write_all(b"This is a Catalog published by Magic Cap\n")?;
+    }
+    {
+        // tell programs what this basedir is for
+        let mut catalogmeta = output.clone();
+        catalogmeta.push("magic-cap-catalog");
+        let mut catalogmeta = std::fs::File::create(catalogmeta.as_path())?;
+        catalogmeta.write_all(b"{\"version\": 0}")?;
+    }
+    
+    let walker = WalkDir::new(catalog);
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.metadata().unwrap().is_file() {
+            let mut r = std::io::BufReader::new(
+                std::fs::File::open(entry.path())?
+            );
+            let mut imm = Immutable::stream(&mut r)?;
+            let published = output.clone();
+            let id = (&imm).into();
+            let published = magic_cap::add_identifier(&published, &id);
+            println!("entry {:?} {} {}", entry, imm.metadata.size, imm.metadata.blocks);
+            std::fs::create_dir_all(published.clone())?;
+            // just assume version == 0 for now .. could put a "version" file with 0u32 in it?
+            // (add ".version" to ImmutableMetadata?
+
+            // write the metadata to "/metadata"
+            {
+                let mut meta = published.clone();
+                meta.push("metadata");
+                let mut meta = std::fs::File::create(meta.as_path())?;
+                imm.metadata.write(&mut meta)?;
+            }
+
+            // write the blocks to "/ciphertext"
+            {
+                let mut blocks = published.clone();
+                blocks.push("ciphertext");
+                let mut blocks = std::fs::File::create(blocks.as_path())?;
+                let mut block = vec![0u8; imm.data_provider.block_size() as usize];
+                for block_num in 0..imm.data_provider.total_blocks() {
+                    imm.data_provider.get_block(block_num, block.as_mut_slice())?;
+                    blocks.write_all(block.as_slice())?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// "mcap debug locator"
 pub fn main_debug_locator(capstr: &String) -> Result<(), MagicCapError> {
     if let Ok::<ImmutableReadCap, _>(cap) = capstr.as_str().try_into() {
         let id: ImmutableIdentifier = cap.into();

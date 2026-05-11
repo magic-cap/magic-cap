@@ -40,6 +40,15 @@ impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
     }
 }
 
+impl<'a> std::convert::From<&Immutable<'a>> for ImmutableIdentifier {
+    fn from(imm: &Immutable) -> ImmutableIdentifier {
+        let verify: ImmutableVerifyCap = ImmutableVerifyCap::from(&imm.metadata);
+        ImmutableIdentifier {
+            storage_index: tagged_hash::<32>(b"magic_cap_storage_index_v1", &verify.metadata_hash),
+        }
+    }
+}
+
 // todo: make a Base32 / Base64 marker-type? That contains a String?
 impl std::convert::From<ImmutableIdentifier> for String {
     fn from(val: ImmutableIdentifier) -> String {
@@ -72,7 +81,7 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
 }
 
 // TODO: could have a Default implementation that always says no and
-// is and error to insert?
+// is an error to insert?
 //
 // OR: could create a new one in a "well known place" and uses that
 // (this is nice because then it actually works)
@@ -98,15 +107,24 @@ impl ImmutableDirectoryCatalog {
     }
 }
 
+// 1. convert identifier to &str (base64? base32?)
+// 2. strip first 2 (more?) chars off
+// 3. look in root/<2 chars>/<entire id>
+/// add the appropriate "subdir" for this [`ImmutableIdentifier`].
+/// For example, if ``root`` is ``/tmp/foo`` this would return
+/// ``/tmp/foo/ae/ae347359d96..`` for an ImmutableIdentifier whose
+/// string starts ``ae347359d96..``
+pub fn add_identifier(root: &PathBuf, locator: &ImmutableIdentifier) -> PathBuf {
+    let name: String = locator.into();
+    let dir = &name[0..2];
+    Path::join(&Path::join(root, dir), name)
+}
+
+
 impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
-        // 1. convert identifier to &str (base64? base32?)
-        // 2. strip first 2 (more?) chars off
-        // 3. look in root/<2 chars>/<entire id>
-        let name: String = locator.into();
-        let dir = &name[0..2];
-        let fname = Path::join(&Path::join(self.root.as_path(), dir), name);
-        let f = std::fs::File::open(fname.clone())?;
+        let fname = add_identifier(&self.root, locator);
+        let f = File::open(fname)?;
         let imm = Immutable::read(f)?;
         Ok(imm)
     }

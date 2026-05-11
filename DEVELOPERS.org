@@ -33,6 +33,27 @@ A "Read Cap" (or "Verify Cap") "corresponds to" a given Data if it may decrypt (
 
 * Catalog next steps
 
+** hosting a Catalog
+
+- can do it in github (we have one right now in this repo!)
+- filesystem one just has the mcap files in it (and metadata could be
+  gotten on-demand easily)
+- a "web" one wants a more structured API -- we _can_ do it with
+  offsets etc but then you've burned together the network API and the
+  serialization format
+- something like:
+  "<root>/mcap/<locator>/metadata"
+  "<root>/mcap/<locator>/blocks"
+- versioning? (do we burn in version-0 ^ somewhere so we can
+  double-check the "mcap" and "0u32" value at the front of the files?
+- could stick a "smart" Web server in front of any catalogs and it can
+  dynamically map the above API (reading the files as required)
+- could run a command locally, "compiling" to static output that matches the above?
+  (note: flattens the on-disc format to one directory!)
+- 'mcap publish <catalog-path> <output-path>'
+
+** network caps
+
 - thinking a little about "network caps"
 - right now we can do something like this:
 

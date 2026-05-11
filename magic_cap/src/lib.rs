@@ -83,6 +83,8 @@ mod catalog;
 pub mod err;
 mod tahoe;
 
+pub use catalog::add_identifier;
+
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
 
