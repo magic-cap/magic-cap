@@ -142,7 +142,7 @@ fn main() {
         ),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
-        Some(Commands::Publish { catalog, output }) => main_publish(catalog, output),
+        Some(Commands::Publish { catalog, output }) => main_publish(&mut std::io::stdout(), catalog, output),
         Some(Commands::Debug { command }) => match command {
             Some(DebugCommands::Locator{ capstr }) => main_debug_locator(capstr),
             None => Ok(()),
