@@ -36,7 +36,7 @@ include-doc = "0.2.2"
 reqwest = { version = "0.13.3", features = ["blocking"] }
 url = "2.5.8"
 serde_json = "1.0.149"
-bytes = "1.11.1"
+tracing = "0.1.44"
 
 
 [dev-dependencies]

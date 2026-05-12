@@ -101,6 +101,8 @@ use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
 
+use tracing::{error, info};
+
 use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
@@ -335,7 +337,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 ///
 ///    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
 ///    let cap: ImmutableReadCap = cap_string.try_into().unwrap();
-///    println!("The cap is: {}", cap);
+///    info!("The cap is: {}", cap);
 /// ```
 pub struct ImmutableReadCap {
     // "Read" adds on top of Verify: we always need to verify
@@ -605,12 +607,12 @@ impl ReadCap for ImmutableReadCap {
         // load the ciphertext into the provided slice, and decrypt in-place
         let _ = immutable.data_provider.get_block(block, plaintext);
 
-        println!("plaintext: {:?}", plaintext);
+        info!("plaintext: {:?}", plaintext);
 
         let leaf_hash = TahoeLeaf::hash(plaintext);
         if leaf_hash != immutable.metadata.merkle_leaves[block] {
             // todo: better error?
-            println!(
+            error!(
                 "block didn't match {:?} vs {:?}",
                 leaf_hash, immutable.metadata.merkle_leaves[block]
             );

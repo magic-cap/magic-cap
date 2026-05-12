@@ -8,6 +8,8 @@ use magic_cap_cli::{
 use std::path::PathBuf;
 use url::Url;
 
+use tracing::{error,Level};
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -124,6 +126,9 @@ enum Commands {
 }
 
 fn main() {
+    // This will show INFO, WARN and ERROR; see tokio's tracing examples
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+
     let cli = Cli::parse();
     let result = match &cli.command {
         Some(Commands::Encrypt {
@@ -159,7 +164,7 @@ fn main() {
         None => Ok(()),
     };
     if let Err(e) = result {
-        println!("Error: {}", e);
+        error!("Error: {}", e);
         std::process::exit(2);
     }
 }
