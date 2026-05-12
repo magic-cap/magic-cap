@@ -83,8 +83,6 @@ mod catalog;
 pub mod err;
 mod tahoe;
 
-pub use catalog::add_identifier;
-
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
 
@@ -92,9 +90,10 @@ mod test;
 pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
-// todo: re-export some stuff from catalog
+pub use catalog::add_identifier;
 pub use catalog::ImmutableCatalog;
 pub use catalog::ImmutableDirectoryCatalog;
+pub use catalog::ImmutableWebCatalog;
 pub use catalog::ImmutableIdentifier;
 
 // why can't we use KeyInit ?!
@@ -130,6 +129,7 @@ pub trait ImmutableVerifier {
     fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError>;
 }
 
+
 pub struct ImmutableDecryptor<'a, W>
 where
     W: Write,
@@ -162,6 +162,13 @@ where
     }
 }
 
+// TODO: decryption and encryption are the same here
+// ("apply_keystream") so we should be able to re-factor into
+// "ImmutableCryptor" and use the same code for both encryption and
+// decryption...
+// ...but what happens to the merkle tree is 'backwards': when
+// encrypting, we create the tree but when decryption we need to check
+// each leaf against its hash
 impl<'a, W> Write for ImmutableDecryptor<'a, W>
 where
     W: Write,
@@ -803,19 +810,19 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 
 #[derive(Debug, PartialEq)]
 /// Access all ciphertext via a [`Read`] provider
-pub struct EncryptedImmutableReader<'a, R>
+pub struct EncryptedImmutableReader<R>
 where
-    R: Read + Seek + 'a,
+    R: Read + Seek,
 {
-    provider: &'a mut R,
+    provider: R,
     blocks: u64,
     offset: u64,
     block_size: u32,
 }
 
-impl<'a, R> EncryptedImmutable for EncryptedImmutableReader<'a, R>
+impl<R> EncryptedImmutable for EncryptedImmutableReader<R>
 where
-    R: Read + Seek + 'a,
+    R: Read + Seek,
 {
     fn total_blocks(&self) -> usize {
         self.blocks as usize
@@ -890,6 +897,28 @@ pub struct Immutable<'a> {
     // todo: do we want Arc() here too? So we can implement Clone nicely?
     pub data_provider: Box<dyn EncryptedImmutable + 'a>, // Box<dyn ..> here so we're Sized
 }
+
+
+// okay so we haven't abstracted enough or in the right way here
+//
+// since this uses Write/Read directly, all we can express is "file /
+// stream-like semantics" of our backend
+//
+// we can't, for example, use a backend that has "get metadata" and
+// "get ciphertext" (or "get ciphertext block number three") APIs.
+//
+// what we WANT to abstract over is more like:
+// - get all data immediately
+// - get metdata, then stream / random-access ciphertext
+// - ... (above should cover database / object-store / web-server)
+// - "push" vs. "pull" stuff (i.e. "tell me you got ciphertext" instead of "I ask you for ciphertext")
+//
+// So do we want a "decode_block()" call somewhere, that is "the" core of most operations?
+// - pull producer does backend.read(..) and then decode_block()
+// - push producer does Write.write() and when a block is full, decode_block()
+// - (vice-versa for encoders)
+// (Am I just describing what ImmutableDecryptor already does? we just want access to that?)
+
 
 impl<'a> Immutable<'a> {
     /// Deserialize an Immutable from the given input stream.
@@ -969,9 +998,9 @@ impl<'a> Immutable<'a> {
     // so .. we still return an "Immutable", but it's backend thing is
     // set up to read "on demand" (and we've changed the Immtuable API
     // to support both)
-    pub fn stream<'b, R>(reader: &'b mut R) -> Result<Immutable<'b>, MagicCapError>
+    pub fn stream<R>(mut reader: R) -> Result<Immutable<'a>, MagicCapError>
     where
-        R: Read + std::io::Seek,
+        R: Read + std::io::Seek + 'a,
     {
         // read the tag and verify this is an mcap file
         let mut tag = [0u8; 4];
@@ -999,7 +1028,7 @@ impl<'a> Immutable<'a> {
 
         // read the metadata first so we know blocksize etc
         reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut *reader)?;
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
 
         // check that the leaves correspond to the root -- does
         // rmp_serde give us hook so that we can check on every load?

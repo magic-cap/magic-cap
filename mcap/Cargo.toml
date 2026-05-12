@@ -20,10 +20,12 @@ publish = true  # when flipping this, ensure GitHub repo is public (add homepage
 name = "mcap"
 
 [dependencies]
+bytes = "1.11.1"
 clap = { version = "4.5.54", features = ["derive", "env"] }
 magic_cap = { path = "../magic_cap", version = "0.0.1" }
 reqwest = { version = "0.13.3", features = ["blocking"] }
 rmp-serde = "1.3.1"
+serde_json = "1.0.149"
 tempfile = "3.24.0"
 url = "2.5.8"
 walkdir = "2.5.0"

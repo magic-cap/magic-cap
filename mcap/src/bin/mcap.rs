@@ -73,6 +73,14 @@ enum Commands {
         catalog: Option<PathBuf>,
 
         #[arg(
+            long,
+            value_name("URL"),
+            env("MCAP_URL"),
+            help("root URL of a ciphertext catalog")
+        )]
+        catalog_url: Option<Url>,
+
+        #[arg(
             short,
             long,
             value_name("FNAME"),
@@ -129,6 +137,7 @@ fn main() {
         Some(Commands::Decrypt {
             cap,
             catalog,
+            catalog_url,
             ciphertext,
             url,
             plaintext,
@@ -136,6 +145,7 @@ fn main() {
             &mut std::io::stdout(),
             cap,
             catalog,
+            catalog_url,
             ciphertext,
             url,
             plaintext,

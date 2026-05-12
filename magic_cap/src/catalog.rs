@@ -1,11 +1,14 @@
 use crate::err::MagicCapError;
 use crate::tahoe::tagged_hash;
-use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap};
+use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap, ImmutableDecryptor, TahoeAesCtr, ImmutableMetadata};
 use data_encoding::HEXLOWER;
 use std::fmt;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{Write, BufWriter};
 use std::path::{Path, PathBuf};
+use url::Url;
+use serde_json::{Value};
+use bytes;
 
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
@@ -14,6 +17,8 @@ pub trait ImmutableCatalog<'a> {
     // todo: probably want "load" vs. "stream" API here
     // todo: and stream() vs stream_async() probably
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
+
+    fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn insert(
         &mut self,
@@ -107,6 +112,65 @@ impl ImmutableDirectoryCatalog {
     }
 }
 
+// XXX can we do anything to unify these two things?
+// after all, they're both "A Catalog, with some root" (and for now
+// are both synchronous -- presumably an async thing would be
+// "different"..?)
+
+#[derive(Debug)]
+pub struct ImmutableWebCatalog {
+    root: Url,
+}
+
+impl ImmutableWebCatalog {
+    pub fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
+        // figure out of this looks like a Magic Cap Catalog version 0 REST API
+        let url = root.clone();
+        let url = url.join("magic-cap-catalog").unwrap();
+        let result = reqwest::blocking::Client::new()
+            .get(url)
+            .send()
+            ?;
+        let js = result.text()?;
+        let js: Value = serde_json::from_str(js.as_str()).unwrap();
+        if js["version"] == 0 {
+            return Ok(ImmutableWebCatalog { root })
+        }
+        Err(MagicCapError::GenericError("not a web catalog".to_string()))
+    }
+
+    pub fn fetch_metadata(&self, location: &ImmutableIdentifier) -> Result<ImmutableMetadata, MagicCapError> {
+        let url = self.root.clone();
+        let id_str: String = location.into();
+        let url = url.join((id_str + "/").as_str()).unwrap();
+        let url = url.join("metadata").unwrap();
+        //println!("URL {:?}", url);
+        let result = reqwest::blocking::Client::new()
+            .get(url)
+            .send()
+            ?;
+        let js = result.bytes()?;
+        let mut slice = &js[0..];
+        Ok(
+            rmp_serde::decode::from_read(slice)?
+        )
+    }
+    
+    pub fn copy_ciphertext_to(&self, location: &ImmutableIdentifier, dest: &mut dyn Write) -> Result<(), MagicCapError> {
+        let url = self.root.clone();
+        let id_str: String = location.into();
+        let url = url.join((id_str + "/").as_str()).unwrap();
+        let url = url.join("ciphertext").unwrap();
+        //println!("URL {:?}", url);
+        let mut result = reqwest::blocking::Client::new()
+            .get(url)
+            .send()
+            ?;
+        result.copy_to(dest)?;
+        Ok(())
+    }
+}
+
 // 1. convert identifier to &str (base64? base32?)
 // 2. strip first 2 (more?) chars off
 // 3. look in root/<2 chars>/<entire id>
@@ -121,11 +185,34 @@ pub fn add_identifier(root: &PathBuf, locator: &ImmutableIdentifier) -> PathBuf 
 }
 
 
+// promote into the trait?
+// fn stream_push() that returns ImmutableDecryptor ??
+impl ImmutableWebCatalog {
+    pub fn stream_push<'b, W: Write>(&self, key: TahoeAesCtr, metadata: ImmutableMetadata, plaintext_output: &'b mut W) -> Result<ImmutableDecryptor<'b, W>, MagicCapError> {
+        Ok(
+            ImmutableDecryptor::new(
+                key,
+                metadata,
+                plaintext_output,
+            )
+        )
+    }
+}
+
+
+
 impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
         let fname = add_identifier(&self.root, locator);
         let f = File::open(fname)?;
         let imm = Immutable::read(f)?;
+        Ok(imm)
+    }
+
+    fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
+        let fname = add_identifier(&self.root, locator);
+        let f = File::open(fname)?;
+        let imm = Immutable::stream(f)?;
         Ok(imm)
     }
 

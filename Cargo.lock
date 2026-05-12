@@ -1365,6 +1365,7 @@ name = "magic_cap"
 version = "0.0.1"
 dependencies = [
  "aes",
+ "bytes",
  "cargo-llvm-cov",
  "cipher 0.5.1",
  "criterion",
@@ -1377,20 +1378,24 @@ dependencies = [
  "rmp-serde",
  "rs_merkle",
  "serde",
+ "serde_json",
  "sha2 0.11.0",
  "tempfile",
  "thiserror",
+ "url",
 ]
 
 [[package]]
 name = "magic_cap_cli"
 version = "0.0.1"
 dependencies = [
+ "bytes",
  "clap",
  "magic_cap",
  "proptest",
  "reqwest",
  "rmp-serde",
+ "serde_json",
  "tempfile",
  "url",
  "walkdir",

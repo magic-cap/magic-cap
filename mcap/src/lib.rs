@@ -101,6 +101,7 @@ use magic_cap::err::MagicCapError;
 use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
+    ImmutableWebCatalog,
 };
 use reqwest::header::HeaderMap;
 use std::fs::File;
@@ -199,6 +200,7 @@ pub fn main_decrypt(
     output: &mut impl Write,
     cap: &str,
     catalog: &Option<PathBuf>,
+    catalog_url: &Option<Url>,
     input_fname: &Option<PathBuf>,
     input_url: &Option<Url>,
     outfile: &Option<PathBuf>,
@@ -210,7 +212,7 @@ pub fn main_decrypt(
     if catalog.is_some() && input_fname.is_some() {
         // could be error, could say "if filename doesn't exist then use catalog"
         //
-        // take a Enum in here that is a Catalog OR a input_fname
+        // take a Enum in here that is a Catalog OR a input_fname OR catalog-url
         // so we can only do one
         todo!();
     }
@@ -271,6 +273,18 @@ pub fn main_decrypt(
         }
     }
 
+    // TODO FIXME early return
+    if let Some(root_url) = catalog_url {
+        let collect = ImmutableWebCatalog::create(root_url.clone())?;
+        let locid: ImmutableIdentifier = (&cap).into();
+        let mut output = std::io::stdout().lock();
+        let metadata = collect.fetch_metadata(&locid)?;
+        let key = cap.create_tahoe_key();
+        let mut pusher = collect.stream_push(key, metadata, &mut output)?;
+        collect.copy_ciphertext_to(&locid, &mut pusher)?;
+        return Ok(());
+    }
+
     let immutable = if let Some(input_fname) = input_fname {
         let f = std::fs::File::open(input_fname)?;
         Immutable::read(&mut std::io::BufReader::new(f))
@@ -280,7 +294,7 @@ pub fn main_decrypt(
         collect.load(&locid)
     } else {
         Err(MagicCapError::GenericError(
-            "Must provide either --ciphertext or --catalog".to_string(),
+            "Must provide either --ciphertext or --catalog or --catalog-url".to_string(),
         ))
     };
 
