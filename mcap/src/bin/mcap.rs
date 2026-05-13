@@ -127,7 +127,11 @@ enum Commands {
 
 fn main() {
     // This will show INFO, WARN and ERROR; see tokio's tracing examples
-    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+    tracing_subscriber::fmt()
+        .with_max_level(Level::INFO)
+        .with_writer(std::io::stderr)
+        .init();
+    //tracing_subscriber::fmt().with_max_level(Level::ERROR).init();
 
     let cli = Cli::parse();
     let result = match &cli.command {
