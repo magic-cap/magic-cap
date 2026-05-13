@@ -53,7 +53,7 @@ pub mod test {
 
             // confirm that "decrypt" can turn back into plaintext
             let mut output = vec!();
-            main_decrypt(&mut output, capstr, &None, &Some(cipher), &None, &Some(round.clone())).unwrap();
+            main_decrypt(&mut output, capstr, &None, &None, &Some(cipher), &None, &Some(round.clone())).unwrap();
 
             let mut og = String::new();
             let mut other = String::new();
