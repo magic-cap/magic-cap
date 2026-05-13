@@ -90,11 +90,11 @@ mod test;
 pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
-pub use catalog::add_identifier;
 pub use catalog::ImmutableCatalog;
 pub use catalog::ImmutableDirectoryCatalog;
-pub use catalog::ImmutableWebCatalog;
 pub use catalog::ImmutableIdentifier;
+pub use catalog::ImmutableWebCatalog;
+pub use catalog::add_identifier;
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
@@ -128,7 +128,6 @@ pub enum ImmutableCap {
 pub trait ImmutableVerifier {
     fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError>;
 }
-
 
 pub struct ImmutableDecryptor<'a, W>
 where
@@ -898,7 +897,6 @@ pub struct Immutable<'a> {
     pub data_provider: Box<dyn EncryptedImmutable + 'a>, // Box<dyn ..> here so we're Sized
 }
 
-
 // okay so we haven't abstracted enough or in the right way here
 //
 // since this uses Write/Read directly, all we can express is "file /
@@ -918,7 +916,6 @@ pub struct Immutable<'a> {
 // - push producer does Write.write() and when a block is full, decode_block()
 // - (vice-versa for encoders)
 // (Am I just describing what ImmutableDecryptor already does? we just want access to that?)
-
 
 impl<'a> Immutable<'a> {
     /// Deserialize an Immutable from the given input stream.

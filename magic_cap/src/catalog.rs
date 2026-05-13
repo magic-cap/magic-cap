@@ -1,14 +1,17 @@
 use crate::err::MagicCapError;
 use crate::tahoe::tagged_hash;
-use crate::{Immutable, ImmutableBuilder, ImmutableReadCap, ImmutableVerifyCap, ImmutableDecryptor, TahoeAesCtr, ImmutableMetadata};
+use crate::{
+    Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata, ImmutableReadCap,
+    ImmutableVerifyCap, TahoeAesCtr,
+};
+use bytes;
 use data_encoding::HEXLOWER;
+use serde_json::Value;
 use std::fmt;
 use std::fs::File;
-use std::io::{Write, BufWriter};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
-use serde_json::{Value};
-use bytes;
 
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
@@ -127,45 +130,41 @@ impl ImmutableWebCatalog {
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
         let url = root.clone();
         let url = url.join("magic-cap-catalog").unwrap();
-        let result = reqwest::blocking::Client::new()
-            .get(url)
-            .send()
-            ?;
+        let result = reqwest::blocking::Client::new().get(url).send()?;
         let js = result.text()?;
         let js: Value = serde_json::from_str(js.as_str()).unwrap();
         if js["version"] == 0 {
-            return Ok(ImmutableWebCatalog { root })
+            return Ok(ImmutableWebCatalog { root });
         }
         Err(MagicCapError::GenericError("not a web catalog".to_string()))
     }
 
-    pub fn fetch_metadata(&self, location: &ImmutableIdentifier) -> Result<ImmutableMetadata, MagicCapError> {
+    pub fn fetch_metadata(
+        &self,
+        location: &ImmutableIdentifier,
+    ) -> Result<ImmutableMetadata, MagicCapError> {
         let url = self.root.clone();
         let id_str: String = location.into();
         let url = url.join((id_str + "/").as_str()).unwrap();
         let url = url.join("metadata").unwrap();
         //println!("URL {:?}", url);
-        let result = reqwest::blocking::Client::new()
-            .get(url)
-            .send()
-            ?;
+        let result = reqwest::blocking::Client::new().get(url).send()?;
         let js = result.bytes()?;
         let mut slice = &js[0..];
-        Ok(
-            rmp_serde::decode::from_read(slice)?
-        )
+        Ok(rmp_serde::decode::from_read(slice)?)
     }
-    
-    pub fn copy_ciphertext_to(&self, location: &ImmutableIdentifier, dest: &mut dyn Write) -> Result<(), MagicCapError> {
+
+    pub fn copy_ciphertext_to(
+        &self,
+        location: &ImmutableIdentifier,
+        dest: &mut dyn Write,
+    ) -> Result<(), MagicCapError> {
         let url = self.root.clone();
         let id_str: String = location.into();
         let url = url.join((id_str + "/").as_str()).unwrap();
         let url = url.join("ciphertext").unwrap();
         //println!("URL {:?}", url);
-        let mut result = reqwest::blocking::Client::new()
-            .get(url)
-            .send()
-            ?;
+        let mut result = reqwest::blocking::Client::new().get(url).send()?;
         result.copy_to(dest)?;
         Ok(())
     }
@@ -184,22 +183,18 @@ pub fn add_identifier(root: &PathBuf, locator: &ImmutableIdentifier) -> PathBuf 
     Path::join(&Path::join(root, dir), name)
 }
 
-
 // promote into the trait?
 // fn stream_push() that returns ImmutableDecryptor ??
 impl ImmutableWebCatalog {
-    pub fn stream_push<'b, W: Write>(&self, key: TahoeAesCtr, metadata: ImmutableMetadata, plaintext_output: &'b mut W) -> Result<ImmutableDecryptor<'b, W>, MagicCapError> {
-        Ok(
-            ImmutableDecryptor::new(
-                key,
-                metadata,
-                plaintext_output,
-            )
-        )
+    pub fn stream_push<'b, W: Write>(
+        &self,
+        key: TahoeAesCtr,
+        metadata: ImmutableMetadata,
+        plaintext_output: &'b mut W,
+    ) -> Result<ImmutableDecryptor<'b, W>, MagicCapError> {
+        Ok(ImmutableDecryptor::new(key, metadata, plaintext_output))
     }
 }
-
-
 
 impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {

@@ -100,8 +100,8 @@ use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
-    ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
-    ImmutableWebCatalog,
+    ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
+    ImmutableWebCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;
 use std::fs::File;
@@ -356,7 +356,11 @@ pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapErr
 }
 
 /// "mcap publish"
-pub fn main_publish(stdout: &mut impl Write, catalog: &PathBuf, output: &PathBuf) -> Result<(), MagicCapError> {
+pub fn main_publish(
+    stdout: &mut impl Write,
+    catalog: &PathBuf,
+    output: &PathBuf,
+) -> Result<(), MagicCapError> {
     writeln!(stdout, "publish {:?} to {:?}", catalog, output)?;
     if output.exists() {
         panic!("output exists");
@@ -377,25 +381,29 @@ pub fn main_publish(stdout: &mut impl Write, catalog: &PathBuf, output: &PathBuf
         let mut catalogmeta = std::fs::File::create(catalogmeta.as_path())?;
         catalogmeta.write_all(b"{\"version\": 0}")?;
     }
-    
+
     let walker = WalkDir::new(catalog);
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         if entry.metadata().unwrap().is_file() {
-            let mut r = std::io::BufReader::new(
-                std::fs::File::open(entry.path())?
-            );
+            let mut r = std::io::BufReader::new(std::fs::File::open(entry.path())?);
             let mut imm = Immutable::stream(&mut r)?;
             let mut published = output.clone();
             let id: ImmutableIdentifier = (&imm).into();
             let id: String = id.into();
             published.push(id);
             //let published = magic_cap::add_identifier(&published, &id);
-            writeln!(stdout, "  {} {} bytes ({} blocks)", entry.path().display(), imm.metadata.size, imm.metadata.blocks)?;
+            writeln!(
+                stdout,
+                "  {} {} bytes ({} blocks)",
+                entry.path().display(),
+                imm.metadata.size,
+                imm.metadata.blocks
+            )?;
             std::fs::create_dir_all(published.clone())?;
             // just assume version == 0 for now .. could put a "version" file with 0u32 in it?
             // (add ".version" to ImmutableMetadata?
             stdout.write_all(b"    ")?;
-            
+
             // write the metadata to "/metadata"
             {
                 let mut meta = published.clone();
@@ -412,7 +420,8 @@ pub fn main_publish(stdout: &mut impl Write, catalog: &PathBuf, output: &PathBuf
                 let mut blocks = std::fs::File::create(blocks.as_path())?;
                 let mut block = vec![0u8; imm.data_provider.block_size() as usize];
                 for block_num in 0..imm.data_provider.total_blocks() {
-                    imm.data_provider.get_block(block_num, block.as_mut_slice())?;
+                    imm.data_provider
+                        .get_block(block_num, block.as_mut_slice())?;
                     blocks.write_all(block.as_slice())?;
                     stdout.write_all(b".")?;
                 }

@@ -1,4 +1,6 @@
-use magic_cap_cli::{main_decrypt, main_encrypt, main_reduce, main_verify, main_publish, main_debug_locator};
+use magic_cap_cli::{
+    main_debug_locator, main_decrypt, main_encrypt, main_publish, main_reduce, main_verify,
+};
 
 // b'\xbd\xe1\xb4\x19\xc1+\xa9\xe8\xd9h\xc6u\xe5\xea\x01'
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
@@ -31,16 +33,12 @@ struct Cli {
     command: Option<Commands>,
 }
 
-
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
 enum DebugCommands {
     #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id")]
-    Locator {
-        capstr: String,
-    }
+    Locator { capstr: String },
 }
-
 
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
@@ -114,12 +112,11 @@ enum Commands {
     Reduce { cap: String },
 
     #[command(about = "Create a Catalog suitable for static hosting")]
-    Publish {
-        catalog: PathBuf,
-        output: PathBuf,
-    },
+    Publish { catalog: PathBuf, output: PathBuf },
 
-    #[command(about = "Debugging tools. Be careful copy-pasting any of these from untrusted sources")]
+    #[command(
+        about = "Debugging tools. Be careful copy-pasting any of these from untrusted sources"
+    )]
     Debug {
         #[command(subcommand)]
         command: Option<DebugCommands>,
@@ -152,11 +149,13 @@ fn main() {
         ),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
-        Some(Commands::Publish { catalog, output }) => main_publish(&mut std::io::stdout(), catalog, output),
-        Some(Commands::Debug { command }) => match command {
-            Some(DebugCommands::Locator{ capstr }) => main_debug_locator(capstr),
-            None => Ok(()),
+        Some(Commands::Publish { catalog, output }) => {
+            main_publish(&mut std::io::stdout(), catalog, output)
         }
+        Some(Commands::Debug { command }) => match command {
+            Some(DebugCommands::Locator { capstr }) => main_debug_locator(capstr),
+            None => Ok(()),
+        },
         None => Ok(()),
     };
     if let Err(e) = result {
