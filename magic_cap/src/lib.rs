@@ -90,11 +90,10 @@ mod test;
 pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
-pub use catalog::ImmutableCatalog;
-pub use catalog::ImmutableDirectoryCatalog;
-pub use catalog::ImmutableIdentifier;
-pub use catalog::ImmutableWebCatalog;
-pub use catalog::add_identifier;
+pub use catalog::{
+    ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
+    add_identifier,
+};
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};

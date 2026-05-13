@@ -4,7 +4,6 @@ use crate::{
     Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata, ImmutableReadCap,
     ImmutableVerifyCap, TahoeAesCtr,
 };
-use bytes;
 use data_encoding::HEXLOWER;
 use serde_json::Value;
 use std::fmt;
@@ -150,7 +149,7 @@ impl ImmutableWebCatalog {
         //println!("URL {:?}", url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
         let js = result.bytes()?;
-        let mut slice = &js[0..];
+        let slice = &js[0..];
         Ok(rmp_serde::decode::from_read(slice)?)
     }
 
@@ -177,7 +176,7 @@ impl ImmutableWebCatalog {
 /// For example, if ``root`` is ``/tmp/foo`` this would return
 /// ``/tmp/foo/ae/ae347359d96..`` for an ImmutableIdentifier whose
 /// string starts ``ae347359d96..``
-pub fn add_identifier(root: &PathBuf, locator: &ImmutableIdentifier) -> PathBuf {
+pub fn add_identifier(root: &Path, locator: &ImmutableIdentifier) -> PathBuf {
     let name: String = locator.into();
     let dir = &name[0..2];
     Path::join(&Path::join(root, dir), name)

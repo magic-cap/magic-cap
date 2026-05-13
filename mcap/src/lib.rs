@@ -433,8 +433,8 @@ pub fn main_publish(
 }
 
 /// "mcap debug locator"
-pub fn main_debug_locator(capstr: &String) -> Result<(), MagicCapError> {
-    if let Ok::<ImmutableReadCap, _>(cap) = capstr.as_str().try_into() {
+pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
+    if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
         let id: ImmutableIdentifier = cap.into();
         println!("{}", id);
     }
