@@ -25,8 +25,8 @@ Data is a file containing encrypted data and associated metadata.
 
 A Read Cap is a string containing secret information to decrypt a corresponding Data.
 
-A Verify Cap has the power to confirm that the data is correct.
-Any Read Cap may be turned into a Verify Cap.
+A Verify Cap has only the power to confirm that the data is correct.
+Any Read Cap may be turned into a Verify Cap offline.
 
 Anyone with both the Data and corresponding Read Cap may re-create the plaintext.
 ")]
@@ -45,7 +45,7 @@ enum DebugCommands {
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
 enum Commands {
-    #[command(about = "turn plaintext into a Magic Cap + ciphertext")]
+    #[command(about = "turn plaintext into a Read Cap + ciphertext")]
     Encrypt {
         // non-optional source of data
         plaintext: PathBuf,
@@ -57,7 +57,7 @@ enum Commands {
         catalog: Option<PathBuf>,
     },
 
-    #[command(about = "turn a Magic Cap + ciphertext into plaintext")]
+    #[command(about = "turn a Read Cap + ciphertext into plaintext")]
     Decrypt {
         // non-optional magic-cap string
         cap: String,
@@ -110,11 +110,16 @@ enum Commands {
         ciphertext: PathBuf,
     },
 
-    #[command(about = "Make a less-powerful Cap (i.e. Read -> Verify)")]
+    #[command(about = "Turn a Read Cap into a less-powerful Verify Cap")]
     Reduce { cap: String },
 
-    #[command(about = "Create a Catalog suitable for static hosting")]
-    Publish { catalog: PathBuf, output: PathBuf },
+    #[command(about = "Turn a disc Catalog into one suitable for static hosting (as the REST API)")]
+    Publish {
+        #[arg(help("local path of a Catalog"))]
+        catalog: PathBuf,
+        #[arg(help("output path for the REST-style static-hostable files"))]
+        output: PathBuf,
+    },
 
     #[command(
         about = "Debugging tools. Be careful copy-pasting any of these from untrusted sources"
