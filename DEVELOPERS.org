@@ -66,6 +66,11 @@ In Rust, we have ``magic_cap::catalog::ImmutableWebCatalog`` which knows how to 
 
 Using the CLI: ``mcap decrypt --catalog-url https://meejah.ca/media/mcap/secret-name/ mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > bruennhilde.jpeg``
 
+You can create a ready-to-static-host version of a catalog using ``mcap publish``.
+So if the above on-disk catalog was in ``kittens-catalog/`` you could turn it into something that can be scp'd or rsync'd to a remote server and statically-hosted by any Web server (turn off directory listings!).
+
+``mcap publish kittens-catalog/ /tmp/published``
+
 ** network caps
 
 - thinking a little about "network caps"
