@@ -364,7 +364,11 @@ pub fn main_publish(
 ) -> Result<(), MagicCapError> {
     writeln!(stdout, "publish {:?} to {:?}", catalog, output)?;
     if output.exists() {
-        panic!("output exists");
+        return Err(
+            MagicCapError::GenericError(
+                format!("\"{}\" already exists", output.display())
+            )
+        );
     }
 
     std::fs::create_dir(output.as_path())?;

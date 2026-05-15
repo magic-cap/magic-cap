@@ -113,7 +113,7 @@ enum Commands {
     #[command(about = "Turn a Read Cap into a less-powerful Verify Cap")]
     Reduce { cap: String },
 
-    #[command(about = "Turn a disc Catalog into one suitable for static hosting (as the REST API)")]
+    #[command(about = "Turn a disc Catalog into one suitable for static hosting (as the REST API).")]
     Publish {
         #[arg(help("local path of a Catalog"))]
         catalog: PathBuf,
