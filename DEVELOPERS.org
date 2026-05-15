@@ -26,31 +26,32 @@ nix-setup-systemd" followed by adding your user to "nix-users")
 
 A "Read Cap" (or "Verify Cap") "corresponds to" a given Data if it may decrypt (or only verify) it.
 
-**An Identifier**: a random string derived from a "Read Cap" (or "Verify Cap") that uniquely identifies it (e.g. within a Catalog)
+**An Locator**: a random string derived from a "Read Cap" (or "Verify Cap") that uniquely identifies it (e.g. within a Catalog)
 
-**Catalog**: a collection of Data organized by "an Identifier" (at some root directory or URL, for example)
+**Catalog**: a collection of Data organized by "a Locator" (at some root directory or URL, for example)
 
 
-* Catalog next steps
+* Catalogs
+
+Using a literary metaphore we have two different names for ways to bundle many things together: Catalog and Anthology.
+
+A "Catalog" is like a "card catalog" in libraries: you can look thinkgs up.
+In our case, we can look up Data + Metadata via a "Locator" (gotten from a Read Cap or Verify Vap).
+
+These Locators are a long lower-case hex string, like ``2bb197645f37b4dba534daff46855b0eb2ab7a9f4e0acba7ec832aa107e6e8de``
+
+On-disk or filesystem Catalogs look something like a git objects directory, with a series of two-character directories breaking things up (so the above Locator is put in ``<root>/2b/2b197...8de``.
+
+For a ReST-like Web API, we define URLs like this: ``https://example.com/.../<locator>/metadata`` and ``https://example.com/.../<locator>/ciphertext`` for reading the metadata and ciphertext (respectively) for the given Locator.
+
+The elipsis (``...``) is up to the deployer to define; this could be an impossible-to-guess string (with directory-listing turned off) or similar.
+It could have further authorization or authentication schemes in front of it.
+However it is deployed, the server shouldn't allow enumeration of all the Locators (as this leaks the number and size of stored Capabilities).
+That said, even a full-public Catalog could have use-cases.
+
+(We're excited to hear about *your* use-cases!)
 
 ** hosting a Catalog
-
-- can do it in github (we have one right now in this repo!)
-- filesystem one just has the mcap files in it (and metadata could be
-  gotten on-demand easily)
-- a "web" one wants a more structured API -- we _can_ do it with
-  offsets etc but then you've burned together the network API and the
-  serialization format
-- something like:
-  "<root>/mcap/<locator>/metadata"
-  "<root>/mcap/<locator>/blocks"
-- versioning? (do we burn in version-0 ^ somewhere so we can
-  double-check the "mcap" and "0u32" value at the front of the files?
-- could stick a "smart" Web server in front of any catalogs and it can
-  dynamically map the above API (reading the files as required)
-- could run a command locally, "compiling" to static output that matches the above?
-  (note: flattens the on-disc format to one directory!)
-- 'mcap publish <catalog-path> <output-path>'
 
 REST API as implemented by the output of "mcap publish" is:
 
@@ -61,17 +62,9 @@ REST API as implemented by the output of "mcap publish" is:
     - /metadata: the MsgPack-encoded metadata
     - /ciphertext: all the blocks of ciphertext, in order
 
--> so, could make a RemoteHttpCatalog type or similar, to access one of these
-   double-check root/magic-cap-catalog == {"version": 0}
-   turn ImmutableIdentifier -> metadata + ciphertext
+In Rust, we have ``magic_cap::catalog::ImmutableWebCatalog`` which knows how to access the above REST API (using ``reqwest``).
 
-   (do we really want a "push consumer" API so instead of asking
-   "get_block(12)" from the above .. which would basically have to do
-   range-requests for each block?? .. we could instead just say
-   "download it all" and get blocks as they come?
-
-   but wait! can't we do that already?
-   ...okay lets write "mcap decrypt --url https://meejah.ca/mcap/..."
+Using the CLI: ``mcap decrypt --catalog-url https://meejah.ca/media/mcap/secret-name/ mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > bruennhilde.jpeg``
 
 ** network caps
 
