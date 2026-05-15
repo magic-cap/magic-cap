@@ -8,7 +8,7 @@ use magic_cap_cli::{
 use std::path::PathBuf;
 use url::Url;
 
-use tracing::{error,Level};
+use tracing::{Level, error};
 
 use clap::{Parser, Subcommand};
 

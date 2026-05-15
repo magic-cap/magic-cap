@@ -112,9 +112,6 @@ use url::Url;
 
 use walkdir::WalkDir;
 
-use tracing::{error,warn,info,debug,trace};
-
-
 pub mod tests;
 
 /// Implementation of "mcap encrypt"

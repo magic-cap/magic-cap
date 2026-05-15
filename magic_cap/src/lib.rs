@@ -334,6 +334,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 ///
 /// ```rust
 ///    use magic_cap::ImmutableReadCap;
+///    use tracing::info;
 ///
 ///    let cap_string = "mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g";
 ///    let cap: ImmutableReadCap = cap_string.try_into().unwrap();
