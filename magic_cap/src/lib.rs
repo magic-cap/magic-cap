@@ -475,10 +475,7 @@ where
             let this_block_bytes: Vec<u8> =
                 self.this_block.drain(0..self.context.blocksize).collect();
             // encrypt it
-            let encrypted_block = match self.context.encrypt_block(&this_block_bytes) {
-                Ok(it) => it,
-                Err(err) => return Err(std::io::Error::other(err)),
-            };
+            let encrypted_block = self.context.encrypt_block(&this_block_bytes);
             // write out a block
             self.output.write_all(&encrypted_block)?;
             local_written += encrypted_block.len();
@@ -519,10 +516,13 @@ impl ReadCap for ImmutableReadCap {
         // streaming version to do "in place" / whole-file
         // decryption/encryption
         let mut ptc = EncryptionContext::new(blocksize)?;
-        for plain in plaintext_chunks {
-            let ciphertext = ptc.encrypt_block(plain)?;
-            writer.write_all(ciphertext.as_slice())?;
-        }
+        // TODO: XXX remove incomplete output file in case of error!
+        let _results: Result<Vec<_>, _> = plaintext_chunks
+            .map(|plain| {
+                let ciphertext = ptc.encrypt_block(plain);
+                writer.write_all(ciphertext.as_slice())
+            })
+            .collect();
 
         // "done()" consumes the EncryptionContext, which is the
         // correct semantics here because we can't usefully do
@@ -1063,13 +1063,11 @@ impl<'a> Immutable<'a> {
         let bytes = std::io::BufReader::new(source).read_to_end(&mut buf)?;
 
         let plaintext_chunks = buf.as_slice().chunks(blocksize);
-        let mut ciphertext_blocks = vec![];
         let mut ptc = EncryptionContext::new(blocksize)?;
         // let meta = plaintext_chunks.fold(...)
-        for plain in plaintext_chunks {
-            let ciphertext = ptc.encrypt_block(plain)?;
-            ciphertext_blocks.push(ciphertext);
-        }
+
+        let ciphertext_blocks: Vec<Vec<u8>> =
+            plaintext_chunks.map(|p| ptc.encrypt_block(p)).collect();
 
         let (cap, metadata) = ptc.done()?;
         assert_eq!(bytes, metadata.size as usize);
@@ -1149,10 +1147,7 @@ impl EncryptionContext {
     // (or, take "a small-sized block" to mean "we are done"?)
     //
     // TODO: replace error value with an enum with a descriptive message, like, EncryptionError::BlockSize(String)
-    pub fn encrypt_block(&mut self, block: &[u8]) -> Result<Vec<u8>, MagicCapError> {
-        if block.len() > self.blocksize {
-            return Err(MagicCapError::WrongDataSize(block.len(), self.blocksize));
-        }
+    pub fn encrypt_block(&mut self, block: &[u8]) -> Vec<u8> {
         // TODO: reuse the incoming block!
         let mut buf = vec![0u8; self.blocksize];
         buf[0..block.len()].copy_from_slice(block);
@@ -1161,7 +1156,7 @@ impl EncryptionContext {
         // update metadata
         self.datasize += block.len();
         self.leaves.push(TahoeLeaf::hash(buf.as_slice()));
-        Ok(buf)
+        buf
     }
 
     // todo: double-check we did "all the blocks", or error?
