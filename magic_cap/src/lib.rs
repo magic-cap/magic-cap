@@ -28,6 +28,8 @@
 //! about separating the Data (ciphertext + metadata) from the Magic
 //! Cap in time or space or both.
 //!
+//! There is a command-line tool, see [magic_cap_cli](https://docs.rs/magic_cap_cli/latest/magic_cap_cli/).
+//!
 //! ## Using the Crate
 //!
 //! A "Magic Cap" is represented by the struct [`ImmutableReadCap`]
