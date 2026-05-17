@@ -364,11 +364,10 @@ pub fn main_publish(
 ) -> Result<(), MagicCapError> {
     writeln!(stdout, "publish {:?} to {:?}", catalog, output)?;
     if output.exists() {
-        return Err(
-            MagicCapError::GenericError(
-                format!("\"{}\" already exists", output.display())
-            )
-        );
+        return Err(MagicCapError::GenericError(format!(
+            "\"{}\" already exists",
+            output.display()
+        )));
     }
 
     std::fs::create_dir(output.as_path())?;
@@ -428,7 +427,14 @@ pub fn main_publish(
                         .get_block(block_num, block.as_mut_slice())?;
                     blocks.write_all(block.as_slice())?;
                     // \x08 is backspace "BS" raw character
-                    stdout.write_all(format!("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08{:05} blocks", block_num + 1).to_string().as_bytes())?;
+                    stdout.write_all(
+                        format!(
+                            "\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08{:05} blocks",
+                            block_num + 1
+                        )
+                        .to_string()
+                        .as_bytes(),
+                    )?;
                 }
             }
             stdout.write_all(b".\n")?;

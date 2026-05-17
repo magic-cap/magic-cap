@@ -6,6 +6,11 @@
   - cargo bench
   - cargo llvm-cov --html
 
+- linting:
+  - run these on any commit, "main" should always pass these
+  - cargo fmt
+  - cargo clippy
+
 For memory use, there is a Nix flake for setup too.
   - nix run '.#memuse'
   - this should output something like:
