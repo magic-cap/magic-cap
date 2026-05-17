@@ -397,17 +397,15 @@ pub fn main_publish(
             let id: String = id.into();
             published.push(id);
             //let published = magic_cap::add_identifier(&published, &id);
-            writeln!(
+            write!(
                 stdout,
-                "  {} {} bytes ({} blocks)",
+                "  {}: {} bytes",
                 entry.path().display(),
                 imm.metadata.size,
-                imm.metadata.blocks
             )?;
             std::fs::create_dir_all(published.clone())?;
             // just assume version == 0 for now .. could put a "version" file with 0u32 in it?
             // (add ".version" to ImmutableMetadata?
-            stdout.write_all(b"    ")?;
 
             // write the metadata to "/metadata"
             {
@@ -415,9 +413,10 @@ pub fn main_publish(
                 meta.push("metadata");
                 let mut meta = std::fs::File::create(meta.as_path())?;
                 imm.metadata.write(&mut meta)?;
-                stdout.write_all(b".")?;
+                write!(stdout, ", ")?;
             }
 
+            stdout.write_all(b"      blocks")?;
             // write the blocks to "/ciphertext"
             {
                 let mut blocks = published.clone();
@@ -428,10 +427,11 @@ pub fn main_publish(
                     imm.data_provider
                         .get_block(block_num, block.as_mut_slice())?;
                     blocks.write_all(block.as_slice())?;
-                    stdout.write_all(b".")?;
+                    // \x08 is backspace "BS" raw character
+                    stdout.write_all(format!("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08{:05} blocks", block_num + 1).to_string().as_bytes())?;
                 }
             }
-            stdout.write_all(b"\n")?;
+            stdout.write_all(b".\n")?;
         }
     }
     Ok(())
