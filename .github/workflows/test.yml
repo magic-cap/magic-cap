@@ -16,6 +16,8 @@ jobs:
     - name: Install cargo-audit
       run: cargo install cargo-audit --locked
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - name: audit
       run: cargo audit
 
@@ -23,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - name: rustfmt
       run: |
         rustfmt --verbose --check magic_cap/src/*.rs
@@ -35,6 +39,8 @@ jobs:
     needs: code-checks
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - name: Run mcap Tests
       run: cargo test --package magic_cap_cli
     - name: Run magic_cap Tests
@@ -45,6 +51,8 @@ jobs:
     needs: code-checks
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - name: Install llvm-cov
       run: cargo install cargo-llvm-cov
     - name: Run llvm-cov
