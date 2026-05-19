@@ -35,7 +35,7 @@ pub mod test {
             }  // close tmp
             let cipher = outd.path().join("cipher");
             let mut output = vec!();
-            main_encrypt(&mut output, &plain, &Some(cipher.clone()), &None).unwrap();
+            main_encrypt(&mut output, &plain, &Some(cipher.clone()), &None, 4096).unwrap();
 
             let capstr: &str = std::str::from_utf8(&output)?.trim_end();
             let round = outd.path().join("decrypted");

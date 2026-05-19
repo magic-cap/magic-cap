@@ -55,6 +55,9 @@ enum Commands {
 
         #[arg(long)]
         catalog: Option<PathBuf>,
+
+        #[arg(short, long, default_value_t = 4096)]
+        blocksize: usize, // not Option because we have a default value
     },
 
     #[command(about = "turn a Read Cap + ciphertext into plaintext")]
@@ -149,7 +152,14 @@ fn main() {
             plaintext,
             ciphertext,
             catalog,
-        }) => main_encrypt(&mut std::io::stderr(), plaintext, ciphertext, catalog),
+            blocksize,
+        }) => main_encrypt(
+            &mut std::io::stderr(),
+            plaintext,
+            ciphertext,
+            catalog,
+            *blocksize,
+        ),
         Some(Commands::Decrypt {
             cap,
             catalog,
