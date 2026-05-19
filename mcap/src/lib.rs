@@ -122,6 +122,7 @@ pub fn main_encrypt(
     plain_text: &Path,
     output_fname: &Option<PathBuf>,
     catalog: &Option<PathBuf>,
+    blocksize: usize,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
 
@@ -142,15 +143,15 @@ pub fn main_encrypt(
 
     let mut cryptor: ImmutableBuilder<BufWriter<File>> = if let Some(output_fname) = output_fname {
         let output_file = File::create(output_fname)?;
-        ImmutableBuilder::new(4096, BufWriter::new(output_file), None)?
+        ImmutableBuilder::new(blocksize, BufWriter::new(output_file), None)?
     } else if let Some(catalog) = catalog {
         let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
-        catalog.insert(4096)?
+        catalog.insert(blocksize)?
     } else {
         // no output file AND no catalog, so user wants ciphertext on stdout
         let stdio = std::io::stdout(); //.lock();
         let mut cryptor: ImmutableBuilder<std::io::Stdout> =
-            ImmutableBuilder::new(4096, stdio, None)?;
+            ImmutableBuilder::new(blocksize, stdio, None)?;
 
         // FIXME: TODO: this "cryptor" is a different type than the
         // other "cryptor", because ImmutableBuilder has its "writer"
@@ -160,10 +161,12 @@ pub fn main_encrypt(
         // the generic, but then the "consume / un-consume" pattern on
         // done() doesn't work .. see the "stream.rs" example for why
 
-        let mut plaintext: Vec<u8> = vec![0u8; 4096];
+        let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
         let mut r = input_file.read(&mut plaintext)?;
         while r != 0 {
+            // resize is here to remove bytes in case we don't read a block's worth of bytes
+            // XXX wait, isn't this the *first* read? I don't think we need this here!
             plaintext.resize(r, 0);
             let _ = cryptor.write(&plaintext)?;
             r = input_file.read(&mut plaintext)?;
@@ -177,7 +180,7 @@ pub fn main_encrypt(
 
     //let mut bufw = BufWriter::new(output_file);
 
-    let mut plaintext: Vec<u8> = vec![0u8; 4096];
+    let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
     let mut r = input_file.read(&mut plaintext)?;
     while r != 0 {
