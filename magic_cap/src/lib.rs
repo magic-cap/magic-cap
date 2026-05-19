@@ -394,6 +394,22 @@ where
     completed: Option<BuilderDoneCb>,
 }
 
+/// Marker for whether a Block is plaintext or crypttext
+#[derive(Debug)]
+enum Cryde {
+    Crypt,
+    Plain,
+}
+
+/// Each Block holds the blocksize, the blocknumber, bytes of blocksize length, and whether this is Crypt or Plain
+#[derive(Debug)]
+pub struct Block {
+    size: usize,
+    number: usize,
+    bytes: Vec<u8>, // this must be of blocksize length
+    cryde: Cryde,
+}
+
 // feb 3: see the history: we have a version that takes a "&mut Write"
 // reference, with a lifetime. It also works where we "consume" the
 // Write on ::new(), and "un-consume" it when we're "done()" (like
