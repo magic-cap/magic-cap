@@ -1,6 +1,7 @@
 use magic_cap_cli::{
     main_debug_locator, main_decrypt, main_encrypt, main_publish, main_reduce, main_verify,
 };
+use tracing_subscriber::FmtSubscriber;
 
 // b'\xbd\xe1\xb4\x19\xc1+\xa9\xe8\xd9h\xc6u\xe5\xea\x01'
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
@@ -8,9 +9,8 @@ use magic_cap_cli::{
 use std::path::PathBuf;
 use url::Url;
 
-use tracing::{Level, error};
-
 use clap::{Parser, Subcommand};
+use tracing::{Level, debug, error, info};
 
 #[derive(Parser)]
 #[command(version = "25.12.1")]
@@ -33,6 +33,9 @@ Anyone with both the Data and corresponding Read Cap may re-create the plaintext
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+    /// ERROR, WARN, INFO, DEBUG, TRACE in that order.
+    #[arg(short, long, default_value_t = Level::INFO)]
+    loglevel: Level,
 }
 
 #[derive(Subcommand)]
@@ -136,14 +139,15 @@ enum Commands {
 }
 
 fn main() {
-    // This will show INFO, WARN and ERROR; see tokio's tracing examples
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .with_writer(std::io::stderr)
-        .init();
-    //tracing_subscriber::fmt().with_max_level(Level::ERROR).init();
-
     let cli = Cli::parse();
+    // This will show TRACE, DEBUG, INFO, WARN and ERROR; see tokio's tracing examples
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(cli.loglevel)
+        .with_writer(std::io::stderr)
+        .finish();
+    let _fail = tracing::subscriber::set_global_default(subscriber);
+    debug!("after tracing subscriber init");
+    debug!("set log level to {}", cli.loglevel);
     let result = match &cli.command {
         // if the MCAP output went to stdout a user will have a pretty
         // hard time separating the data file from the mcap string, so
