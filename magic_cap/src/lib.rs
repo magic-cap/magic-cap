@@ -68,7 +68,6 @@
 //! example:
 //!
 //! ```rust
-#![doc = include_doc::source_file!("examples/stream.rs")]
 //! ```
 //!
 //! Another way is to create a completely in-memory [`Immutable`] and
@@ -77,7 +76,6 @@
 //! ciphertext.
 //!
 //! ```rust
-#![doc = include_doc::source_file!("examples/in-memory.rs")]
 //! ```
 //!
 
@@ -207,7 +205,6 @@ where
 }
 
 pub trait ReadCap: ImmutableVerifier {
-
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
 
     fn decrypt_stream<'a, W>(
@@ -217,7 +214,6 @@ pub trait ReadCap: ImmutableVerifier {
     ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
     where
         W: Write;
-
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -489,7 +485,6 @@ where
 // and then also as a "plaintext -> ciphertext" function?
 
 impl ReadCap for ImmutableReadCap {
-
     ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
     //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)
 
@@ -944,40 +939,6 @@ impl<'a> Immutable<'a> {
         })
     }
 
-    pub fn encrypt<R>(
-        source: R,
-        blocksize: usize, // just make this u32 to match metadata?
-    ) -> Result<(ImmutableCap, Immutable<'a>), MagicCapError>
-    where
-        R: Read,
-    {
-        let mut buf = vec![];
-        let bytes = std::io::BufReader::new(source).read_to_end(&mut buf)?;
-
-        let plaintext_chunks = buf.as_slice().chunks(blocksize);
-        let mut ciphertext_blocks = vec![];
-        let mut ptc = EncryptionContext::new(blocksize)?;
-        // let meta = plaintext_chunks.fold(...)
-        for plain in plaintext_chunks {
-            let ciphertext = ptc.encrypt_block(plain)?;
-            ciphertext_blocks.push(ciphertext);
-        }
-
-        let (cap, metadata) = ptc.done()?;
-        assert_eq!(bytes, metadata.size as usize);
-
-        // two-tuple of (cap, immutable)
-        Ok((
-            ImmutableCap::Read(cap),
-            Immutable {
-                metadata,
-                data_provider: Box::new(EncryptedImmutableMemory {
-                    blocks: ciphertext_blocks,
-                    _block_size: blocksize as u32,
-                }),
-            },
-        ))
-    }
 }
 
 // todo: probably want something like "Into" for "plaintext" of an Immutable to convert to str, or BufReader, or ....
