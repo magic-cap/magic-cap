@@ -89,29 +89,6 @@ fn handcrafted_filesystem_round_trip() {
 }
 
 #[test]
-fn handcrafted_filesystem_round_trip_stream() {
-    let blocksize = 2;
-    let input: Vec<u8> = b"abcdef".to_vec();
-    let tmp = TempDir::new().unwrap();
-
-    let fm = File::create(tmp.path().join("encrypted")).unwrap();
-    let cap =
-        ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize).unwrap();
-
-    let fm = File::open(tmp.path().join("encrypted")).unwrap();
-    let mut data = std::io::BufReader::new(fm);
-    let mut imm = Immutable::stream(&mut data).unwrap();
-
-    println!("{:?}", imm.metadata.merkle_leaves);
-
-    // stream just one block out .. we only HAVE one block, but hey
-    let mut plain: Vec<u8> = vec![0u8; blocksize];
-    cap.decrypt_one_block(&mut imm, 0, &mut plain[0..blocksize])
-        .unwrap();
-    assert_eq!(input[0..2], plain);
-}
-
-#[test]
 fn power_of_two() {
     // test our assumptions about how next_power_of_two() works
     assert_eq!(2u32.next_power_of_two(), 2);

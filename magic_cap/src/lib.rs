@@ -98,12 +98,10 @@ pub use catalog::{
 };
 
 // why can't we use KeyInit ?!
-use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+use aes::cipher::{KeyIvInit, StreamCipher};
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
-
-use tracing::{error, info};
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -211,12 +209,6 @@ where
 }
 
 pub trait ReadCap: ImmutableVerifier {
-    fn decrypt_one_block(
-        &self,
-        immutable: &mut Immutable,
-        block: usize,
-        plaintext: &mut [u8],
-    ) -> Result<(), MagicCapError>;
 
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
 
@@ -233,24 +225,6 @@ pub trait ReadCap: ImmutableVerifier {
         writer: BufWriter<File>, // probably want "dyn Write" or so? why demand a File here?
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
-}
-
-/*
-/// IDEA: maybe this returns an iterator instead? But this is the
-/// "inner loop" from old "decrypt()" method, which iterates ALL the
-/// blocks
-pub fn decrypt_all(cap: &impl ReadCap, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
-    todo!()
-}*/
-
-/// naive "random access" read-cap function
-/// think: refactor?
-pub trait RandomAccessReadCap: ReadCap {
-    fn decrypt_block(
-        &self,
-        immutable: &mut Immutable,
-        block: usize,
-    ) -> Result<Vec<u8>, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -589,61 +563,6 @@ impl ReadCap for ImmutableReadCap {
     // - the ReadCap trait has "encrypt one block" ("decrypt one block") methods
     // - something "higher level" (e.g. an Iterator) drives a "encrypt / decrypt everything" flow
     // - (so essentially take out the alloc's and inner-loops from existing decrypt/encrypt
-
-    fn decrypt_one_block(
-        &self,
-        immutable: &mut Immutable,
-        block: usize,
-        plaintext: &mut [u8],
-    ) -> Result<(), MagicCapError> {
-        if plaintext.len() != immutable.data_provider.block_size() as usize {
-            return Err(MagicCapError::WrongDataSize(
-                plaintext.len(),
-                immutable.data_provider.block_size() as usize,
-            ));
-        }
-        if !self.verify.corresponds_to(immutable) {
-            return Err(MagicCapError::McapMetadataDiscordant());
-        }
-
-        // both "fn read" and "fn stream" check that the merkle_leaves
-        // correspond to the ciphertext_root in the metadata on load
-
-        // todo:
-        // 1. incremental "leaves" construction
-        //  - partial-proofs required
-        //  - "seek" for the IV stuff
-        // 2. if we've never seen this block yet, fill in the leaf hash
-        // 3. how do we do partial proofs on the FIRST leaf?
-        // (oh: we STORE all the leaves in the metadata .. so confirm the root hash, then can confirm per-leaf)
-
-        let mut key = self.create_tahoe_key();
-        // to get the IV correct for our block we tell the key the
-        // bytes offset
-        key.try_seek(block * immutable.data_provider.block_size() as usize)
-            .unwrap();
-
-        // load the ciphertext into the provided slice, and decrypt in-place
-        let _ = immutable.data_provider.get_block(block, plaintext);
-
-        info!("plaintext: {:?}", plaintext);
-
-        let leaf_hash = TahoeLeaf::hash(plaintext);
-        if leaf_hash != immutable.metadata.merkle_leaves[block] {
-            // todo: better error?
-            error!(
-                "block didn't match {:?} vs {:?}",
-                leaf_hash, immutable.metadata.merkle_leaves[block]
-            );
-            return Err(MagicCapError::McapMetadataDiscordant());
-        }
-
-        // decrypt the data in-place
-        key.apply_keystream(plaintext);
-
-        // done: the caller has plaintext now
-        Ok(())
-    }
 
     /// turn an existing ReadCap plus associated Immutable back into
     /// the original plaintext (double-checks that this Immutable
