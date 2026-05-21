@@ -12,6 +12,8 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
 
+use tracing::debug;
+
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
 // smarter about the seeks? (speculative)!
@@ -146,7 +148,7 @@ impl ImmutableWebCatalog {
         let id_str: String = location.into();
         let url = url.join((id_str + "/").as_str()).unwrap();
         let url = url.join("metadata").unwrap();
-        //println!("URL {:?}", url);
+        debug!("URL {:?}", url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
         let js = result.bytes()?;
         let slice = &js[0..];
@@ -162,7 +164,7 @@ impl ImmutableWebCatalog {
         let id_str: String = location.into();
         let url = url.join((id_str + "/").as_str()).unwrap();
         let url = url.join("ciphertext").unwrap();
-        //println!("URL {:?}", url);
+        debug!("URL {:?}", url);
         let mut result = reqwest::blocking::Client::new().get(url).send()?;
         result.copy_to(dest)?;
         Ok(())

@@ -96,6 +96,8 @@
 //! ```
 //!
 
+use tracing::{debug, info};
+
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
@@ -178,8 +180,6 @@ pub fn main_encrypt(
         return Ok(());
     };
 
-    //let mut bufw = BufWriter::new(output_file);
-
     let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
     let mut r = input_file.read(&mut plaintext)?;
@@ -231,12 +231,12 @@ pub fn main_decrypt(
             .send();
 
         if let Ok(result) = result {
-            //println!("{:?}", result);
+            debug!("{:?}", result);
             let offset = result.bytes()?;
             let offraw: Vec<u8> = offset.into();
             let offslice: [u8; 8] = offraw.try_into().unwrap();
             let off: u64 = u64::from_be_bytes(offslice);
-            //println!("bytes {:?} {:?}", offslice, off);
+            debug!("bytes {:?} {:?}", offslice, off);
 
             // request the metadata bytes (note that we're also
             // reading the last-8-bytes but serde ignores that
@@ -248,12 +248,15 @@ pub fn main_decrypt(
                 .get(url.clone())
                 .headers(headers)
                 .send()?;
-            //println!("{:?}", result);
+            debug!("{:?}", result);
             let metadata_raw: Vec<u8> = result.bytes()?.into();
-            //println!("{} bytes", metadata_raw.len());
+            debug!("{} bytes", metadata_raw.len());
             let mut mdbytes = metadata_raw.as_slice();
             let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
-            //println!("size={} blocks={} block_size={}", metadata.size, metadata.blocks, metadata.block_size);
+            debug!(
+                "size={} blocks={} block_size={}",
+                metadata.size, metadata.blocks, metadata.block_size
+            );
 
             // now we request 'all the rest of the bytes' and stream
             // them into the decryptor (which will write to the output
@@ -450,7 +453,7 @@ pub fn main_publish(
 pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
     if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
         let id: ImmutableIdentifier = cap.into();
-        println!("{}", id);
+        info!("{}", id);
     }
     Ok(())
 }
