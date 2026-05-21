@@ -106,8 +106,6 @@ use serde::ser::Serialize;
 use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
-use std::fs::File;
-use std::io::BufWriter;
 use std::io::prelude::*;
 
 use err::MagicCapError;
@@ -220,11 +218,6 @@ pub trait ReadCap: ImmutableVerifier {
     where
         W: Write;
 
-    fn encrypt(
-        plaintext: Vec<u8>,
-        writer: BufWriter<File>, // probably want "dyn Write" or so? why demand a File here?
-        blocksize: usize,
-    ) -> Result<ImmutableReadCap, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -496,47 +489,6 @@ where
 // and then also as a "plaintext -> ciphertext" function?
 
 impl ReadCap for ImmutableReadCap {
-    /// encode the provided plaintext into a version 1 file written to
-    /// BufWriter, also yielding an ImmutableReadCap that corresponds
-    /// to the encoded data.
-    fn encrypt(
-        plaintext: Vec<u8>,
-        mut writer: std::io::BufWriter<File>,
-        blocksize: usize,
-    ) -> Result<ImmutableReadCap, MagicCapError> {
-        writer.write_all(b"mcap")?; // tag
-        writer.write_all(&1u32.to_be_bytes())?; // version == 1
-
-        let plaintext_chunks = plaintext.as_slice().chunks(blocksize);
-
-        // todo: this should be created inside ReadCapability trait
-        // can use "default" trait implementation of a method to "use" the
-        // streaming version to do "in place" / whole-file
-        // decryption/encryption
-        let mut ptc = EncryptionContext::new(blocksize)?;
-        for plain in plaintext_chunks {
-            let ciphertext = ptc.encrypt_block(plain)?;
-            writer.write_all(ciphertext.as_slice())?;
-        }
-
-        // "done()" consumes the EncryptionContext, which is the
-        // correct semantics here because we can't usefully do
-        // anything else with a EncryptionContext once we've produced
-        // the ReadCap + ImmutableMetadata
-        let (cap, meta) = ptc.done()?;
-
-        let offset: u64 = writer.stream_position()?;
-
-        // write the metadata. It's at the end, but we already
-        // included an offset so readers can deserialize the metadata
-        // first.
-        meta.write(&mut writer)?;
-
-        // offset goes at the end
-        writer.write_all(&offset.to_be_bytes())?;
-
-        Ok(cap)
-    }
 
     ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
     //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)

@@ -2,6 +2,7 @@ use super::*;
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use proptest::prelude::*;
 use tempfile::TempDir;
+use std::fs::File;
 
 #[test]
 fn golden_tahoe_tagged_hash() {
@@ -65,27 +66,6 @@ fn handcrafted_illegal_cap_tag() {
 fn handcrafted_illegal_cap_version() {
     let data = b"mcap\xff\xff\xff\xff";
     assert!(Immutable::read(std::io::Cursor::new(data)).is_err());
-}
-
-#[test]
-fn handcrafted_filesystem_round_trip() {
-    let blocksize = 2;
-    let input: Vec<u8> = b"abcdef".to_vec();
-    let tmp = TempDir::new().unwrap();
-
-    let fm = File::create(tmp.path().join("encrypted")).unwrap();
-    let cap = ImmutableReadCap::encrypt(
-        input.clone(),
-        std::io::BufWriter::new(fm),
-        blocksize as usize,
-    )
-    .unwrap();
-
-    let fm = File::open(tmp.path().join("encrypted")).unwrap();
-    let data = std::io::BufReader::new(fm);
-    let mut imm2 = Immutable::read(data).unwrap();
-    let plain_text = cap.decrypt(&mut imm2).unwrap();
-    assert_eq!(input, plain_text);
 }
 
 #[test]
@@ -365,17 +345,4 @@ proptest! {
         assert!(input == decoded);
     }
 
-    #[test]
-    fn filesystem_round_trip(input: Vec<u8>, blocksize in 2u16..70u16) {
-        let tmp = TempDir::new()?;
-
-        let fm = File::create(tmp.path().join("encrypted"))?;
-        let cap = ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize as usize)?;
-
-        let fm = File::open(tmp.path().join("encrypted"))?;
-        let data = std::io::BufReader::new(fm);
-        let mut imm2 = Immutable::read(data).unwrap();
-        let plain_text = cap.decrypt(&mut imm2).unwrap();
-        assert_eq!(input, plain_text);
-    }
 }
