@@ -86,6 +86,7 @@ mod tahoe;
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
 
+// use aes::cipher::StreamCipherSeek;
 // re-export "tahoe" related functions
 pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
@@ -104,8 +105,11 @@ use serde::ser::Serialize;
 use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
+// use std::fs::File;
+// use std::io::SeekFrom;
 use std::io::prelude::*;
 
+use tracing::debug;
 use err::MagicCapError;
 
 // ImmutableVerifyCap and ImmutableReadCap are morally-equivalent to
@@ -257,6 +261,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
     /// metadata). This traverses all the bytes of ciphertext (to hash
     /// them).
     fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError> {
+        debug!("we got into verify?");
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
@@ -356,7 +361,7 @@ where
     ciphertext_bytes: usize,
     completed: Option<BuilderDoneCb>,
 }
-
+/*
 /// Marker for whether a Block is plaintext or crypttext
 #[derive(Debug)]
 enum Cryde {
@@ -364,15 +369,41 @@ enum Cryde {
     Plain,
 }
 
+// XXX however these are constructed, they must get padded with zeroes to the blocksize, so they're always the correct length
 /// Each Block holds the blocksize, the blocknumber, bytes of blocksize length, and whether this is Crypt or Plain
 #[derive(Debug)]
 pub struct Block {
     size: usize,
-    number: usize,
-    bytes: Vec<u8>, // this must be of blocksize length
+    number: usize, // this counts FROM ONE, NOT FROM ZERO!
+    bytes: Vec<u8>, // this must be of blocksize length, should this be a newtype? maybe next week?
     cryde: Cryde,
 }
 
+impl Block {
+    fn new(blocksize: usize, bytes: Vec<u8>) -> Block {
+        Block{
+            size: blocksize,
+            number: todo!(),
+            bytes,
+            cryde: todo!(),
+        }
+    }
+}
+// https://doc.rust-lang.org/rust-by-example/generics/new_types.html
+/// new type wrappers are *not* pub!
+pub struct BlockBytes{
+    internal: Vec<u8>, // not public!
+}
+
+/// new type wrapper constructors are public
+pub fn make_block_bytes(bytes: Vec<u8>, blocksize: usize) -> BlockBytes {
+    let mut internal = vec![0u8; blocksize];
+    // TODO: is there a way to reuse the incoming vec to reduce allocation?
+    // https://doc.rust-lang.org/std/vec/struct.Vec.html#method.resize
+    internal[0..blocksize].copy_from_slice(&bytes);
+    BlockBytes{ internal: bytes }
+}
+*/
 // feb 3: see the history: we have a version that takes a "&mut Write"
 // reference, with a lifetime. It also works where we "consume" the
 // Write on ::new(), and "un-consume" it when we're "done()" (like
@@ -454,6 +485,8 @@ where
         // boring way
         self.this_block.write(buf)?;
         let mut local_written = 0;
+        // what happens when we have less than a block's worth of input?
+        // is the last block encrypted?
         while self.this_block.len() >= self.context.blocksize {
             // cut off a block's worth at the front
             let this_block_bytes: Vec<u8> =
@@ -468,6 +501,7 @@ where
             local_written += encrypted_block.len();
             self.ciphertext_bytes += encrypted_block.len();
         }
+
         Ok(local_written)
         // todo: we're basically "just hosed" if anything errors in
         // here, right? should we mark ourselves as failed then?
@@ -1080,3 +1114,68 @@ fn fill_empty_merkle_leaves(leaves: &mut Vec<[u8; 32]>) {
         leaves.push(temp);
     }
 }
+
+// parallel things
+/*
+// given a `Block`, seek to the correct place in the file and write
+pub fn write_out_of_order(
+    f: &mut File, // XXX Write+Seek trait soon!
+    block: Block,
+) -> Result<(), MagicCapError> {
+    let offset = block.size * block.number;
+    f.seek(SeekFrom::Start(offset as u64))?;
+    f.write(&block.bytes)?;
+    Ok(())
+}
+
+/// accept key bytes and a block, return another block with encrypted or decrypted bytes
+/// this consumes the Block, and converts Plain to Crypt or Crypt to Plain
+// How to match only on Plain? Wrapper type?
+pub fn encryptor(key_bytes: [u8; 16], mut block: Block) -> (Block, [u8; 32]) {
+    // what's our offset in bytes?
+    let offset = block.size * block.number;
+    // create the keystream
+    let mut key = key_from_bytes(key_bytes);
+    // seek to the right place
+    key.try_seek(offset).expect("this only fails if we encrypt truly massive files");
+    {
+        key.apply_keystream(&mut block.bytes);
+        let new_cryde = match block.cryde {
+            Cryde::Crypt => Cryde::Plain,
+            Cryde::Plain => Cryde::Crypt,
+        };
+        block.cryde = new_cryde;
+    }
+    let leaf_hash = TahoeLeaf::hash(block.bytes.as_slice());
+    // the encrypted block, and its matching leaf hash
+    (block,leaf_hash)
+}
+
+/// verify a block, THEN decrypt it
+// how to test input block against Cryde::Crypt? anything better than a ~match~ ?
+pub fn decryptor(key_bytes: [u8; 16], mut block: Block, verify_hash: Vec<u8>) -> Block {
+    // hash the block, confirm that it matches
+    // if hash(block.bytes) == verify_hash { ... }
+    // what's our offset in bytes?
+    let offset = block.size * block.number;
+    // create the keystream
+    let mut key = key_from_bytes(key_bytes);
+    // seek to the right place
+    key.try_seek(offset).expect("this only fails if we encrypt truly massive files");
+    {
+        key.apply_keystream(&mut block.bytes);
+        let new_cryde = match block.cryde {
+            Cryde::Crypt => Cryde::Plain,
+            Cryde::Plain => Cryde::Crypt,
+        };
+        block.cryde = new_cryde;
+    }
+    block
+}
+
+/// given 16 bytes of key, return the key stream
+pub fn key_from_bytes(key_bytes: [u8; 16]) -> TahoeAesCtr {
+    let iv = [0u8; 16];
+    TahoeAesCtr::new(&key_bytes.into(), &iv.into())
+}
+*/
