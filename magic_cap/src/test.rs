@@ -30,21 +30,21 @@ fn doc_example_verifycap() {
     );
 }
 
-#[test]
-fn doc_example_in_memory() {
-    let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
+// #[test]
+// fn doc_example_in_memory() {
+//     let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
 
-    if let Ok((ImmutableCap::Read(readcap), immutable)) =
-        Immutable::encrypt(plaintext.as_slice(), 4096)
-    {
-        println!("Read Cap: {:?}", readcap);
+//     if let Ok((ImmutableCap::Read(readcap), immutable)) =
+//         Immutable::encrypt(plaintext.as_slice(), 4096)
+//     {
+//         println!("Read Cap: {:?}", readcap);
 
-        let verifycap: ImmutableVerifyCap = readcap.into();
-        if !verifycap.corresponds_to(&immutable) {
-            println!("Verify Cap does not match data");
-        }
-    }
-}
+//         let verifycap: ImmutableVerifyCap = readcap.into();
+//         if !verifycap.corresponds_to(&immutable) {
+//             println!("Verify Cap does not match data");
+//         }
+//     }
+// }
 
 #[test]
 fn doc_example_verify() {

@@ -165,9 +165,15 @@ pub fn main_encrypt(
 
         let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
-        let r = input_file.read(&mut plaintext)?;
+        let mut r = input_file.read(&mut plaintext)?;
         // shae: this is where main does per-block things, but is this the ONLY encrypt path?
-        encrypt(&mut input_file, &mut cryptor, plaintext, r)?;
+        while r != 0 {
+            // resize is here to remove bytes in case we don't read a block's worth of bytes
+            // XXX wait, isn't this the *first* read? I don't think we need this here!
+            plaintext.resize(r, 0);
+            let _ = cryptor.write(&plaintext)?;
+            r = input_file.read(&mut plaintext)?;
+        }
         let (cap, _) = cryptor.done()?;
 
         let capstr = format!("{}", cap);
@@ -190,7 +196,12 @@ pub fn main_encrypt(
     Ok(())
 }
 
-fn encrypt(input_file: &mut File, cryptor: &mut ImmutableBuilder<std::io::Stdout>, mut plaintext: Vec<u8>, mut r: usize) -> Result<(), MagicCapError> {
+fn encrypt(
+    input_file: &mut File,
+    cryptor: &mut ImmutableBuilder<std::io::Stdout>,
+    mut plaintext: Vec<u8>,
+    mut r: usize,
+) -> Result<(), MagicCapError> {
     Ok(while r != 0 {
         // resize is here to remove bytes in case we don't read a block's worth of bytes
         // XXX wait, isn't this the *first* read? I don't think we need this here!
@@ -200,7 +211,7 @@ fn encrypt(input_file: &mut File, cryptor: &mut ImmutableBuilder<std::io::Stdout
     })
 }
 
-       //static default_catalog: PathBuf = PathBuf::from("~/.magicap");
+//static default_catalog: PathBuf = PathBuf::from("~/.magicap");
 
 /// "mcap decrypt"
 pub fn main_decrypt(
