@@ -101,9 +101,7 @@ use tracing::{debug, info};
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
-    ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
-    ImmutableWebCatalog, ReadCap,
+    Block, Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ImmutableWebCatalog, ReadCap
 };
 use reqwest::header::HeaderMap;
 use std::fs::File;
@@ -444,11 +442,10 @@ pub fn main_publish(
                 let mut blocks = published.clone();
                 blocks.push("ciphertext");
                 let mut blocks = std::fs::File::create(blocks.as_path())?;
-                let mut block = vec![0u8; imm.data_provider.block_size() as usize];
                 for block_num in 0..imm.data_provider.total_blocks() {
-                    imm.data_provider
-                        .get_block(block_num, block.as_mut_slice())?;
-                    blocks.write_all(block.as_slice())?;
+                    let mut block = Block::new(imm.metadata.block_size as usize);
+                    imm.data_provider.get_block(block_num, &mut block)?;
+                    blocks.write_all(block.bytes.as_slice())?;
                     // \x08 is backspace "BS" raw character
                     stdout.write_all(
                         format!(

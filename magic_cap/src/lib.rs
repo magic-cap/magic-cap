@@ -272,9 +272,11 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // can we use iterators more directly here instead of for loop? e.g.:
         let mut leaves: Vec<[u8; 32]> = vec![];
         for i in 0..immutable.data_provider.total_blocks() {
-            let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
-            immutable.data_provider.get_block(i, &mut leaf)?;
-            let lh = TahoeLeaf::hash(&leaf);
+
+            // allocation happens on the next line
+            let mut block = Block::new(immutable.data_provider.block_size() as usize);
+            immutable.data_provider.get_block(i, &mut block)?;
+            let lh = TahoeLeaf::hash(&block.bytes.as_slice());
             leaves.push(lh);
         }
         fill_empty_merkle_leaves(&mut leaves);
@@ -557,12 +559,12 @@ impl ReadCap for ImmutableReadCap {
         // let mut leaves: Vec<[u8; 32]> = cipher.iter().map(|x| TahoeLeaf::hash(x)).collect();
         let mut leaves: Vec<[u8; 32]> = vec![];
         for i in 0..immutable.data_provider.total_blocks() {
-            let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
-            immutable.data_provider.get_block(i, &mut leaf)?;
             // TODO: this just checks that the metadata.leaves
             // _matches_ this hash instead of creating a whole merkle
             // tree here
-            let lh = TahoeLeaf::hash(&leaf);
+            let mut block = Block::new(immutable.data_provider.block_size() as usize);
+            immutable.data_provider.get_block(i, &mut block)?;
+            let lh = TahoeLeaf::hash(&block.bytes.as_slice());
             leaves.push(lh);
         }
         fill_empty_merkle_leaves(&mut leaves);
@@ -581,10 +583,11 @@ impl ReadCap for ImmutableReadCap {
 
         // XXX flip this outside
         for block_idx in 0..immutable.data_provider.total_blocks() {
-            let mut block: Vec<u8> = vec![0u8; immutable.data_provider.block_size() as usize];
+            let mut block = Block::new(immutable.data_provider.block_size() as usize);
             immutable.data_provider.get_block(block_idx, &mut block)?;
-            key.apply_keystream(&mut block);
-            plaintext.append(&mut block);
+
+            key.apply_keystream(block.bytes.as_mut_slice());
+            plaintext.append(&mut block.bytes);
         }
         // we probably "decrypted" more of the block than is valid (on
         // the last block) so throw that data away
@@ -684,7 +687,7 @@ pub trait EncryptedImmutable {
     /// get all the ciphertext for a particular block. it is an error
     /// if the size of "buf" is not equal to the block-size. returns
     /// the number of bytes read.
-    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize>;
+    fn get_block(&mut self, index: usize, block: &mut Block) -> Result<(), MagicCapError>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -705,16 +708,18 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
         self._block_size
     }
 
-    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
-        if buf.len() != self.blocks[0].len() {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                format!("buf is {} but blocksize is {}", buf.len(), self._block_size),
-            ))
-        } else {
-            buf.copy_from_slice(&self.blocks[index]);
-            Ok(self.blocks[index].len())
+
+    fn get_block(&mut self, index: usize, block: &mut Block) -> Result<(), MagicCapError> {
+        // sanity checking
+        if index > self.blocks.len() {
+            return Err(MagicCapError::WrongDataSize(self.blocks.len(), index));
         }
+        block.cryde = Cryde::Crypt;
+        block.size = self.block_size() as usize;
+        block.number = index;
+        // WARN: allocation happens here if block.bytes doesn't match block.size
+        block.bytes.copy_from_slice(&self.blocks[index]);
+        Ok(())
     }
 }
 
@@ -742,19 +747,25 @@ where
         self.block_size
     }
 
-    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
-        if buf.len() != self.block_size as usize {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
-            ))
-        } else {
-            let offset = self.offset + (index as u64 * self.block_size as u64);
-            self.provider.seek(std::io::SeekFrom::Start(offset))?;
-            self.provider.read_exact(buf)?;
-            Ok(self.block_size as usize)
-        }
+    // fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+    //     if buf.len() != self.block_size as usize {
+    //         Err(std::io::Error::new(
+    //             std::io::ErrorKind::InvalidInput,
+    //             format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+    //         ))
+    //     } else {
+    //         let offset = self.offset + (index as u64 * self.block_size as u64);
+    //         self.provider.seek(std::io::SeekFrom::Start(offset))?;
+    //         self.provider.read_exact(buf)?;
+    //         Ok(self.block_size as usize)
+    //     }
+    // }
+
+    fn get_block(&mut self, _index: usize, _block: &mut Block) -> Result<(), MagicCapError> {
+        todo!()
     }
+
+
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -1185,6 +1196,17 @@ enum Cryde {
 pub struct Block {
     size: usize,
     number: usize,  // this counts FROM ONE, NOT FROM ZERO!
-    bytes: Vec<u8>, // this must be of blocksize length, should this be a newtype? maybe next week?
+    pub bytes: Vec<u8>, // this must be of blocksize length, should this be a newtype? maybe next week?
     cryde: Cryde,
+}
+
+impl Block {
+    pub fn new(blocksize: usize) -> Block {
+        Block {
+            size: blocksize,
+            number: 0, // illegal, good luck
+            bytes: vec![0u8; blocksize],
+            cryde: Cryde::Plain,
+        }
+    }
 }
