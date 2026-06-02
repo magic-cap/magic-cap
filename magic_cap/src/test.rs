@@ -198,6 +198,22 @@ fn find_catalog_basic() {
     assert_eq!(message, data.as_slice());
 }
 
+#[test]
+fn round_trip_encrypted_metadata() {
+    let meta = SecretImmutableMetadata {
+        mime_type: "mime/foo".to_string(),
+        suggested_filename: "ohai.pdf".to_string(),
+    };
+    let key_bytes = [0u8; 16];
+    let key = derive_key(&key_bytes, "magic-cap-metadata-0");
+
+    let enc = EncryptedSecretImmutableMetadata::new(key, &meta);
+    let key2 = derive_key(&key_bytes, "magic-cap-metadata-0");
+    let meta2 = decrypt_metadata(key2, &enc).unwrap();
+
+    assert_eq!(meta, meta2);
+}
+
 proptest! {
     #[test]
     fn encrypt_doesnt_crash(s in "\\PC+") {
