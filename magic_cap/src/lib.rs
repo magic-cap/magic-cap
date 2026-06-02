@@ -338,6 +338,11 @@ impl ImmutableReadCap {
         let iv = [0u8; 16]; // 16 bytes of 0's
         TahoeAesCtr::new(&self.key.into(), &iv.into())
     }
+
+    pub fn create_metadata_key(&self) -> TahoeAesCtr {
+        let iv = [0xffu8; 16]; // 16 bytes of 1's
+        TahoeAesCtr::new(&self.key.into(), &iv.into())
+    }
 }
 
 // without Seek on the output, we require it on the input
@@ -439,6 +444,7 @@ where
             );
             // todo: faster way to do this?
             let pad: Vec<u8> = vec![0u8; leftover];
+            // todo: how does Tahoe pad? Does it?
             let _written_amount = self.write(&pad)?;
             self.context.datasize -= leftover;
         }
@@ -470,8 +476,9 @@ where
         // boring way
         self.this_block.write(buf)?;
         let mut local_written = 0;
-        // what happens when we have less than a block's worth of input?
-        // is the last block encrypted?
+        // if we have a non-full block of plaintext when done() is
+        // called, it is padded with 0's and encrypted as the final
+        // block.
         while self.this_block.len() >= self.context.blocksize {
             // cut off a block's worth at the front
             let this_block_bytes: Vec<u8> =
@@ -772,9 +779,109 @@ where
 
 }
 
+#[derive(Debug, Clone)]
+/// A struct representing extended metadata about the data.
+/// This kind of metadata is encrypted (alongside the content) so needs the decryption key from the Read Cap.
+pub struct SecretImmutableMetadata {
+    pub mime_type: String,
+    pub suggested_filename: String,
+}
+
+
+/// Actually encrypted SecretImmutableMetadata
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct EncryptedSecretImmutableMetadata {
+    ciphertext: Vec<u8>,
+    //cryptor: TahoeAesCtr,
+}
+
+impl EncryptedSecretImmutableMetadata {
+    pub fn new(mut key: TahoeAesCtr, metadata: SecretImmutableMetadata) -> EncryptedSecretImmutableMetadata {
+        let mut ciphertext: Vec<u8> = vec!();
+        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext).with_bytes(rmp_serde::config::BytesMode::ForceAll);
+        metadata.serialize(&mut crypt_ser).unwrap();  // fixme
+        key.apply_keystream(&mut ciphertext);
+        
+        EncryptedSecretImmutableMetadata {
+            ciphertext,
+        }
+    }
+}
+
+// implement a .encrypted_metadata() or similar method that creates ^
+// from SecretImmutableMeatadata (on Immutable or whatever has the key
+// + metadata)
+
+
+fn decrypt_metadata(mut cryptor: TahoeAesCtr, encrypted: &EncryptedSecretImmutableMetadata) -> Result<SecretImmutableMetadata, MagicCapError>
+{
+    let mut plain: Vec<u8> = vec![0u8; encrypted.ciphertext.len()];
+    plain.copy_from_slice(encrypted.ciphertext.as_slice());
+    cryptor.apply_keystream(plain.as_mut_slice());
+
+    #[derive(serde::Deserialize)]
+    struct _Metadata {
+        pub mime_type: String,
+        pub suggested_filename: String,
+    }
+    
+    let md: _Metadata = rmp_serde::decode::from_read(plain.as_slice())?;
+    Ok(SecretImmutableMetadata {
+        mime_type: md.mime_type,
+        suggested_filename: md.suggested_filename,
+    })
+}
+
+
+impl serde::Serialize for SecretImmutableMetadata {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer
+    {
+        #[derive(serde::Serialize)]
+        struct _Metadata {
+            pub mime_type: String,
+            pub suggested_filename: String,
+        }
+
+        let mut plaintext: Vec<u8> = vec![];
+        let mut crypt_ser = rmp_serde::Serializer::new(&mut plaintext).with_bytes(rmp_serde::config::BytesMode::ForceAll);
+        let md = _Metadata {
+            mime_type: self.mime_type.clone(),
+            suggested_filename: self.suggested_filename.clone(),
+        };
+        md.serialize(&mut crypt_ser).unwrap(); // fixme
+
+        serializer.serialize_bytes(plaintext.as_slice())
+    }
+
+}
+
+struct SecretMetadataVisitor {
+    pub cryptor: TahoeAesCtr,
+}
+
+impl<'de> serde::de::Visitor<'de> for SecretMetadataVisitor {
+    type Value = SecretImmutableMetadata;
+
+    // Format a message stating what data this Visitor expects to receive.
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("encrypted bytes")
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        // 1. decrypt bytes
+        // 2. msgpack-decode into value
+        todo!()
+    }
+}
+
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
-// todo: we want encrypted metadata (as well)
 pub struct ImmutableMetadata {
     // morally-equivalent to Tahoe's UEB
     pub size: u64,
@@ -784,13 +891,16 @@ pub struct ImmutableMetadata {
     pub merkle_leaves: Vec<[u8; 32]>,
     pub ciphertext_root: [u8; 32], // merkle root of the ciphertext blocks
 
-                                   // todo: could we encrypt this? it would have to be in such a way
-                                   // that a Verify Cap can also decrypt it. Also, what about servers
-                                   // that e.g. might want a "get_block()" API or similar (they need
-                                   // to know the block-size, at least)
+    // todo: does this _need_ to be Box?
+    pub _secret_metadata: Box<EncryptedSecretImmutableMetadata>,
 }
 
 impl ImmutableMetadata {
+    // todo: ideomatic way to cache this? "initialize once"?
+    pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
+        decrypt_metadata(cap.create_metadata_key(), &(*self._secret_metadata)).unwrap()
+    }
+    
     /// used to get "the bytes to hash" because Tahoe's identifiers
     /// are based on "the hash of the metadata" (aka "UEB")
     // todo: should this be From/Into? or even just implement Hasher?
@@ -799,6 +909,7 @@ impl ImmutableMetadata {
         b.extend_from_slice(&self.blocks.to_be_bytes());
         b.extend_from_slice(&self.block_size.to_be_bytes());
         b.extend_from_slice(&self.ciphertext_root);
+        // todo: should we hash over the secret_metadata too?
     }
 
     pub fn write<T>(&self, writer: &mut T) -> Result<(), MagicCapError>
@@ -1067,6 +1178,16 @@ impl EncryptionContext {
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&melf.leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
         let merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
+        let hidden_metadata = SecretImmutableMetadata {
+            mime_type: "mime/type".to_string(),
+            suggested_filename: "suggested_filename.pdf".to_string(),
+        };
+
+        // encrypt some of the metadata
+        let iv = [0xffu8; 16]; // 16 bytes of 1's
+        let metadata_key = TahoeAesCtr::new(&melf.key_bytes.into(), &iv.into());
+        let secret_metadata = EncryptedSecretImmutableMetadata::new(metadata_key, hidden_metadata);
+            
 
         let metadata = ImmutableMetadata {
             size: melf.datasize as u64,
@@ -1074,6 +1195,7 @@ impl EncryptionContext {
             block_size: melf.blocksize as u32,
             merkle_leaves,
             ciphertext_root: merkle_root,
+            _secret_metadata: Box::new(secret_metadata),
         };
 
         // create 'blank' all-0 leaves of the correct size
