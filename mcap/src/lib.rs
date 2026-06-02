@@ -467,7 +467,31 @@ pub fn main_publish(
 pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
     if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
         let id: ImmutableIdentifier = cap.into();
-        info!("{}", id);
+        println!("{}", id);
+    }
+    // todo: verify cap?
+    Ok(())
+}
+
+/// "mcap debug info"
+pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), MagicCapError> {
+    if !catalog.is_some() {
+        return Err(MagicCapError::GenericError("Need a catalog to find readcap metadata".to_string()));
+    }
+    let catalog = ImmutableDirectoryCatalog::create(catalog.clone().unwrap())?;
+
+    if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
+        let id: ImmutableIdentifier = (&cap).into();
+        let imm = catalog.load(&id)?;
+        let meta = imm.metadata;
+        println!("location-id: {}", id);
+        println!(" block-size: {}", meta.block_size);
+        println!("      bytes: {}", meta.size);
+        println!("     blocks: {}", meta.blocks);
+        println!("encrypted metadata:");
+        let secret_meta = meta.secret_metadata(&cap);
+        println!("  mime-type: {}", secret_meta.mime_type);
+        println!("   filename: {}", secret_meta.suggested_filename);
     }
     Ok(())
 }

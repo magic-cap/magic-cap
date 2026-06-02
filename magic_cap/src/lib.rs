@@ -98,6 +98,8 @@ pub use catalog::{
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher};
+use hkdf::Hkdf;
+use sha2::Sha256;
 use data_encoding::BASE64URL_NOPAD;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
@@ -336,13 +338,22 @@ impl ImmutableReadCap {
     /// encryption primitive
     pub fn create_tahoe_key(&self) -> TahoeAesCtr {
         let iv = [0u8; 16]; // 16 bytes of 0's
+        // Q: should we tagged-hash the actual encryption key?
+        // (double-check what Tahoe does -- does it use the random key DIRECTLY?)
         TahoeAesCtr::new(&self.key.into(), &iv.into())
     }
+}
 
-    pub fn create_metadata_key(&self) -> TahoeAesCtr {
-        let iv = [0xffu8; 16]; // 16 bytes of 1's
-        TahoeAesCtr::new(&self.key.into(), &iv.into())
-    }
+
+pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
+    let iv = [0x0u8; 16]; // 16 bytes of 0's
+    let info: &[u8] = purpose.as_bytes();
+
+    let hk = Hkdf::<Sha256>::new(None, key_bytes);//from_prk(&self.key).unwrap();
+    let mut derived_key: Vec<u8> = vec![0u8; 32];
+    hk.expand(&info, &mut derived_key).unwrap();
+
+    TahoeAesCtr::new(derived_key[0..16].into(), &iv.into())
 }
 
 // without Seek on the output, we require it on the input
@@ -779,9 +790,15 @@ where
 
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 /// A struct representing extended metadata about the data.
 /// This kind of metadata is encrypted (alongside the content) so needs the decryption key from the Read Cap.
+
+// todo: discussed making this "a hash table" / "key/value store" (so
+// we can be open-ended about what metadata is in here .. e.g. user /
+// app data could be provided too)
+
+// purposely NOT serializable by 'serde' so we don't accidentally serialze unencrypted metadata
 pub struct SecretImmutableMetadata {
     pub mime_type: String,
     pub suggested_filename: String,
@@ -796,12 +813,12 @@ pub struct EncryptedSecretImmutableMetadata {
 }
 
 impl EncryptedSecretImmutableMetadata {
-    pub fn new(mut key: TahoeAesCtr, metadata: SecretImmutableMetadata) -> EncryptedSecretImmutableMetadata {
-        let mut ciphertext: Vec<u8> = vec!();
-        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext).with_bytes(rmp_serde::config::BytesMode::ForceAll);
-        metadata.serialize(&mut crypt_ser).unwrap();  // fixme
+    pub fn new(mut key: TahoeAesCtr, metadata: &SecretImmutableMetadata) -> EncryptedSecretImmutableMetadata {
+        let mut ciphertext: Vec<u8> = vec![];
+        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext);//.with_bytes(rmp_serde::config::BytesMode::ForceAll);
+        metadata.serialize(&mut crypt_ser).unwrap();  // fixme (unwrap)
         key.apply_keystream(&mut ciphertext);
-        
+
         EncryptedSecretImmutableMetadata {
             ciphertext,
         }
@@ -817,45 +834,34 @@ fn decrypt_metadata(mut cryptor: TahoeAesCtr, encrypted: &EncryptedSecretImmutab
 {
     let mut plain: Vec<u8> = vec![0u8; encrypted.ciphertext.len()];
     plain.copy_from_slice(encrypted.ciphertext.as_slice());
+    debug!("{:?}", plain);
     cryptor.apply_keystream(plain.as_mut_slice());
+
+    // when we wrote out the metadata, we serialized a msgpack object
+    // into bytes, then wrote those bytes to the encapsulating serde
+    // stream .. so we need to de-encapsulate the bytes
+
+    // todo: is this double-encapsuatling though??
+
+    //let decap: Vec<u8> = rmp_serde::decode::from_read(plain.as_slice())?;
 
     #[derive(serde::Deserialize)]
     struct _Metadata {
         pub mime_type: String,
         pub suggested_filename: String,
     }
-    
+
+    debug!("before deser");
+    debug!("{:?} plaintext bytes", plain.len());
+    debug!("{:?}", plain);
     let md: _Metadata = rmp_serde::decode::from_read(plain.as_slice())?;
+    debug!("got md");
     Ok(SecretImmutableMetadata {
         mime_type: md.mime_type,
         suggested_filename: md.suggested_filename,
     })
 }
 
-
-impl serde::Serialize for SecretImmutableMetadata {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer
-    {
-        #[derive(serde::Serialize)]
-        struct _Metadata {
-            pub mime_type: String,
-            pub suggested_filename: String,
-        }
-
-        let mut plaintext: Vec<u8> = vec![];
-        let mut crypt_ser = rmp_serde::Serializer::new(&mut plaintext).with_bytes(rmp_serde::config::BytesMode::ForceAll);
-        let md = _Metadata {
-            mime_type: self.mime_type.clone(),
-            suggested_filename: self.suggested_filename.clone(),
-        };
-        md.serialize(&mut crypt_ser).unwrap(); // fixme
-
-        serializer.serialize_bytes(plaintext.as_slice())
-    }
-
-}
 
 struct SecretMetadataVisitor {
     pub cryptor: TahoeAesCtr,
@@ -895,12 +901,13 @@ pub struct ImmutableMetadata {
     pub _secret_metadata: Box<EncryptedSecretImmutableMetadata>,
 }
 
+
 impl ImmutableMetadata {
     // todo: ideomatic way to cache this? "initialize once"?
     pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
-        decrypt_metadata(cap.create_metadata_key(), &(*self._secret_metadata)).unwrap()
+        decrypt_metadata(derive_key(&cap.key, "magic-cap-metadata-0"), &(*self._secret_metadata)).unwrap()
     }
-    
+
     /// used to get "the bytes to hash" because Tahoe's identifiers
     /// are based on "the hash of the metadata" (aka "UEB")
     // todo: should this be From/Into? or even just implement Hasher?
@@ -1184,10 +1191,8 @@ impl EncryptionContext {
         };
 
         // encrypt some of the metadata
-        let iv = [0xffu8; 16]; // 16 bytes of 1's
-        let metadata_key = TahoeAesCtr::new(&melf.key_bytes.into(), &iv.into());
-        let secret_metadata = EncryptedSecretImmutableMetadata::new(metadata_key, hidden_metadata);
-            
+        let metadata_key = derive_key(&melf.key_bytes, "magic-cap-metadata-0");
+        let secret_metadata = EncryptedSecretImmutableMetadata::new(metadata_key, &hidden_metadata);
 
         let metadata = ImmutableMetadata {
             size: melf.datasize as u64,
