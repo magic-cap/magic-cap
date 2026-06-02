@@ -710,14 +710,18 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 
 
     fn get_block(&mut self, index: usize, block: &mut Block) -> Result<(), MagicCapError> {
-        // sanity checking
+        // sanity checking, index must be in-bounds, and Block's size must match our size
+        // XXX convert these to sensible Err returns
+        // assert! is preserved in release builds: <https://users.rust-lang.org/t/are-assert-and-assert-eq-removed-in-release-builds/115007>
+        assert!(block.size == self.block_size() as usize);
+        assert!(block.size == block.bytes.len());
+        assert!(block.size == self.blocks[index].len());
         if index > self.blocks.len() {
             return Err(MagicCapError::WrongDataSize(self.blocks.len(), index));
         }
+        // shae: data providers always hold encrypted blocks, afaik, so this is right
         block.cryde = Cryde::Crypt;
-        block.size = self.block_size() as usize;
         block.number = index;
-        // WARN: allocation happens here if block.bytes doesn't match block.size
         block.bytes.copy_from_slice(&self.blocks[index]);
         Ok(())
     }
