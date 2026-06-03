@@ -30,7 +30,7 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
 
 #+begin_src bash
-cargo run -- decrypt --url https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g | display
+cargo run -- decrypt --url https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0vCaeC8weUj758t7AedxEy3jwepUmAyX8p_owj0gf8OCU | display
 #+end_src
 
 An error about "broken pipe" probably means you don't have "display"
@@ -105,11 +105,11 @@ Additional features developers may enjoy:
 * Bonus awesome for reading this tutorial / readme.
 
 Inside this same folder is "kitten.mcap".
-The mcap to unlock it is: =mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g=
+The mcap to unlock it is: =mcap0rCaeC8weUj758t7AedxEy3jwepUmAyX8p_owj0gf8OCUI5lWGYVP_kbtsri8ihrwF=
 If you're using "cargo" a command-line to do that is:
 
 #+begin_src sh
-  cargo run -- decrypt --ciphertext kitten.mcap mcap0r-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV7752pj2a2uogG4RpvMFS0g --plaintext kitten.jpeg
+  cargo run -- decrypt --ciphertext kitten.mcap mcap0rCaeC8weUj758t7AedxEy3jwepUmAyX8p_owj0gf8OCUI5lWGYVP_kbtsri8ihrwF --plaintext kitten.jpeg
 #+end_src
 
 #+RESULTS:
@@ -119,7 +119,7 @@ We have found an amazing cat picture from a public domain source[fn:1] for your 
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
 #+begin_src sh
-  cargo run -- verify --ciphertext kitten.mcap mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4
+  cargo run -- verify --ciphertext kitten.mcap mcap0vCaeC8weUj758t7AedxEy3jwepUmAyX8p_owj0gf8OCU
 #+end_src
 
 #+RESULTS:

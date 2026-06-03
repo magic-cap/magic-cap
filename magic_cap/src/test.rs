@@ -48,7 +48,7 @@ fn doc_example_verifycap() {
 
 #[test]
 fn doc_example_verify() {
-    let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+    let verifycap: ImmutableVerifyCap = "mcap0vCaeC8weUj758t7AedxEy3jwepUmAyX8p_owj0gf8OCU"
         .try_into()
         .unwrap();
     let mut ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
