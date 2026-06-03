@@ -96,7 +96,7 @@
 //! ```
 //!
 
-use tracing::{debug, info};
+use tracing::{debug};
 
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
@@ -172,7 +172,7 @@ pub fn main_encrypt(
             let _ = cryptor.write(&plaintext)?;
             r = input_file.read(&mut plaintext)?;
         }
-        let (cap, _) = cryptor.done()?;
+        let (cap, _) = cryptor.done(Some(plain_text), None)?;
 
         let capstr = format!("{}", cap);
         writeln!(output, "{}", capstr)?;
@@ -187,27 +187,27 @@ pub fn main_encrypt(
         let _ = cryptor.write(&plaintext)?;
         r = input_file.read(&mut plaintext)?;
     }
-    let (cap, _) = cryptor.done()?;
+    let (cap, _) = cryptor.done(Some(plain_text),None)?;
 
     let capstr = format!("{}", cap);
     writeln!(output, "{}", capstr)?;
     Ok(())
 }
 
-fn encrypt(
-    input_file: &mut File,
-    cryptor: &mut ImmutableBuilder<std::io::Stdout>,
-    mut plaintext: Vec<u8>,
-    mut r: usize,
-) -> Result<(), MagicCapError> {
-    Ok(while r != 0 {
-        // resize is here to remove bytes in case we don't read a block's worth of bytes
-        // XXX wait, isn't this the *first* read? I don't think we need this here!
-        plaintext.resize(r, 0);
-        let _ = cryptor.write(&plaintext)?;
-        r = input_file.read(&mut plaintext)?;
-    })
-}
+// fn encrypt(
+//     input_file: &mut File,
+//     cryptor: &mut ImmutableBuilder<std::io::Stdout>,
+//     mut plaintext: Vec<u8>,
+//     mut r: usize,
+// ) -> Result<(), MagicCapError> {
+//     Ok(while r != 0 {
+//         // resize is here to remove bytes in case we don't read a block's worth of bytes
+//         // XXX wait, isn't this the *first* read? I don't think we need this here!
+//         plaintext.resize(r, 0);
+//         let _ = cryptor.write(&plaintext)?;
+//         r = input_file.read(&mut plaintext)?;
+//     })
+// }
 
 //static default_catalog: PathBuf = PathBuf::from("~/.magicap");
 

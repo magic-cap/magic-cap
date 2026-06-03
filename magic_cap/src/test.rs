@@ -145,7 +145,7 @@ fn find_catalog_basic() {
     let message = b"To light a candle is to cast a shadow...";
     let mut builder = catalog.insert(4096).unwrap();
     let _written_amount = builder.write(message).unwrap();
-    let (cap, _) = builder.done().unwrap();
+    let (cap, _) = builder.done(None, None).unwrap();
     // note: we have to drop "writer", which is the "_" above, so it
     // flushes / closes properly
 
@@ -154,6 +154,28 @@ fn find_catalog_basic() {
     let data = cap.decrypt(&mut immutable).unwrap();
     assert_eq!(message, data.as_slice());
 }
+
+#[test]
+fn round_trip_encrypted_metadata_optional() {
+    let tmpd = TempDir::new().unwrap();
+    let tmp = tmpd.path().to_owned();
+    let mut catalog = ImmutableDirectoryCatalog::create(tmp).unwrap();
+
+    let message = b"To light a candle is to cast a shadow...";
+    let mut builder = catalog.insert(4096).unwrap();
+    let _written_amount = builder.write(message).unwrap();
+    let (cap, _) = builder.done(Some(Path::new("foo.png")), None).unwrap();
+    // note: we have to drop "writer", which is the "_" above, so it
+    // flushes / closes properly
+
+    let id: ImmutableIdentifier = (&cap).into();
+    let mut immutable = catalog.load(&id).unwrap();
+    let data = cap.decrypt(&mut immutable).unwrap();
+    let sim = immutable.metadata.secret_metadata(&cap);
+    assert_eq!(sim.suggested_filename, "foo.png");
+    assert_eq!(message, data.as_slice());
+}
+
 
 #[test]
 fn round_trip_encrypted_metadata() {

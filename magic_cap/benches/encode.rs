@@ -12,7 +12,7 @@ fn encode(block_size: usize, num_bytes: usize) {
     // create an encrypted immutable + associated ReadCap
     let mut cryptor = ImmutableBuilder::new(block_size, &mut ciphertext, None).unwrap();
     let _written_amount = cryptor.write(&plaintext).unwrap();
-    let (_cap, ciphertext) = cryptor.done().unwrap();
+    let (_cap, ciphertext) = cryptor.done(None, None).unwrap();
     assert!(ciphertext.len() > num_bytes);
 }
 

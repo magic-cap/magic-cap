@@ -11,7 +11,7 @@ fn main() {
     let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext, None).unwrap();
     let _written_amount = cryptor.write(&plaintext).unwrap();
     // .write() may be called any number of times with any size data
-    let (cap, ciphertext) = cryptor.done().unwrap();
+    let (cap, ciphertext) = cryptor.done(None, None).unwrap();
     println!("ciphertext: {} bytes", ciphertext.len());
 
     // Using the encrypted immutable data and ReadCap, get back the

@@ -98,11 +98,11 @@ pub use catalog::{
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher};
-use hkdf::Hkdf;
-use sha2::Sha256;
 use data_encoding::BASE64URL_NOPAD;
+use hkdf::Hkdf;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
+use sha2::Sha256;
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -110,6 +110,7 @@ use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::SeekFrom;
 use std::io::prelude::*;
+use std::path::Path;
 
 use err::MagicCapError;
 use tracing::debug;
@@ -274,7 +275,6 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // can we use iterators more directly here instead of for loop? e.g.:
         let mut leaves: Vec<[u8; 32]> = vec![];
         for i in 0..immutable.data_provider.total_blocks() {
-
             // allocation happens on the next line
             let mut block = Block::new(immutable.data_provider.block_size() as usize);
             immutable.data_provider.get_block(i, &mut block)?;
@@ -344,12 +344,11 @@ impl ImmutableReadCap {
     }
 }
 
-
 pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
     let iv = [0x0u8; 16]; // 16 bytes of 0's
     let info: &[u8] = purpose.as_bytes();
 
-    let hk = Hkdf::<Sha256>::new(None, key_bytes);//from_prk(&self.key).unwrap();
+    let hk = Hkdf::<Sha256>::new(None, key_bytes); //from_prk(&self.key).unwrap();
     let mut derived_key: Vec<u8> = vec![0u8; 32];
     hk.expand(&info, &mut derived_key).unwrap();
 
@@ -442,7 +441,7 @@ where
     ///
     /// No more data may be written after this (as the instance is
     /// consumed).
-    pub fn done(mut self) -> Result<(ImmutableReadCap, W), MagicCapError> {
+    pub fn done(mut self, suggested_filename: Option<&Path>, mime_type: Option<String> ) -> Result<(ImmutableReadCap, W), MagicCapError> {
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
@@ -463,7 +462,7 @@ where
 
         assert!(self.this_block.is_empty());
 
-        let (cap, meta) = self.context.done()?;
+        let (cap, meta) = self.context.done(suggested_filename, mime_type)?;
         // "current_location" is now the offset of the metadata .. so
         // we write that out at the very end of the file
         meta.write(&mut self.output)?;
@@ -726,7 +725,6 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
         self._block_size
     }
 
-
     fn get_block(&mut self, index: usize, block: &mut Block) -> Result<(), MagicCapError> {
         // sanity checking, index must be in-bounds, and Block's size must match our size
         // XXX convert these to sensible Err returns
@@ -786,8 +784,6 @@ where
     fn get_block(&mut self, _index: usize, _block: &mut Block) -> Result<(), MagicCapError> {
         todo!()
     }
-
-
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -804,7 +800,6 @@ pub struct SecretImmutableMetadata {
     pub suggested_filename: String,
 }
 
-
 /// Actually encrypted SecretImmutableMetadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct EncryptedSecretImmutableMetadata {
@@ -813,15 +808,16 @@ pub struct EncryptedSecretImmutableMetadata {
 }
 
 impl EncryptedSecretImmutableMetadata {
-    pub fn new(mut key: TahoeAesCtr, metadata: &SecretImmutableMetadata) -> EncryptedSecretImmutableMetadata {
+    pub fn new(
+        mut key: TahoeAesCtr,
+        metadata: &SecretImmutableMetadata,
+    ) -> EncryptedSecretImmutableMetadata {
         let mut ciphertext: Vec<u8> = vec![];
-        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext);//.with_bytes(rmp_serde::config::BytesMode::ForceAll);
-        metadata.serialize(&mut crypt_ser).unwrap();  // fixme (unwrap)
+        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext); //.with_bytes(rmp_serde::config::BytesMode::ForceAll);
+        metadata.serialize(&mut crypt_ser).unwrap(); // fixme (unwrap)
         key.apply_keystream(&mut ciphertext);
 
-        EncryptedSecretImmutableMetadata {
-            ciphertext,
-        }
+        EncryptedSecretImmutableMetadata { ciphertext }
     }
 }
 
@@ -829,9 +825,10 @@ impl EncryptedSecretImmutableMetadata {
 // from SecretImmutableMeatadata (on Immutable or whatever has the key
 // + metadata)
 
-
-fn decrypt_metadata(mut cryptor: TahoeAesCtr, encrypted: &EncryptedSecretImmutableMetadata) -> Result<SecretImmutableMetadata, MagicCapError>
-{
+fn decrypt_metadata(
+    mut cryptor: TahoeAesCtr,
+    encrypted: &EncryptedSecretImmutableMetadata,
+) -> Result<SecretImmutableMetadata, MagicCapError> {
     let mut plain: Vec<u8> = vec![0u8; encrypted.ciphertext.len()];
     plain.copy_from_slice(encrypted.ciphertext.as_slice());
     debug!("{:?}", plain);
@@ -862,29 +859,27 @@ fn decrypt_metadata(mut cryptor: TahoeAesCtr, encrypted: &EncryptedSecretImmutab
     })
 }
 
+// struct SecretMetadataVisitor {
+//     pub cryptor: TahoeAesCtr,
+// }
 
-struct SecretMetadataVisitor {
-    pub cryptor: TahoeAesCtr,
-}
+// impl<'de> serde::de::Visitor<'de> for SecretMetadataVisitor {
+//     type Value = SecretImmutableMetadata;
 
-impl<'de> serde::de::Visitor<'de> for SecretMetadataVisitor {
-    type Value = SecretImmutableMetadata;
+//     // Format a message stating what data this Visitor expects to receive.
+//     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         formatter.write_str("encrypted bytes")
+//     }
 
-    // Format a message stating what data this Visitor expects to receive.
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("encrypted bytes")
-    }
-
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        // 1. decrypt bytes
-        // 2. msgpack-decode into value
-        todo!()
-    }
-}
-
+//     fn visit_bytes<E>(self, _v: &[u8]) -> Result<Self::Value, E>
+//     where
+//         E: serde::de::Error,
+//     {
+//         // 1. decrypt bytes
+//         // 2. msgpack-decode into value
+//         todo!()
+//     }
+// }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
@@ -901,11 +896,14 @@ pub struct ImmutableMetadata {
     pub _secret_metadata: Box<EncryptedSecretImmutableMetadata>,
 }
 
-
 impl ImmutableMetadata {
     // todo: ideomatic way to cache this? "initialize once"?
     pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
-        decrypt_metadata(derive_key(&cap.key, "magic-cap-metadata-0"), &(*self._secret_metadata)).unwrap()
+        decrypt_metadata(
+            derive_key(&cap.key, "magic-cap-metadata-0"),
+            &(*self._secret_metadata),
+        )
+        .unwrap()
     }
 
     /// used to get "the bytes to hash" because Tahoe's identifiers
@@ -1179,15 +1177,28 @@ impl EncryptionContext {
     // todo: double-check we did "all the blocks", or error?
     // todo: once you call "done", are you disallowed from calling encrypt_blocks() anymore?
     //       (do we "just get" this from the fact done() consumes self?) shae says YES! ("i think so")
-    pub fn done(self) -> Result<(ImmutableReadCap, ImmutableMetadata), MagicCapError> {
+    // TODO: this is the wrong (but most convenient) place to pass in the values for metadata
+    pub fn done(
+        self,
+        suggested_filename: Option<&Path>,
+        mime_type: Option<String>,
+    ) -> Result<(ImmutableReadCap, ImmutableMetadata), MagicCapError> {
         let mut melf = self;
         fill_empty_merkle_leaves(&mut melf.leaves);
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&melf.leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
         let merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
+        // yuck! is there an easier way to convert a Path into a String?
+        let empty: String = "".to_string();
+        let pb = suggested_filename.map(|p| {
+            p.to_path_buf()
+                .into_os_string()
+                .into_string()
+                .unwrap_or(empty.clone())
+        });
         let hidden_metadata = SecretImmutableMetadata {
-            mime_type: "mime/type".to_string(),
-            suggested_filename: "suggested_filename.pdf".to_string(),
+            mime_type: mime_type.unwrap_or("application/octet-stream".to_string()),
+            suggested_filename: pb.unwrap_or(empty),
         };
 
         // encrypt some of the metadata
@@ -1287,7 +1298,8 @@ pub fn encryptor(key_bytes: [u8; 16], mut block: Block) -> (Block, [u8; 32]) {
 
 /// verify a block, THEN decrypt it
 // how to test input block against Cryde::Crypt? anything better than a ~match~ ?
-pub fn decryptor(key_bytes: [u8; 16], mut block: Block, verify_hash: Vec<u8>) -> Block {
+// XXX fill in the hash verify code!
+pub fn decryptor(key_bytes: [u8; 16], mut block: Block, _verify_hash: Vec<u8>) -> Block {
     // hash the block, confirm that it matches
     // if hash(block.bytes) == verify_hash { ... }
     // what's our offset in bytes?
@@ -1326,7 +1338,7 @@ enum Cryde {
 #[derive(Debug)]
 pub struct Block {
     size: usize,
-    number: usize,  // this counts FROM ONE, NOT FROM ZERO!
+    number: usize,      // this counts FROM ONE, NOT FROM ZERO!
     pub bytes: Vec<u8>, // this must be of blocksize length, should this be a newtype? maybe next week?
     cryde: Cryde,
 }
