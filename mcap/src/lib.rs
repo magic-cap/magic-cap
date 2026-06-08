@@ -462,7 +462,9 @@ pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
 /// "mcap debug info"
 pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), MagicCapError> {
     if !catalog.is_some() {
-        return Err(MagicCapError::GenericError("Need a catalog to find readcap metadata".to_string()));
+        return Err(MagicCapError::GenericError(
+            "Need a catalog to find readcap metadata".to_string(),
+        ));
     }
     let catalog = ImmutableDirectoryCatalog::create(catalog.clone().unwrap())?;
 

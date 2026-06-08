@@ -99,13 +99,13 @@ pub use catalog::{
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
-use hkdf::Hkdf;
-use sha2::Sha256;
 use data_encoding::BASE64URL_NOPAD;
+use hkdf::Hkdf;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
+use sha2::Sha256;
 
-use tracing::{error, info, debug};
+use tracing::{debug, error, info};
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -374,12 +374,11 @@ impl ImmutableReadCap {
     }
 }
 
-
 pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
     let iv = [0x0u8; 16]; // 16 bytes of 0's
     let info: &[u8] = purpose.as_bytes();
 
-    let hk = Hkdf::<Sha256>::new(None, key_bytes);//from_prk(&self.key).unwrap();
+    let hk = Hkdf::<Sha256>::new(None, key_bytes); //from_prk(&self.key).unwrap();
     let mut derived_key: Vec<u8> = vec![0u8; 32];
     hk.expand(&info, &mut derived_key).unwrap();
 
@@ -884,7 +883,6 @@ pub struct SecretImmutableMetadata {
     pub suggested_filename: String,
 }
 
-
 /// Actually encrypted SecretImmutableMetadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct EncryptedSecretImmutableMetadata {
@@ -893,15 +891,16 @@ pub struct EncryptedSecretImmutableMetadata {
 }
 
 impl EncryptedSecretImmutableMetadata {
-    pub fn new(mut key: TahoeAesCtr, metadata: &SecretImmutableMetadata) -> EncryptedSecretImmutableMetadata {
+    pub fn new(
+        mut key: TahoeAesCtr,
+        metadata: &SecretImmutableMetadata,
+    ) -> EncryptedSecretImmutableMetadata {
         let mut ciphertext: Vec<u8> = vec![];
-        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext);//.with_bytes(rmp_serde::config::BytesMode::ForceAll);
-        metadata.serialize(&mut crypt_ser).unwrap();  // fixme (unwrap)
+        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext); //.with_bytes(rmp_serde::config::BytesMode::ForceAll);
+        metadata.serialize(&mut crypt_ser).unwrap(); // fixme (unwrap)
         key.apply_keystream(&mut ciphertext);
 
-        EncryptedSecretImmutableMetadata {
-            ciphertext,
-        }
+        EncryptedSecretImmutableMetadata { ciphertext }
     }
 }
 
@@ -909,9 +908,10 @@ impl EncryptedSecretImmutableMetadata {
 // from SecretImmutableMeatadata (on Immutable or whatever has the key
 // + metadata)
 
-
-fn decrypt_metadata(mut cryptor: TahoeAesCtr, encrypted: &EncryptedSecretImmutableMetadata) -> Result<SecretImmutableMetadata, MagicCapError>
-{
+fn decrypt_metadata(
+    mut cryptor: TahoeAesCtr,
+    encrypted: &EncryptedSecretImmutableMetadata,
+) -> Result<SecretImmutableMetadata, MagicCapError> {
     let mut plain: Vec<u8> = vec![0u8; encrypted.ciphertext.len()];
     plain.copy_from_slice(encrypted.ciphertext.as_slice());
     debug!("{:?}", plain);
@@ -942,7 +942,6 @@ fn decrypt_metadata(mut cryptor: TahoeAesCtr, encrypted: &EncryptedSecretImmutab
     })
 }
 
-
 struct SecretMetadataVisitor {
     pub cryptor: TahoeAesCtr,
 }
@@ -965,7 +964,6 @@ impl<'de> serde::de::Visitor<'de> for SecretMetadataVisitor {
     }
 }
 
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
 pub struct ImmutableMetadata {
@@ -981,11 +979,14 @@ pub struct ImmutableMetadata {
     pub _secret_metadata: Box<EncryptedSecretImmutableMetadata>,
 }
 
-
 impl ImmutableMetadata {
     // todo: ideomatic way to cache this? "initialize once"?
     pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
-        decrypt_metadata(derive_key(&cap.key, "magic-cap-metadata-0"), &(*self._secret_metadata)).unwrap()
+        decrypt_metadata(
+            derive_key(&cap.key, "magic-cap-metadata-0"),
+            &(*self._secret_metadata),
+        )
+        .unwrap()
     }
 
     /// used to get "the bytes to hash" because Tahoe's identifiers
