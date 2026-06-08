@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use clap::{Parser, Subcommand};
-use tracing::{Level, debug, error, info};
+use tracing::{Level, debug, error};
 
 #[derive(Parser)]
 #[command(version = "25.12.1")]

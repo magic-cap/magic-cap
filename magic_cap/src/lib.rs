@@ -942,28 +942,6 @@ fn decrypt_metadata(
     })
 }
 
-struct SecretMetadataVisitor {
-    pub cryptor: TahoeAesCtr,
-}
-
-impl<'de> serde::de::Visitor<'de> for SecretMetadataVisitor {
-    type Value = SecretImmutableMetadata;
-
-    // Format a message stating what data this Visitor expects to receive.
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("encrypted bytes")
-    }
-
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        // 1. decrypt bytes
-        // 2. msgpack-decode into value
-        todo!()
-    }
-}
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
 pub struct ImmutableMetadata {
