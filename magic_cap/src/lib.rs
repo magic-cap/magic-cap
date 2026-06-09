@@ -99,6 +99,7 @@ pub use catalog::{
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+
 use data_encoding::BASE64URL_NOPAD;
 use hkdf::Hkdf;
 use rs_merkle::{Hasher, MerkleTree};
@@ -374,6 +375,7 @@ impl ImmutableReadCap {
     }
 }
 
+
 pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
     let iv = [0x0u8; 16]; // 16 bytes of 0's
     let info: &[u8] = purpose.as_bytes();
@@ -382,7 +384,20 @@ pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
     let mut derived_key: Vec<u8> = vec![0u8; 32];
     hk.expand(&info, &mut derived_key).unwrap();
 
-    TahoeAesCtr::new(derived_key[0..16].into(), &iv.into())
+    // newer versions of RustCrypto depend on "hybrid-array" instead
+    // of "generic-array".  in (older) "generic-array" versions, there
+    // was a from_slice() that would panic if the size wasn't right
+    // .. but in hybrid-array this is done via a Option return
+    //
+    // since the old code would have panic'd anyway, and we know for
+    // sure both the slice and the requested key size are 16 bytes, we
+    // just blindly unwrap() here
+
+    // below is basically the same as this:
+    //let key: &hybrid_array::Array<u8, U16> = hybrid_array::Array::slice_as_array(&derived_key[0..16]).unwrap();
+
+    let key = &derived_key[0..16].try_into().unwrap();
+    TahoeAesCtr::new(key, &iv.into())
 }
 
 // without Seek on the output, we require it on the input
