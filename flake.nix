@@ -1,7 +1,7 @@
 {
   description = "magic-cap is a command line utility for an always encrypted archive file type.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     rust-overlay = { url = "github:oxalica/rust-overlay"; };
   };
   outputs = { self, nixpkgs, rust-overlay, ... }:
