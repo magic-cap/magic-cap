@@ -375,7 +375,6 @@ impl ImmutableReadCap {
     }
 }
 
-
 pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
     let iv = [0x0u8; 16]; // 16 bytes of 0's
     let info: &[u8] = purpose.as_bytes();
