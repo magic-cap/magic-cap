@@ -103,7 +103,7 @@ use magic_cap::err::MagicCapError;
 use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
-    ImmutableWebCatalog, ReadCap,
+    ImmutableWebCatalog, ReadCap
 };
 use reqwest::header::HeaderMap;
 use std::fs::File;
@@ -339,8 +339,19 @@ pub fn main_decrypt(
 }
 
 /// "mcap verify"
-pub fn main_verify(cap: &str, input_fname: &Path) -> Result<(), MagicCapError> {
-    let cap = ImmutableVerifyCap::try_from(cap)?;
+pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
+    // if we are given a "Read Cap" then we can still convert it to a
+    // Verify Cap for the user, so lets do that .. but if this string
+    // is neither a Read Cap _nor_ a Verify Cap then we error out via
+    // the "?" inside the match
+    let cap: ImmutableVerifyCap = match ImmutableVerifyCap::try_from(capstr) {
+        Err(_) => ImmutableReadCap::try_from(capstr)?.into(),
+        Ok(cap) => cap,
+    };
+
+    // we have a verify-cap, load all the data and verify
+    // todo: should be able to stream this instead
+    // todo: support "--catalog" for finding the ciphertext
     let f = std::fs::File::open(input_fname)?;
     let mut imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
