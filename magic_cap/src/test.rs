@@ -47,7 +47,7 @@ fn doc_example_verifycap() {
 
 #[test]
 fn doc_example_verify() {
-    let verifycap: ImmutableVerifyCap = "mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4"
+    let verifycap: ImmutableVerifyCap = "mcap0vajRAVOgzmSuSsNQt5yA5JAEypic23eM5kRtGp9b5Mq0"
         .try_into()
         .unwrap();
     let mut ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
@@ -196,6 +196,23 @@ fn find_catalog_basic() {
     let mut immutable = catalog.load(&id).unwrap();
     let data = cap.decrypt(&mut immutable).unwrap();
     assert_eq!(message, data.as_slice());
+}
+
+#[test]
+fn round_trip_encrypted_metadata() {
+    let mut realmeta = std::collections::HashMap::<String, String>::new();
+    realmeta.insert("mime-type".to_string(), "mime/foo".to_string());
+    realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
+
+    let meta = SecretImmutableMetadata { data: realmeta };
+    let key_bytes = [0u8; 16];
+    let key = derive_key(&key_bytes, "magic-cap-metadata-0");
+
+    let enc = EncryptedSecretImmutableMetadata::new(key, &meta);
+    let key2 = derive_key(&key_bytes, "magic-cap-metadata-0");
+    let meta2 = decrypt_metadata(key2, &enc).unwrap();
+
+    assert_eq!(meta, meta2);
 }
 
 proptest! {

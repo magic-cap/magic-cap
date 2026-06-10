@@ -297,7 +297,7 @@ pub fn main_decrypt(
     } else if let Some(root) = catalog {
         let collect = ImmutableDirectoryCatalog::create(root.clone())?;
         let locid: ImmutableIdentifier = (&cap).into();
-        tracing::info!("Loading location {}", locid);
+        info!("Loading location {}", locid);
         collect.load(&locid)
     } else {
         Err(MagicCapError::GenericError(
@@ -339,8 +339,19 @@ pub fn main_decrypt(
 }
 
 /// "mcap verify"
-pub fn main_verify(cap: &str, input_fname: &Path) -> Result<(), MagicCapError> {
-    let cap = ImmutableVerifyCap::try_from(cap)?;
+pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
+    // if we are given a "Read Cap" then we can still convert it to a
+    // Verify Cap for the user, so lets do that .. but if this string
+    // is neither a Read Cap _nor_ a Verify Cap then we error out via
+    // the "?" inside the match
+    let cap: ImmutableVerifyCap = match ImmutableVerifyCap::try_from(capstr) {
+        Err(_) => ImmutableReadCap::try_from(capstr)?.into(),
+        Ok(cap) => cap,
+    };
+
+    // we have a verify-cap, load all the data and verify
+    // todo: should be able to stream this instead
+    // todo: support "--catalog" for finding the ciphertext
     let f = std::fs::File::open(input_fname)?;
     let mut imm = Immutable::read(&mut std::io::BufReader::new(f))?;
 
@@ -453,7 +464,34 @@ pub fn main_publish(
 pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
     if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
         let id: ImmutableIdentifier = cap.into();
-        info!("{}", id);
+        println!("{}", id);
+    }
+    // todo: verify cap?
+    Ok(())
+}
+
+/// "mcap debug info"
+pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), MagicCapError> {
+    if !catalog.is_some() {
+        return Err(MagicCapError::GenericError(
+            "Need a catalog to find readcap metadata".to_string(),
+        ));
+    }
+    let catalog = ImmutableDirectoryCatalog::create(catalog.clone().unwrap())?;
+
+    if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
+        let id: ImmutableIdentifier = (&cap).into();
+        let imm = catalog.load(&id)?;
+        let meta = imm.metadata;
+        println!("location-id: {}", id);
+        println!(" block-size: {}", meta.block_size);
+        println!("      bytes: {}", meta.size);
+        println!("     blocks: {}", meta.blocks);
+        println!("encrypted metadata:");
+        let secret_meta = meta.secret_metadata(&cap);
+        for (k, v) in secret_meta.data {
+            println!("  {k:>20}: {v}");
+        }
     }
     Ok(())
 }

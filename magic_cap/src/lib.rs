@@ -99,11 +99,14 @@ pub use catalog::{
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+
 use data_encoding::BASE64URL_NOPAD;
+use hkdf::Hkdf;
 use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
+use sha2::Sha256;
 
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -366,8 +369,38 @@ impl ImmutableReadCap {
     /// encryption primitive
     pub fn create_tahoe_key(&self) -> TahoeAesCtr {
         let iv = [0u8; 16]; // 16 bytes of 0's
+        // Q: should we tagged-hash the actual encryption key?
+        // (double-check what Tahoe does -- does it use the random key DIRECTLY?)
         TahoeAesCtr::new(&self.key.into(), &iv.into())
     }
+
+    pub fn derive_key(&self, purpose: &str) -> TahoeAesCtr {
+        derive_key(&self.key, purpose)
+    }
+}
+
+pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
+    let iv = [0x0u8; 16]; // 16 bytes of 0's
+    let info: &[u8] = purpose.as_bytes();
+
+    let hk = Hkdf::<Sha256>::new(None, key_bytes); //from_prk(&self.key).unwrap();
+    let mut derived_key: Vec<u8> = vec![0u8; 32];
+    hk.expand(&info, &mut derived_key).unwrap();
+
+    // newer versions of RustCrypto depend on "hybrid-array" instead
+    // of "generic-array".  in (older) "generic-array" versions, there
+    // was a from_slice() that would panic if the size wasn't right
+    // .. but in hybrid-array this is done via a Option return
+    //
+    // since the old code would have panic'd anyway, and we know for
+    // sure both the slice and the requested key size are 16 bytes, we
+    // just blindly unwrap() here
+
+    // below is basically the same as this:
+    //let key: &hybrid_array::Array<u8, U16> = hybrid_array::Array::slice_as_array(&derived_key[0..16]).unwrap();
+
+    let key = &derived_key[0..16].try_into().unwrap();
+    TahoeAesCtr::new(key, &iv.into())
 }
 
 // without Seek on the output, we require it on the input
@@ -444,6 +477,7 @@ where
             );
             // todo: faster way to do this?
             let pad: Vec<u8> = vec![0u8; leftover];
+            // todo: how does Tahoe pad? Does it?
             let _written_amount = self.write(&pad)?;
             self.context.datasize -= leftover;
         }
@@ -475,6 +509,9 @@ where
         // boring way
         self.this_block.write(buf)?;
         let mut local_written = 0;
+        // if we have a non-full block of plaintext when done() is
+        // called, it is padded with 0's and encrypted as the final
+        // block.
         while self.this_block.len() >= self.context.blocksize {
             // cut off a block's worth at the front
             let this_block_bytes: Vec<u8> =
@@ -850,9 +887,68 @@ where
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+/// A struct representing extended metadata about the data.
+/// We never serialize this directly, only inside an EncryptedSecretImmutableMetadata
+pub struct SecretImmutableMetadata {
+    pub data: std::collections::HashMap<String, String>,
+}
+
+/// Actually encrypted SecretImmutableMetadata
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct EncryptedSecretImmutableMetadata {
+    ciphertext: Vec<u8>,
+}
+
+impl EncryptedSecretImmutableMetadata {
+    pub fn new(
+        mut key: TahoeAesCtr,
+        metadata: &SecretImmutableMetadata,
+    ) -> EncryptedSecretImmutableMetadata {
+        let mut ciphertext: Vec<u8> = vec![];
+        let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext); //.with_bytes(rmp_serde::config::BytesMode::ForceAll);
+        metadata
+            .data
+            .serialize(&mut crypt_ser)
+            .expect("HashMap is msgpack serializable");
+        key.apply_keystream(&mut ciphertext);
+
+        EncryptedSecretImmutableMetadata { ciphertext }
+    }
+}
+
+// implement a .encrypted_metadata() or similar method that creates ^
+// from SecretImmutableMeatadata (on Immutable or whatever has the key
+// + metadata)
+
+fn decrypt_metadata(
+    mut cryptor: TahoeAesCtr,
+    encrypted: &EncryptedSecretImmutableMetadata,
+) -> Result<SecretImmutableMetadata, MagicCapError> {
+    let mut plain: Vec<u8> = vec![0u8; encrypted.ciphertext.len()];
+    plain.copy_from_slice(encrypted.ciphertext.as_slice());
+    debug!("{:?}", plain);
+    cryptor.apply_keystream(plain.as_mut_slice());
+
+    // when we wrote out the metadata, we serialized a msgpack object
+    // into bytes, then wrote those bytes to the encapsulating serde
+    // stream .. so we need to de-encapsulate the bytes
+
+    // todo: is this double-encapsuatling though??
+
+    debug!("before deser");
+    debug!("{:?} plaintext bytes", plain.len());
+    debug!("{:?}", plain);
+    let metadata_hashmap: std::collections::HashMap<String, String> =
+        rmp_serde::decode::from_read(plain.as_slice())?;
+    debug!("got md");
+    Ok(SecretImmutableMetadata {
+        data: metadata_hashmap,
+    })
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 /// A struct representing (unencrypted!) metadata about the data.
-// todo: we want encrypted metadata (as well)
 pub struct ImmutableMetadata {
     // morally-equivalent to Tahoe's UEB
     pub size: u64,
@@ -862,13 +958,20 @@ pub struct ImmutableMetadata {
     pub merkle_leaves: Vec<[u8; 32]>,
     pub ciphertext_root: [u8; 32], // merkle root of the ciphertext blocks
 
-                                   // todo: could we encrypt this? it would have to be in such a way
-                                   // that a Verify Cap can also decrypt it. Also, what about servers
-                                   // that e.g. might want a "get_block()" API or similar (they need
-                                   // to know the block-size, at least)
+    // todo: does this _need_ to be Box?
+    pub _secret_metadata: Box<EncryptedSecretImmutableMetadata>,
 }
 
 impl ImmutableMetadata {
+    // todo: ideomatic way to cache this? "initialize once"?
+    pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
+        decrypt_metadata(
+            derive_key(&cap.key, "magic-cap-metadata-0"),
+            &(*self._secret_metadata),
+        )
+        .unwrap()
+    }
+
     /// used to get "the bytes to hash" because Tahoe's identifiers
     /// are based on "the hash of the metadata" (aka "UEB")
     // todo: should this be From/Into? or even just implement Hasher?
@@ -877,6 +980,7 @@ impl ImmutableMetadata {
         b.extend_from_slice(&self.blocks.to_be_bytes());
         b.extend_from_slice(&self.block_size.to_be_bytes());
         b.extend_from_slice(&self.ciphertext_root);
+        // todo: should we hash over the secret_metadata too?
     }
 
     pub fn write<T>(&self, writer: &mut T) -> Result<(), MagicCapError>
@@ -1178,6 +1282,14 @@ impl EncryptionContext {
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&melf.leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
         let merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
+        let mut realmeta = std::collections::HashMap::<String, String>::new();
+        realmeta.insert("mime-type".to_string(), "text/plain".to_string());
+        realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
+        let hidden_metadata = SecretImmutableMetadata { data: realmeta };
+
+        // encrypt some of the metadata
+        let metadata_key = derive_key(&melf.key_bytes, "magic-cap-metadata-0");
+        let secret_metadata = EncryptedSecretImmutableMetadata::new(metadata_key, &hidden_metadata);
 
         let metadata = ImmutableMetadata {
             size: melf.datasize as u64,
@@ -1185,6 +1297,7 @@ impl EncryptionContext {
             block_size: melf.blocksize as u32,
             merkle_leaves,
             ciphertext_root: merkle_root,
+            _secret_metadata: Box::new(secret_metadata),
         };
 
         // create 'blank' all-0 leaves of the correct size

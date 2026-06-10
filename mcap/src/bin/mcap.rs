@@ -1,5 +1,6 @@
 use magic_cap_cli::{
-    main_debug_locator, main_decrypt, main_encrypt, main_publish, main_reduce, main_verify,
+    main_debug_info, main_debug_locator, main_decrypt, main_encrypt, main_publish, main_reduce,
+    main_verify,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -10,7 +11,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use clap::{Parser, Subcommand};
-use tracing::{Level, debug, error, info};
+use tracing::{Level, debug, error};
 
 #[derive(Parser)]
 #[command(version = "25.12.1")]
@@ -36,6 +37,9 @@ struct Cli {
     /// ERROR, WARN, INFO, DEBUG, TRACE in that order.
     #[arg(short, long, default_value_t = Level::INFO)]
     loglevel: Level,
+    // todo: maybe promote --catalog up here?
+    // ("mcap reduce" doesn't use it, and not all "mcap debug" command swill, ...)
+    // maybe clap gives us a way to say "--catalog is illegal for ..."?
 }
 
 #[derive(Subcommand)]
@@ -43,6 +47,14 @@ struct Cli {
 enum DebugCommands {
     #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id")]
     Locator { capstr: String },
+
+    #[command(about = "Print human-readable information about the Read Cap")]
+    Info {
+        #[arg(long)]
+        catalog: Option<PathBuf>,
+
+        capstr: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -185,8 +197,10 @@ fn main() {
         Some(Commands::Publish { catalog, output }) => {
             main_publish(&mut std::io::stdout(), catalog, output)
         }
+        // todo: might make sense to promote --catalog to top-level
         Some(Commands::Debug { command }) => match command {
             Some(DebugCommands::Locator { capstr }) => main_debug_locator(capstr),
+            Some(DebugCommands::Info { capstr, catalog }) => main_debug_info(capstr, catalog),
             None => Ok(()),
         },
         None => Ok(()),
