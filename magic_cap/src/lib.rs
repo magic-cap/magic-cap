@@ -703,7 +703,7 @@ impl ReadCap for ImmutableReadCap {
         // this checks that the _metadata_ from our metadata file
         // actually matches the ciphertext from our 'data' file (we
         // checked above that the user-supplied capability-string has
-        // a matching root)
+        // a matching root early in this function)
         if merkle_root != immutable.metadata.ciphertext_root {
             let incorrect_hash = BASE64URL_NOPAD.encode(&merkle_root);
             return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
