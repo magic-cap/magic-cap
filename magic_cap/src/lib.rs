@@ -373,6 +373,10 @@ impl ImmutableReadCap {
         // (double-check what Tahoe does -- does it use the random key DIRECTLY?)
         TahoeAesCtr::new(&self.key.into(), &iv.into())
     }
+
+    pub fn derive_key(&self, purpose: &str) -> TahoeAesCtr {
+        derive_key(&self.key, purpose)
+    }
 }
 
 pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
