@@ -478,8 +478,9 @@ pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), Ma
         println!("     blocks: {}", meta.blocks);
         println!("encrypted metadata:");
         let secret_meta = meta.secret_metadata(&cap);
-        println!("  mime-type: {}", secret_meta.mime_type);
-        println!("   filename: {}", secret_meta.suggested_filename);
+        for (k, v) in secret_meta.data {
+            println!("  {k:>20}: {v}");
+        }
     }
     Ok(())
 }

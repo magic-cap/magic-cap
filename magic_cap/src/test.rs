@@ -200,9 +200,12 @@ fn find_catalog_basic() {
 
 #[test]
 fn round_trip_encrypted_metadata() {
+    let mut realmeta = std::collections::HashMap::<String, String>::new();
+    realmeta.insert("mime-type".to_string(), "mime/foo".to_string());
+    realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
+
     let meta = SecretImmutableMetadata {
-        mime_type: "mime/foo".to_string(),
-        suggested_filename: "ohai.pdf".to_string(),
+        data: realmeta,
     };
     let key_bytes = [0u8; 16];
     let key = derive_key(&key_bytes, "magic-cap-metadata-0");

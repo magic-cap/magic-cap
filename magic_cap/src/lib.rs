@@ -883,25 +883,17 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 /// A struct representing extended metadata about the data.
-/// This kind of metadata is encrypted (alongside the content) so needs the decryption key from the Read Cap.
-
-// todo: discussed making this "a hash table" / "key/value store" (so
-// we can be open-ended about what metadata is in here .. e.g. user /
-// app data could be provided too)
-
-// purposely NOT serializable by 'serde' so we don't accidentally serialze unencrypted metadata
+/// We never serialize this directly, only inside an EncryptedSecretImmutableMetadata
 pub struct SecretImmutableMetadata {
-    pub mime_type: String,
-    pub suggested_filename: String,
+    pub data: std::collections::HashMap<String, String>,
 }
 
 /// Actually encrypted SecretImmutableMetadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct EncryptedSecretImmutableMetadata {
     ciphertext: Vec<u8>,
-    //cryptor: TahoeAesCtr,
 }
 
 impl EncryptedSecretImmutableMetadata {
@@ -911,7 +903,7 @@ impl EncryptedSecretImmutableMetadata {
     ) -> EncryptedSecretImmutableMetadata {
         let mut ciphertext: Vec<u8> = vec![];
         let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext); //.with_bytes(rmp_serde::config::BytesMode::ForceAll);
-        metadata.serialize(&mut crypt_ser).unwrap(); // fixme (unwrap)
+        metadata.data.serialize(&mut crypt_ser).expect("HashMap is msgpack serializable");
         key.apply_keystream(&mut ciphertext);
 
         EncryptedSecretImmutableMetadata { ciphertext }
@@ -937,22 +929,13 @@ fn decrypt_metadata(
 
     // todo: is this double-encapsuatling though??
 
-    //let decap: Vec<u8> = rmp_serde::decode::from_read(plain.as_slice())?;
-
-    #[derive(serde::Deserialize)]
-    struct _Metadata {
-        pub mime_type: String,
-        pub suggested_filename: String,
-    }
-
     debug!("before deser");
     debug!("{:?} plaintext bytes", plain.len());
     debug!("{:?}", plain);
-    let md: _Metadata = rmp_serde::decode::from_read(plain.as_slice())?;
+    let metadata_hashmap: std::collections::HashMap<String, String> = rmp_serde::decode::from_read(plain.as_slice())?;
     debug!("got md");
     Ok(SecretImmutableMetadata {
-        mime_type: md.mime_type,
-        suggested_filename: md.suggested_filename,
+        data: metadata_hashmap,
     })
 }
 
@@ -1291,9 +1274,11 @@ impl EncryptionContext {
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&melf.leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
         let merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
+        let mut realmeta = std::collections::HashMap::<String, String>::new();
+        realmeta.insert("mime-type".to_string(), "text/plain".to_string());
+        realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
         let hidden_metadata = SecretImmutableMetadata {
-            mime_type: "mime/type".to_string(),
-            suggested_filename: "suggested_filename.pdf".to_string(),
+            data: realmeta,
         };
 
         // encrypt some of the metadata
