@@ -514,23 +514,22 @@ pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
     let iv = [0x0u8; 16]; // 16 bytes of 0's
     let info: &[u8] = purpose.as_bytes();
 
-    let hk = Hkdf::<Sha256>::new(None, key_bytes); //from_prk(&self.key).unwrap();
+    let hk = Hkdf::<Sha256>::new(None, key_bytes);
     let mut derived_key: Vec<u8> = vec![0u8; 32];
-    hk.expand(info, &mut derived_key).unwrap();
+    hk.expand(info, &mut derived_key)
+        .expect("32 is a valid key length");
 
     // newer versions of RustCrypto depend on "hybrid-array" instead
-    // of "generic-array".  in (older) "generic-array" versions, there
-    // was a from_slice() that would panic if the size wasn't right
-    // .. but in hybrid-array this is done via a Option return
-    //
-    // since the old code would have panic'd anyway, and we know for
-    // sure both the slice and the requested key size are 16 bytes, we
-    // just blindly unwrap() here
+    // of "generic-array". In (older) "generic-array" versions this
+    // would panic if any sizes were invalid (instead of returning
+    // Result).
 
     // below is basically the same as this:
     //let key: &hybrid_array::Array<u8, U16> = hybrid_array::Array::slice_as_array(&derived_key[0..16]).unwrap();
 
-    let key = &derived_key[0..16].try_into().unwrap();
+    let key = &derived_key[0..16]
+        .try_into()
+        .expect("16 is a valid key size");
     TahoeAesCtr::new(key, &iv.into())
 }
 
