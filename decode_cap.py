@@ -96,7 +96,7 @@ def decode_readcap(data_fname, capstr):
     hasher1.update(hasher0.digest())
     alleged_metadata_hash = hasher1.digest()
 
-    if True:
+    if False:
         for x in alleged_metadata_hash:
             print(f" {x:02x}", end="")
         print()
@@ -109,7 +109,7 @@ def decode_readcap(data_fname, capstr):
 
     # TODO FIXME: it's weird that the secret_meta unpacked to a LIST of
     # one bytes object -- can we make it serialize just "a bytes object"?
-    print(f"secret metadata: {secret_meta[0]}")
+    ## print(f"secret metadata: {secret_meta[0]}")
 
     # sha256 HKDF of the root key with "magic-cap-metadata-0" as
     # context / tag
@@ -117,7 +117,6 @@ def decode_readcap(data_fname, capstr):
     secret_data = secret_meta[0]
     hkdf = HKDF(algorithm=hashes.SHA256(), length=16, salt=None, info=b"magic-cap-metadata-0")
     key = hkdf.derive(cap.key)
-    print(f"metadata key {key}")
     assert len(key) == 16, "expected 16 bytes of key"
 
     # ctr128be aes128, all-zero IV
@@ -127,7 +126,6 @@ def decode_readcap(data_fname, capstr):
     msg = decryptor.update(secret_data) + decryptor.finalize()
     # print("decrypted", msg)
     seekrit_meta = msgpack.loads(msg)
-    print("meta", seekrit_meta)
 
     return ImmutableMetadata(
         size,
@@ -145,7 +143,7 @@ if __name__ == "__main__":
         sys.exit(1)
     meta = decode_readcap(sys.argv[1], sys.argv[2])
     hexroot = base64.b16encode(meta.ciphertext_root).decode('utf8')
-    print("decoded")
+    print("Metadata hash matches Capability String")
     print(f"  size: {meta.size} bytes ({meta.blocks} x {meta.blocksize} blocks)")
     print(f"  root: {hexroot.lower()}")
     print("  encrypted metadata:")
