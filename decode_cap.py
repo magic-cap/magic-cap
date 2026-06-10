@@ -4,6 +4,10 @@
 # this gives us slightly more confidence the Rust code is right if a
 # different implementation can do it too
 #
+# for example:
+#
+#    python meta.py kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
+#
 
 import sys
 import struct
