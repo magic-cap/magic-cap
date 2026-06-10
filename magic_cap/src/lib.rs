@@ -907,7 +907,10 @@ impl EncryptedSecretImmutableMetadata {
     ) -> EncryptedSecretImmutableMetadata {
         let mut ciphertext: Vec<u8> = vec![];
         let mut crypt_ser = rmp_serde::Serializer::new(&mut ciphertext); //.with_bytes(rmp_serde::config::BytesMode::ForceAll);
-        metadata.data.serialize(&mut crypt_ser).expect("HashMap is msgpack serializable");
+        metadata
+            .data
+            .serialize(&mut crypt_ser)
+            .expect("HashMap is msgpack serializable");
         key.apply_keystream(&mut ciphertext);
 
         EncryptedSecretImmutableMetadata { ciphertext }
@@ -936,7 +939,8 @@ fn decrypt_metadata(
     debug!("before deser");
     debug!("{:?} plaintext bytes", plain.len());
     debug!("{:?}", plain);
-    let metadata_hashmap: std::collections::HashMap<String, String> = rmp_serde::decode::from_read(plain.as_slice())?;
+    let metadata_hashmap: std::collections::HashMap<String, String> =
+        rmp_serde::decode::from_read(plain.as_slice())?;
     debug!("got md");
     Ok(SecretImmutableMetadata {
         data: metadata_hashmap,
@@ -1281,9 +1285,7 @@ impl EncryptionContext {
         let mut realmeta = std::collections::HashMap::<String, String>::new();
         realmeta.insert("mime-type".to_string(), "text/plain".to_string());
         realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
-        let hidden_metadata = SecretImmutableMetadata {
-            data: realmeta,
-        };
+        let hidden_metadata = SecretImmutableMetadata { data: realmeta };
 
         // encrypt some of the metadata
         let metadata_key = derive_key(&melf.key_bytes, "magic-cap-metadata-0");

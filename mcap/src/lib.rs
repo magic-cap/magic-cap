@@ -103,7 +103,7 @@ use magic_cap::err::MagicCapError;
 use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
-    ImmutableWebCatalog, ReadCap
+    ImmutableWebCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;
 use std::fs::File;

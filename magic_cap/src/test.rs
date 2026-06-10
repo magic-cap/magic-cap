@@ -204,9 +204,7 @@ fn round_trip_encrypted_metadata() {
     realmeta.insert("mime-type".to_string(), "mime/foo".to_string());
     realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
 
-    let meta = SecretImmutableMetadata {
-        data: realmeta,
-    };
+    let meta = SecretImmutableMetadata { data: realmeta };
     let key_bytes = [0u8; 16];
     let key = derive_key(&key_bytes, "magic-cap-metadata-0");
 
