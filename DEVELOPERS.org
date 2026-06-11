@@ -21,6 +21,26 @@ For memory use, there is a Nix flake for setup too.
 (On Debian, you can get the required Nix setup via "apt install
 nix-setup-systemd" followed by adding your user to "nix-users")
 
+* Tools
+
+**encode-kittens.py**: this creates the example Catalog using the demo kitten pictures.
+This takes all the pictures in ``data/kittens`` and encodes them to the Catalog rooted at ``data/root``.
+
+**decode_cap.py**: read and verify the metadata (and encrypted metadata) when given a Read Cap and a Data file.
+For example:
+
+#+begin_src sh
+python decode_cap.py kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
+#+end_src
+
+#+RESULTS:
+: Metadata hash matches Capability String
+:   size: 306199 bytes (75 x 4096-byte blocks)
+:   root: 797f7bf16746b21284ad603a9561eaf673c86586821c538c03f86e5f328c3316
+:   encrypted metadata:
+:     mime-type: text/plain
+:     suggested-filename: /etc/passwd
+
 * Glossary
 
 **Read Cap**: a short base64-encoded string, can be used to decrypt Data
