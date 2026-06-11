@@ -144,7 +144,7 @@ if __name__ == "__main__":
     meta = decode_readcap(sys.argv[1], sys.argv[2])
     hexroot = base64.b16encode(meta.ciphertext_root).decode('utf8')
     print("Metadata hash matches Capability String")
-    print(f"  size: {meta.size} bytes ({meta.blocks} x {meta.blocksize} blocks)")
+    print(f"  size: {meta.size} bytes ({meta.blocks} x {meta.blocksize}-byte blocks)")
     print(f"  root: {hexroot.lower()}")
     print("  encrypted metadata:")
     for k, v in meta.secret.items():
