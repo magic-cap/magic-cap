@@ -90,7 +90,7 @@ fn handcrafted_filesystem_round_trip() {
 }
 
 #[test]
-fn handcrafted_filesystem_round_trip_stream() {
+fn handcrafted_filesystem_round_trip_random_access() {
     let blocksize = 2;
     let input: Vec<u8> = b"abcdef".to_vec();
     let tmp = TempDir::new().unwrap();
@@ -151,6 +151,36 @@ fn handcrafted_filesystem_round_trip_single_block() {
     cap.decrypt_one_block(&mut imm, 0, &mut plain[0..blocksize])
         .unwrap();
     assert_eq!(input[0..2], plain);
+}
+
+/// like the other round-trip tests, but this uses the "push producer"
+/// decryptor. the Immutable::stream() decryptor is a "pull producer",
+/// where we ask for plaintext and it works out how to get the
+/// ciphertext. This push direction, we "somehow" get some ciphertext
+/// (e.g. from a network socket, or in this case by reading the file
+/// "ourselves") and push the data _into_ the decryptor.
+#[test]
+fn handcrafted_filesystem_round_trip_push_producer() {
+    let blocksize = 2;
+    let input: Vec<u8> = b"abcdef".to_vec();
+    let tmp = TempDir::new().unwrap();
+
+    let fm = File::create(tmp.path().join("encrypted")).unwrap();
+    let cap =
+        ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize).unwrap();
+
+    let fm = File::open(tmp.path().join("encrypted")).unwrap();
+    let mut data = std::io::BufReader::new(fm);
+
+    // missing: how do we load the ImmutableMetadata? in a "true"
+    // network streaming situation, we'd prefer to use the ReST API to
+    // ask for it.
+
+    //let mut plain: Vec<u8> = vec![0u8; imm.metadata.size as usize];
+    //let immdec = cap.decrypt_stream(imm.metadata, &mut plain);
+
+    // read up to 13 bytes at a time, streaming them in to the decryptor
+    let mut cipher: Vec<u8> = vec![0u8; 13];
 }
 
 #[test]
