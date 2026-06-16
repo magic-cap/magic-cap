@@ -30,6 +30,6 @@ for k in os.listdir(kittens):
 
 with Path("data/kittens-anthology.txt").open("w") as f:
     for k in sorted(caps.keys()):
-        line = f"{k:>30} {caps[k]}"
+        line = f"{caps[k]} {k}"
         print(line)
         f.write(line + "\n")

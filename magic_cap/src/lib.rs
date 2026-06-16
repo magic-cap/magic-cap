@@ -695,7 +695,7 @@ impl ReadCap for ImmutableReadCap {
             let lh = TahoeLeaf::hash(&leaf);
             leaves.push(lh);
         }
-        fill_empty_merkle_leaves(&mut leaves);
+        //fill_empty_merkle_leaves(&mut leaves);
 
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;

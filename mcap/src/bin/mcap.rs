@@ -170,7 +170,7 @@ fn main() {
             catalog,
             blocksize,
         }) => main_encrypt(
-            &mut std::io::stderr(),
+            &mut std::io::stdout(),
             plaintext,
             ciphertext,
             catalog,
