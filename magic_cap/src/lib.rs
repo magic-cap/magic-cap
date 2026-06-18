@@ -106,7 +106,7 @@ use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
 use sha2::Sha256;
 
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -507,6 +507,7 @@ where
         // 2. yes? -> encrypt it
         // 3. where do we put the ciphertext? need a writer
         // boring way
+        trace!("ImmutableBuilder::write: {} bytes", buf.len());
         self.this_block.write(buf)?;
         let mut local_written = 0;
         // if we have a non-full block of plaintext when done() is
@@ -526,7 +527,13 @@ where
             local_written += encrypted_block.len();
             self.ciphertext_bytes += encrypted_block.len();
         }
-        Ok(local_written)
+
+        // things like std::io::copy are grumpy if we don't report
+        // that we wrote everything .. semantically, this makes some
+        // sense: we _have_ dealt with all the bytes in "buf" so
+        // returning that number is valid.
+        Ok(buf.len())
+
         // todo: we're basically "just hosed" if anything errors in
         // here, right? should we mark ourselves as failed then?
     }
@@ -534,7 +541,9 @@ where
     fn flush(&mut self) -> std::io::Result<()> {
         // 1. can we honour this by writing "part of a block"
         // immediately (and then writing the rest when it comes in?)
-        todo!()
+        debug!("flush called");
+        //todo!()
+        Ok(())
     }
     // think: can "done()" be like "close()"??
 }
