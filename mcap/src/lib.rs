@@ -529,7 +529,7 @@ pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
                 let mut plaintext = std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
                 let written = std::io::copy(&mut plaintext, &mut builder).expect("Copy failed");
                 let (cap, _) = builder.done().expect("Failed to finalize Immutable");
-                println!("{}: {} bytes", path.display(), written);
+                eprintln!("{}: {} bytes", path.display(), written);
                 anthology.push(AnthologyEntry {
                     name: format!("{}", p.file_name().display()),
                     cap
