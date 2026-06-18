@@ -96,7 +96,7 @@
 //! ```
 //!
 
-use tracing::{debug};
+use tracing::debug;
 
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
@@ -496,7 +496,6 @@ pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), Ma
     Ok(())
 }
 
-
 pub struct AnthologyEntry {
     name: String,
     cap: ImmutableReadCap,
@@ -505,14 +504,15 @@ pub struct AnthologyEntry {
 //todo: something like?
 //pub fn create_anthology(entries: Vec<AnthologyEntry>) -> Result<dyn Read>;
 
-
 /// "mcap anthology create"
 pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
     // need a catalog -- waiting for shapr's PR to "promote" it to top-level
     let mut catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
 
-    if ! directory.is_dir() {
-        return Err(MagicCapError::GenericError("Anthology is not a directory".to_string()));
+    if !directory.is_dir() {
+        return Err(MagicCapError::GenericError(
+            "Anthology is not a directory".to_string(),
+        ));
     }
 
     // refactor into own function
@@ -526,13 +526,14 @@ pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
                 let mut builder = catalog.insert(4096).expect("Creating catalog entry");
                 let mut path: std::path::PathBuf = directory.clone();
                 path.push(p.file_name());
-                let mut plaintext = std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
+                let mut plaintext =
+                    std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
                 let written = std::io::copy(&mut plaintext, &mut builder).expect("Copy failed");
                 let (cap, _) = builder.done().expect("Failed to finalize Immutable");
                 eprintln!("{}: {} bytes", path.display(), written);
                 anthology.push(AnthologyEntry {
                     name: format!("{}", p.file_name().display()),
-                    cap
+                    cap,
                 });
             }
         }
@@ -543,7 +544,9 @@ pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
     }
 
     // refactor into its own function, probably
-    let mut builder = catalog.insert(4096).expect("Create catalog anthology entry");
+    let mut builder = catalog
+        .insert(4096)
+        .expect("Create catalog anthology entry");
     for entry in anthology {
         writeln!(builder, "{} {}", entry.cap, entry.name).expect("Writing anthology entry");
     }
@@ -568,7 +571,9 @@ pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
             debug!("{:?}", line);
             let two: Vec<&str> = line.split(" ").collect();
             if two.len() != 2 {
-                return Err(MagicCapError::GenericError("illegal line in Anthology".to_string()));
+                return Err(MagicCapError::GenericError(
+                    "illegal line in Anthology".to_string(),
+                ));
             }
             let name = two[1];
             println!("{}", name);
