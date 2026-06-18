@@ -96,7 +96,7 @@
 //! ```
 //!
 
-use tracing::{debug, info};
+use tracing::{debug};
 
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
@@ -297,7 +297,7 @@ pub fn main_decrypt(
     } else if let Some(root) = catalog {
         let collect = ImmutableDirectoryCatalog::create(root.clone())?;
         let locid: ImmutableIdentifier = (&cap).into();
-        info!("Loading location {}", locid);
+        debug!("Loading location {}", locid);
         collect.load(&locid)
     } else {
         Err(MagicCapError::GenericError(
@@ -502,43 +502,78 @@ pub struct AnthologyEntry {
     cap: ImmutableReadCap,
 }
 
+//todo: something like?
+//pub fn create_anthology(entries: Vec<AnthologyEntry>) -> Result<dyn Read>;
+
 
 /// "mcap anthology create"
 pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
     // need a catalog -- waiting for shapr's PR to "promote" it to top-level
     let mut catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
 
-    debug!("{:?}", catalog);
+    if ! directory.is_dir() {
+        return Err(MagicCapError::GenericError("Anthology is not a directory".to_string()));
+    }
 
+    // refactor into own function
     let mut anthology: Vec<AnthologyEntry> = vec![];
 
-    if directory.is_dir() {
-        println!("okay");
-        for p in directory.read_dir().expect("Cannot list directory") {
-            if let Ok(p) = p {
-                let t = p.file_type().expect("Cannot stat file");
-                if t.is_file() {
-                    debug!("Encoding file {:?}", p.file_name());
-                    let mut builder = catalog.insert(4096).expect("Creating catalog entry");
-                    let mut path: std::path::PathBuf = directory.clone();
-                    path.push(p.file_name());
-                    let mut plaintext = std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
-                    let w = std::io::copy(&mut plaintext, &mut builder).expect("Copy failed");
-                    println!("{}: {} bytes", path.display(), w);
-                    println!("{:?}", plaintext);
-                    let (cap, _) = builder.done().unwrap();
-                    anthology.push(AnthologyEntry {
-                        name: format!("{}", path.display()),
-                        cap
-                    });
-                }
+    for p in directory.read_dir().expect("Cannot list directory") {
+        if let Ok(p) = p {
+            let t = p.file_type().expect("Cannot stat file");
+            if t.is_file() {
+                debug!("Encoding file {:?}", p.file_name());
+                let mut builder = catalog.insert(4096).expect("Creating catalog entry");
+                let mut path: std::path::PathBuf = directory.clone();
+                path.push(p.file_name());
+                let mut plaintext = std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
+                let written = std::io::copy(&mut plaintext, &mut builder).expect("Copy failed");
+                let (cap, _) = builder.done().expect("Failed to finalize Immutable");
+                println!("{}: {} bytes", path.display(), written);
+                anthology.push(AnthologyEntry {
+                    name: format!("{}", p.file_name().display()),
+                    cap
+                });
             }
         }
     }
 
+    if anthology.len() == 0 {
+        return Err(MagicCapError::GenericError("Empty Anthology".to_string()));
+    }
+
+    // refactor into its own function, probably
+    let mut builder = catalog.insert(4096).expect("Create catalog anthology entry");
+    for entry in anthology {
+        writeln!(builder, "{} {}", entry.cap, entry.name).expect("Writing anthology entry");
+    }
+    let (cap, _) = builder.done().expect("Failed to finalize Immutable");
+    println!("{}", cap);
+
     Ok(())
 }
 
-pub fn main_anthology_list(capstr: &String) -> Result<(), MagicCapError> {
-    todo!()
+pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
+    // need a catalog -- waiting for shapr's PR to "promote" it to top-level
+    let catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
+    let cap: ImmutableReadCap = capstr.try_into()?;
+
+    let id: ImmutableIdentifier = cap.clone().into();
+    let mut anthology = catalog.load(&id)?;
+    let plaintext = cap.decrypt(&mut anthology)?;
+
+    debug!("{:?}", anthology.metadata);
+    for line in plaintext.lines() {
+        if let Ok(line) = line {
+            debug!("{:?}", line);
+            let two: Vec<&str> = line.split(" ").collect();
+            if two.len() != 2 {
+                return Err(MagicCapError::GenericError("illegal line in Anthology".to_string()));
+            }
+            let name = two[1];
+            println!("{}", name);
+        }
+    }
+
+    Ok(())
 }

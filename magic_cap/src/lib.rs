@@ -509,7 +509,6 @@ where
         // boring way
         trace!("ImmutableBuilder::write: {} bytes", buf.len());
         self.this_block.write(buf)?;
-        let mut local_written = 0;
         // if we have a non-full block of plaintext when done() is
         // called, it is padded with 0's and encrypted as the final
         // block.
@@ -524,7 +523,6 @@ where
             };
             // write out a block
             self.output.write_all(&encrypted_block)?;
-            local_written += encrypted_block.len();
             self.ciphertext_bytes += encrypted_block.len();
         }
 
