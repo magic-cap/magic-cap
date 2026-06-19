@@ -10,7 +10,7 @@ use tracing_subscriber::FmtSubscriber;
 use std::path::PathBuf;
 use url::Url;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, builder::*, ValueEnum};
 use tracing::{Level, debug, error};
 
 #[derive(Parser)]
@@ -38,7 +38,7 @@ struct Cli {
     #[arg(short, long, default_value_t = Level::INFO)]
     loglevel: Level,
     // todo: maybe promote --catalog up here?
-    // ("mcap reduce" doesn't use it, and not all "mcap debug" command swill, ...)
+    // ("mcap reduce" doesn't use it, and not all "mcap debug" commands will, ...)
     // maybe clap gives us a way to say "--catalog is illegal for ..."?
 }
 
@@ -95,37 +95,12 @@ enum Commands {
 
     #[command(about = "turn a Read Cap + ciphertext into plaintext")]
     Decrypt {
+        // this flatten is VERY IMPORTANT and took me days to discover.
+        #[command(flatten)]
+        ciphertext_loader: CiphertextLoad,
+
         // non-optional magic-cap string
         cap: String,
-
-        // todo: shae says we can put these in a group .. see
-        // https://stackoverflow.com/questions/76315540/how-do-i-require-one-of-the-two-clap-options/76315811#76315811
-        #[arg(
-            long,
-            value_name("PATH"),
-            env("MCAP_CATALOG"),
-            help("root directory of a ciphertext catalog")
-        )]
-        catalog: Option<PathBuf>,
-
-        #[arg(
-            long,
-            value_name("URL"),
-            env("MCAP_URL"),
-            help("root URL of a ciphertext catalog")
-        )]
-        catalog_url: Option<Url>,
-
-        #[arg(
-            short,
-            long,
-            value_name("FNAME"),
-            help("path to a .mcap ciphertext file")
-        )]
-        ciphertext: Option<PathBuf>,
-
-        #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
-        url: Option<Url>,
 
         #[arg(
             short,
@@ -174,6 +149,51 @@ enum Commands {
     },
 }
 
+
+/// When decrypting ciphertext, where is that ciphertext?
+/// Catalog or File?
+#[derive(Args, Clone)]
+#[group(required = true, multiple = true)]
+struct CiphertextLoad {
+    #[arg(
+        long,
+        value_name("PATH"),
+        env("MCAP_CATALOG"),
+        help("root directory of a ciphertext catalog"),
+    )]
+    local_catalog: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name("URL"),
+        env("MCAP_URL"),
+        help("root URL of a ciphertext catalog")
+    )]
+    url_catalog: Option<Url>,
+
+    #[arg(
+        short,
+        long,
+        value_name("FNAME"),
+        help("path to a .mcap ciphertext file"),
+    )]
+    local_file: Option<PathBuf>,
+
+    #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
+    url_file: Option<Url>,
+}
+
+/// When encrypting, where does the output go?
+/// Catalog, File, or both?
+#[derive(Args,Clone,Debug)]
+#[group(multiple = true)]
+struct CiphertextStore {
+    // index in a catalog
+    catalog: Option<PathBuf>,
+    // write to an output file
+    file: Option<PathBuf>,
+}
+
 fn main() {
     let cli = Cli::parse();
     // This will show TRACE, DEBUG, INFO, WARN and ERROR; see tokio's tracing examples
@@ -202,20 +222,20 @@ fn main() {
         ),
         Some(Commands::Decrypt {
             cap,
-            catalog,
-            catalog_url,
-            ciphertext,
-            url,
+            ciphertext_loader: ciphertext_load,
             plaintext,
-        }) => main_decrypt(
-            &mut std::io::stdout(),
-            cap,
-            catalog,
-            catalog_url,
-            ciphertext,
-            url,
-            plaintext,
-        ),
+        }) => {
+            let cl = ciphertext_load;
+            main_decrypt(
+                &mut std::io::stdout(),
+                cap,
+                &cl.local_catalog,
+                &cl.url_catalog,
+                &cl.local_file,
+                &cl.url_file,
+                plaintext,
+            )
+        }
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         Some(Commands::Publish { catalog, output }) => {

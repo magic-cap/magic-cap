@@ -385,7 +385,7 @@ pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
 
     let hk = Hkdf::<Sha256>::new(None, key_bytes); //from_prk(&self.key).unwrap();
     let mut derived_key: Vec<u8> = vec![0u8; 32];
-    hk.expand(&info, &mut derived_key).unwrap();
+    hk.expand(info, &mut derived_key).unwrap();
 
     // newer versions of RustCrypto depend on "hybrid-array" instead
     // of "generic-array".  in (older) "generic-array" versions, there
@@ -976,7 +976,7 @@ impl ImmutableMetadata {
     pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
         decrypt_metadata(
             derive_key(&cap.key, "magic-cap-metadata-0"),
-            &(*self._secret_metadata),
+            &self._secret_metadata,
         )
         .unwrap()
     }
