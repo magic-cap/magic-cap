@@ -11,6 +11,11 @@
   - cargo fmt
   - cargo clippy
 
+- prose documentation:
+  - cargo install mdbook
+  - mdbook serve ./book/
+  - sensible-browser http://localhost:3000
+
 For memory use, there is a Nix flake for setup too.
   - nix run '.#memuse'
   - this should output something like:
