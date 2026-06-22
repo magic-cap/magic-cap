@@ -9,14 +9,25 @@ No accounts, no identities, store user data on untrusted providers.
 
 Written in Rust, we provide libraries to read and write data from various sources and a command-line tool for experimentation.
 
+> [!CAUTION]
+> This is a release-early library that has **not yet received cryptographic (or other) audits**.
+> We do appreciate feedback, but you own both pieces if you deploy to production :)
+
+
 ## Capabilities Over Accounts
 
 Inspired by the core ideas of "capability theory" embedded in Tahoe-LAFS, Magic Cap currently implements two kinds of "data capabilities" (or "Caps" for short).
 
+Immutable Read Cap
+  : can be exchanged for the plaintext (alongside a corresponding Data)
+
+Immutable Verify Cap
+  : used to check whether a corresponding Data is valid (but not see the plaintext)
+
 Plaintext is transformed into two pieces: encrypted Data and an associated Read Cap.
 Re-combining these two pieces later allows the software to recover the plaintext.
 The Read Cap is a short string (approximately 73 bytes).
-The size of the encrypted Data is the same as the plaintext (with a little overhead)
+The size of the encrypted Data is the same as the plaintext (plus a little overhead)
 
 Where and how the Data is stored, moved or transmitted is up to the application.
 Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage or even printed out or transcribed hard-copy.
@@ -71,3 +82,10 @@ So, members of an organzation could all have a complete copy of all organization
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.
 (Using the Anthology concept makes it easier to share many items with one Read Cap instead of many).
+
+
+## Next Steps
+
+This tool can be used via the available CLI, which exposes **most** of the Rust library functionality.
+
+In the next sections, we explore more of the details and how to access them via the CLI.
