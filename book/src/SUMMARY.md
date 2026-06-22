@@ -6,3 +6,4 @@
   - [Catalogs and Anthologies](./catalog-anthology.md)
   - [Retrieving via HTTP](./network-api.md)
 - [Command Line](./cli.md)
+- [Glossary](./glossary.md)

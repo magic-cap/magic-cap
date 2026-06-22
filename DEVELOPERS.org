@@ -46,20 +46,6 @@ python decode_cap.py kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfX
 :     mime-type: text/plain
 :     suggested-filename: /etc/passwd
 
-* Glossary
-
-**Read Cap**: a short base64-encoded string, can be used to decrypt Data
-
-**Data**: metadata + ciphertext that can unlocked with a "Read Cap"
-
-**Verify Cap**: a short base64-encoded string that can verify the validity of Data (but not decrypt it)
-
-A "Read Cap" (or "Verify Cap") "corresponds to" a given Data if it may decrypt (or only verify) it.
-
-**An Locator**: a random string derived from a "Read Cap" (or "Verify Cap") that uniquely identifies it (e.g. within a Catalog)
-
-**Catalog**: a collection of Data organized by "a Locator" (at some root directory or URL, for example)
-
 
 * Catalogs
 

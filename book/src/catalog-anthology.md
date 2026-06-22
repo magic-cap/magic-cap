@@ -4,20 +4,23 @@ When considering a group or collection of related items, we see two main possibi
 
 ## Catalogs
 
-One way is sort of like a library: a whole bunch of different titles, some perhaps related and other less so.
+One way is sort of like a library: a whole bunch of different titles, some perhaps related and others less so.
 Before the Internet, real-world libraries often used a "card catalog" to index the collection.
 So, for this sort of collection in Magic Cap, we name it a "Catalog".
 
 In this analogy, the "title" corresponds to the [Identifier](./locations.md) and the result is the ciphertext and associated metadata for the Read Cap (or Verify Cap) the Identifier is derived from.
 
-Using the CLI, the top-level `--catalog` option configurs Catalogs to use.
+Using the CLI, the top-level `--catalog` option configures Catalogs to use.
+
+You can ask the CLI to output the `Identifier` with `mcap debug locator` which will output the hex-string of the Identifier on stdout.
+
 
 ## Anthologies
 
 Another kind of collection is when we have two or more tightly-related items.
 For example, a collection of pictures to share with friends.
 Or a group of HTML, CSS and images that comprise a Web site or blog post.
-The sort of thing one might typically use a Zip file for.
+Anything that one might typically use a Zip file for.
 
 We name this sort of collection an "Anthology" to stay with the book analogy: several related books or stories or poems are collected together in a single anthology.
 
