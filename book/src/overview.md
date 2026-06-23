@@ -13,26 +13,33 @@ Written in Rust, we provide libraries to read and write data from various source
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
 
+![overview diagram of magic-cap turning plaintext into encrypted data + a read-capability](./mcap-encrypt.svg)
 
-## Capabilities Over Accounts
 
-Inspired by the core ideas of "capability theory" embedded in Tahoe-LAFS, Magic Cap currently implements two kinds of "data capabilities" (or "Caps" for short).
+## Capabilities *(not Accounts)*
 
-Immutable Read Cap
-  : can be exchanged for the plaintext (alongside a corresponding Data)
+Plaintext is transformed into an encrypted Data and a corresponding Read Cap.
+A Read Cap may be transformed (offline) into a Verify Cap.
+The size of the Data is a few percent larger than the plaintext.
+Read and Verify Caps look like this:
 
-Immutable Verify Cap
-  : used to check whether a corresponding Data is valid (but not see the plaintext)
+```
+mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
+mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
+```
 
-Plaintext is transformed into two pieces: encrypted Data and an associated Read Cap.
-Re-combining these two pieces later allows the software to recover the plaintext.
-The Read Cap is a short string (approximately 73 bytes).
-The size of the encrypted Data is the same as the plaintext (plus a little overhead)
+Anyone with both a Read Cap and the corresponding Data can turn it back into the plaintext.
+
+Anyone with both a Verify Cap and the corresponding Data can confirm the ciphertext is correct and well-formed (but cannot see the plaintext)
+
+This allows many use-cases, facilitating direct peer interactions since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
+
+Magic Cap is inspired by the core ideas of "capability theory" embedded in Tahoe-LAFS.
 
 Where and how the Data is stored, moved or transmitted is up to the application.
 Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage or even printed out or transcribed hard-copy.
 
-This gives users of this library a lot of choice, while keeping the core simple to think about.
+This gives users of this library a lot of choice, while keeping the core concepts straightforware to reason about.
 
 
 ## Use Case Examples

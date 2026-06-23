@@ -7,11 +7,11 @@ The HTTP API is rooted at some base URI.
 (On the command-line, this is the `--catalog-url` option).
 Following this, we have some additional valid sub-URLs:
 
-`/magic-cap-catalog`
+`GET /magic-cap-catalog`
   : JSON describing this Catalog. Currently contains simply `{"version": 0}`
 
-`/<identifier>/metadata`
+`GET /<identifier>/metadata`
   : the encoded metadata (including the encrypted portion) for the given [Identifier](./locations.md).
 
-`/<identifier>/ciphertext`
-  : the ciphertext blocks, one after the other. A client that wishes to do random-access to particular blocks could use HTTP Range Requests to do so. The block size is encoded in the metadata.
+`GET /<identifier>/ciphertext`
+  : the ciphertext blocks, one after the other. A client that wishes to do random-access to particular blocks could use HTTP `Range:` Requests to do so. The block size is encoded in the metadata.
