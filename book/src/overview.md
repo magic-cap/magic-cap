@@ -1,11 +1,10 @@
 # Magic Cap Overview
 
-Storage is boring.
+**Storage is *boring*** &mdash; and we aim to **keep it that way**.
 
-We aim to keep it that way.
-Magic Cap keeps data encrypted giving you simple tools to control access.
+Magic Cap keeps private information encrypted and gives you simple tools to control access.
 
-No accounts, no identities, store user data on untrusted providers.
+No accounts, no identities, safely store user data on untrusted providers.
 
 Written in Rust, we provide libraries to read and write data from various sources and a command-line tool for experimentation.
 
@@ -29,7 +28,7 @@ There is a less-powerful "Verify Cap" that cannot see the plaintext but can conf
 Note that the Verify Cap cannot decrypt anything.
 
 
-## Capabilities *(not Accounts)*
+## Capabilities <i style="font-size: 75%">Without Accounts</i>
 
 Plaintext is transformed into an encrypted Data and a corresponding Read Cap.
 A Read Cap may be transformed (offline) into a Verify Cap.
@@ -48,6 +47,19 @@ Anyone with both a Verify Cap and the corresponding Data can confirm the ciphert
 This allows many use-cases, facilitating direct peer interactions since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
 
 Magic Cap is inspired by the core ideas of "capability theory" embedded in Tahoe-LAFS.
+
+Magic Cap currently implements two kinds of "data capabilities" (or "Caps" for short).
+
+Immutable Read Cap
+  : can be exchanged for the plaintext (alongside a corresponding Data)
+
+Immutable Verify Cap
+  : used to check whether a corresponding Data is valid (but not see the plaintext)
+
+Plaintext is transformed into two pieces: encrypted Data and an associated Read Cap.
+Re-combining these two pieces later allows the software to recover the plaintext.
+The Read Cap is a short string (approximately 73 bytes).
+The size of the encrypted Data is the same as the plaintext (plus a little overhead)
 
 Where and how the Data is stored, moved or transmitted is up to the application.
 Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage or even printed out or transcribed hard-copy.
