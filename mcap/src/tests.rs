@@ -1,10 +1,12 @@
 #[cfg(test)]
 pub mod test {
     use crate::{main_decrypt, main_encrypt, main_reduce, main_verify};
+    use magic_cap::ImmutableReadCap;
     use magic_cap::err::MagicCapError;
     use proptest::prelude::*;
     use std::fs::File;
     use std::io::{Read, Write};
+    use std::str::FromStr;
     use tempfile::tempdir;
 
     #[test]
@@ -53,7 +55,8 @@ pub mod test {
 
             // confirm that "decrypt" can turn back into plaintext
             let mut output = vec!();
-            main_decrypt(&mut output, capstr, &None, &None, &Some(cipher), &None, &Some(round.clone())).unwrap();
+            let immutable_read_cap = ImmutableReadCap::from_str(capstr).unwrap();
+            main_decrypt(&mut output, &immutable_read_cap, &None, &None, &Some(cipher), &None, &Some(round.clone())).unwrap();
 
             let mut og = String::new();
             let mut other = String::new();

@@ -201,7 +201,7 @@ pub fn main_encrypt(
 pub fn main_decrypt(
     //    input: &mut impl Read,
     output: &mut impl Write,
-    cap: &str,
+    cap: &ImmutableReadCap,
     catalog: &Option<PathBuf>,
     catalog_url: &Option<Url>,
     input_fname: &Option<PathBuf>,
@@ -219,7 +219,7 @@ pub fn main_decrypt(
         // so we can only do one
         todo!();
     }
-    let cap = ImmutableReadCap::try_from(cap)?;
+    // let cap = ImmutableReadCap::try_from(cap)?;
 
     if let Some(url) = input_url {
         let mut headers = HeaderMap::new();
@@ -282,7 +282,7 @@ pub fn main_decrypt(
     // TODO FIXME early return
     if let Some(root_url) = catalog_url {
         let collect = ImmutableWebCatalog::create(root_url.clone())?;
-        let locid: ImmutableIdentifier = (&cap).into();
+        let locid: ImmutableIdentifier = cap.into();
         let mut output = std::io::stdout().lock();
         let metadata = collect.fetch_metadata(&locid)?;
         let key = cap.create_tahoe_key();
@@ -296,7 +296,7 @@ pub fn main_decrypt(
         Immutable::read(&mut std::io::BufReader::new(f))
     } else if let Some(root) = catalog {
         let collect = ImmutableDirectoryCatalog::create(root.clone())?;
-        let locid: ImmutableIdentifier = (&cap).into();
+        let locid: ImmutableIdentifier = cap.into();
         debug!("Loading location {}", locid);
         collect.load(&locid)
     } else {

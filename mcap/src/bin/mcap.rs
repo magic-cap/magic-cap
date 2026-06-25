@@ -1,3 +1,4 @@
+use magic_cap::ImmutableReadCap;
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
     main_encrypt, main_publish, main_reduce, main_verify,
@@ -97,7 +98,7 @@ enum Commands {
         ciphertext_loader: CiphertextLoad,
 
         // non-optional magic-cap string
-        cap: String,
+        cap: ImmutableReadCap,
 
         #[arg(
             short,

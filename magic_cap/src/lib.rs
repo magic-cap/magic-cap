@@ -799,6 +799,8 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
     }
 }
 
+// clap wants FromStr
+// https://docs.rs/clap/latest/clap/_cookbook/typed_derive/index.html
 impl std::str::FromStr for ImmutableReadCap {
     type Err = MagicCapError;
 
