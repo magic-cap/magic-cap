@@ -199,7 +199,7 @@ pub fn main_encrypt(
 
 /// "mcap decrypt"
 pub fn main_decrypt(
-    //    input: &mut impl Read,
+    // TODO: why do we pass in stdout here?
     output: &mut impl Write,
     cap: &ImmutableReadCap,
     catalog: &Option<PathBuf>,
@@ -219,76 +219,20 @@ pub fn main_decrypt(
         // so we can only do one
         todo!();
     }
-    // let cap = ImmutableReadCap::try_from(cap)?;
 
     if let Some(url) = input_url {
-        let mut headers = HeaderMap::new();
-        // read the last 8 bytes to get the metadata offset
-        headers.insert("Range", "bytes=-8".parse().unwrap());
-        let result = reqwest::blocking::Client::new()
-            .get(url.clone())
-            .headers(headers)
-            .send();
-
-        if let Ok(result) = result {
-            debug!("{:?}", result);
-            let offset = result.bytes()?;
-            let offraw: Vec<u8> = offset.into();
-            let offslice: [u8; 8] = offraw.try_into().unwrap();
-            let off: u64 = u64::from_be_bytes(offslice);
-            debug!("bytes {:?} {:?}", offslice, off);
-
-            // request the metadata bytes (note that we're also
-            // reading the last-8-bytes but serde ignores that
-            // successfully)
-            headers = HeaderMap::new();
-            headers.insert("Range", format!("bytes={}-", off).parse().unwrap());
-
-            let result = reqwest::blocking::Client::new()
-                .get(url.clone())
-                .headers(headers)
-                .send()?;
-            debug!("{:?}", result);
-            let metadata_raw: Vec<u8> = result.bytes()?.into();
-            debug!("{} bytes", metadata_raw.len());
-            let mut mdbytes = metadata_raw.as_slice();
-            let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
-            debug!(
-                "size={} blocks={} block_size={}",
-                metadata.size, metadata.blocks, metadata.block_size
-            );
-
-            // now we request 'all the rest of the bytes' and stream
-            // them into the decryptor (which will write to the output
-            // Write-able)
-            let mut output = std::io::stdout().lock();
-            let mut decryptor = cap.decrypt_stream(metadata, &mut output)?;
-
-            // skip the first 8 bytes, which are "mcap" + 32-byte version
-            // TODO: check those (version == 1 is the only one)
-            headers = HeaderMap::new();
-            headers.insert("Range", format!("bytes=8-{}", off).parse().unwrap());
-            let mut result = reqwest::blocking::Client::new()
-                .get(url.clone())
-                .headers(headers)
-                .send()
-                .unwrap();
-            // streams the incoming data to the decryptor object
-            result.copy_to(&mut decryptor)?;
-            return Ok(());
-        }
+        // now we request 'all the rest of the bytes' and stream
+        // them into the decryptor (which will write to the output
+        // Write-able)
+        InputUrl { url: url.clone() }.extract(cap.clone(), output)?
     }
 
-    // TODO FIXME early return
     if let Some(root_url) = catalog_url {
-        let collect = ImmutableWebCatalog::create(root_url.clone())?;
-        let locid: ImmutableIdentifier = cap.into();
-        let mut output = std::io::stdout().lock();
-        let metadata = collect.fetch_metadata(&locid)?;
-        let key = cap.create_tahoe_key();
-        let mut pusher = collect.stream_push(key, metadata, &mut output)?;
-        collect.copy_ciphertext_to(&locid, &mut pusher)?;
-        return Ok(());
+        // let mut output = std::io::stdout().lock();
+        CatalogUrl {
+            catalog_url: root_url.clone(),
+        }
+        .extract(cap.clone(), output)?
     }
 
     let immutable = if let Some(input_fname) = input_fname {
@@ -305,29 +249,39 @@ pub fn main_decrypt(
         ))
     };
 
+    if let Some(outfile) = outfile {
+        let mut output = std::fs::File::create(outfile)?;
+        // cap_match(&mut output, cap, outfile, immutable)
+        cap_match(&mut output, cap, immutable)
+        // out.write_all(plain.as_slice())?;
+        // match outfile.to_str() {
+        //     Some(of) => {
+        //         writeln!(
+        //             output,
+        //             "Wrote {} bytes of plaintext to \"{}\".",
+        //             plain.len(),
+        //             of,
+        //         )?;
+        //         Ok(())
+        //     }
+        //     None => Ok(()),
+        // }
+    } else {
+        let mut output = std::io::stdout();
+        // cap_match(&mut output, cap, outfile, immutable)
+        cap_match(&mut output, cap, immutable)
+        // out.write_all(plain.as_slice())?;
+    }
+}
+
+fn cap_match(
+    output: &mut impl Write,
+    cap: &ImmutableReadCap,
+    // outfile: &Option<PathBuf>,
+    immutable: Result<Immutable<'_>, MagicCapError>,
+) -> Result<(), MagicCapError> {
     match cap.decrypt(&mut immutable?) {
-        Ok(plain) => {
-            if let Some(outfile) = outfile {
-                let mut out = std::fs::File::create(outfile)?;
-                out.write_all(plain.as_slice())?;
-                match outfile.to_str() {
-                    Some(of) => {
-                        writeln!(
-                            output,
-                            "Wrote {} bytes of plaintext to \"{}\".",
-                            plain.len(),
-                            of,
-                        )?;
-                        Ok(())
-                    }
-                    None => Ok(()),
-                }
-            } else {
-                let mut out = std::io::stdout();
-                out.write_all(plain.as_slice())?;
-                Ok(())
-            }
-        }
+        Ok(plain) => Ok(output.write_all(plain.as_slice())?),
         Err(e) => match &e {
             MagicCapError::McapMetadataDiscordant() => Err(e),
             _ => {
@@ -581,4 +535,111 @@ pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
     }
 
     Ok(())
+}
+
+struct InputUrl {
+    url: Url,
+}
+struct CatalogUrl {
+    catalog_url: Url,
+}
+struct InputFile {
+    input_file: PathBuf,
+}
+
+pub trait Locator {
+    fn extract(
+        &self,
+        readcap: ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError>;
+}
+
+impl Locator for InputUrl {
+    fn extract(
+        &self,
+        readcap: ImmutableReadCap,
+        mut output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        let mut headers = HeaderMap::new();
+        // read the last 8 bytes to get the metadata offset
+        headers.insert("Range", "bytes=-8".parse().unwrap());
+        let result = reqwest::blocking::Client::new()
+            .get(self.url.clone())
+            .headers(headers)
+            .send()?;
+
+        debug!("{:?}", result);
+        let offset = result.bytes()?;
+        let offraw: Vec<u8> = offset.into();
+        let offslice: [u8; 8] = offraw.try_into().unwrap();
+        let off: u64 = u64::from_be_bytes(offslice);
+        debug!("bytes {:?} {:?}", offslice, off);
+
+        // request the metadata bytes (note that we're also
+        // reading the last-8-bytes but serde ignores that
+        // successfully)
+        headers = HeaderMap::new();
+        headers.insert("Range", format!("bytes={}-", off).parse().unwrap());
+
+        let result = reqwest::blocking::Client::new()
+            .get(self.url.clone())
+            .headers(headers)
+            .send()?;
+        debug!("{:?}", result);
+        let metadata_raw: Vec<u8> = result.bytes()?.into();
+        debug!("{} bytes", metadata_raw.len());
+        let mut mdbytes = metadata_raw.as_slice();
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
+        debug!(
+            "size={} blocks={} block_size={}",
+            metadata.size, metadata.blocks, metadata.block_size
+        );
+
+        let mut decryptor = readcap.decrypt_stream(metadata, &mut output)?;
+
+        // skip the first 8 bytes, which are "mcap" + 32-byte version
+        // TODO: check those (version == 1 is the only one)
+        headers = HeaderMap::new();
+        headers.insert("Range", format!("bytes=8-{}", off).parse().unwrap());
+        let mut result = reqwest::blocking::Client::new()
+            .get(self.url.clone())
+            .headers(headers)
+            .send()
+            .unwrap();
+        // streams the incoming data to the decryptor object
+        result.copy_to(&mut decryptor)?;
+        Ok(())
+    }
+}
+
+impl Locator for CatalogUrl {
+    fn extract(
+        &self,
+        readcap: ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
+        let tahoe_cap = readcap.clone();
+        let locid: ImmutableIdentifier = readcap.into();
+        let metadata = collect.fetch_metadata(&locid)?;
+        let key = tahoe_cap.create_tahoe_key();
+        let mut pusher = collect.stream_push(key, metadata, output)?;
+        collect.copy_ciphertext_to(&locid, &mut pusher)?;
+        Ok(())
+    }
+}
+
+impl Locator for InputFile {
+    fn extract(
+        &self,
+        readcap: ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        let f = std::fs::File::open(self.input_file.clone())?;
+        let immutable = Immutable::read(&mut std::io::BufReader::new(f));
+
+        // cap_match(output, &readcap, outfile, immutable)
+        cap_match(output, &readcap, immutable)
+    }
 }

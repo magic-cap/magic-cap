@@ -147,7 +147,6 @@ enum Commands {
     },
 }
 
-
 /// When decrypting ciphertext, where is that ciphertext?
 /// Catalog or File?
 #[derive(Args, Clone)]
@@ -157,7 +156,7 @@ struct CiphertextLoad {
         long,
         value_name("PATH"),
         env("MCAP_CATALOG"),
-        help("root directory of a ciphertext catalog"),
+        help("root directory of a ciphertext catalog")
     )]
     local_catalog: Option<PathBuf>,
 
@@ -173,7 +172,7 @@ struct CiphertextLoad {
         short,
         long,
         value_name("FNAME"),
-        help("path to a .mcap ciphertext file"),
+        help("path to a .mcap ciphertext file")
     )]
     local_file: Option<PathBuf>,
 
@@ -183,7 +182,7 @@ struct CiphertextLoad {
 
 /// When encrypting, where does the output go?
 /// Catalog, File, or both?
-#[derive(Args,Clone,Debug)]
+#[derive(Args, Clone, Debug)]
 #[group(multiple = true)]
 struct CiphertextStore {
     // index in a catalog
