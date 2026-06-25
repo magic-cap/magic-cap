@@ -23,7 +23,7 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 
 #+CAPTION: Depiction of 'mcap decrypt' visualizing the resulting data + Magic Cap
 #+NAME:   fig:encrypt
-[[./diagrams/mcap-encrypt.svg]]
+[[./book/src/diagrams/mcap-encrypt.svg]]
 
 * Try It Right Now!
 
@@ -140,7 +140,7 @@ Presenting a different Magic Cap will not work.
 
 #+CAPTION: Depiction of combing a Magic Cap and corresponding Data File to produce the original
 #+NAME: fig:decrypt
-[[./diagrams/mcap-decrypt.svg]]
+[[./book/src/diagrams/mcap-decrypt.svg]]
 
 It's also possible to turn the Magic Cap into a less-powerful Magic Verify Cap which can only confirm that the ciphertext is correct.
 This "Verify Cap" lacks the secret needed to decrypt the ciphertext.
@@ -149,7 +149,7 @@ Astute readers may have already noticed that a Verify Cap is just a Magic Cap wi
 
 #+CAPTION: Depiction of verifying ciphertext with a Magic Verify Cap (but can't see plaintext)
 #+NAME: fig:verify
-[[./diagrams/mcap-verify.svg]]
+[[.book/src/diagrams/mcap-verify.svg]]
 
 This unrestricted sharing is an important features of Magic Caps: users (or software written on their behalf) are empowered to make their own decisions.
 
@@ -164,7 +164,7 @@ The remaining two fields are URL-safe Base64 encoded bytes.
 
 #+CAPTION: Contents of the various fields of a Magic Cap
 #+NAME: fig:magic-cap
-[[./diagrams/mcap-contents.svg]]
+[[.book/src/diagrams/mcap-contents.svg]]
 
 One field is the hash of the "metadata" portion of the Data File -- this allows the software to confirm that a particular Magic Cap corresponds to the Data File.
 There is a Merkle Tree over the ciphertext blocks included in the metadata, which can also be checked (and may be useful for random-access or streaming use-cases where only some blocks of ciphertext are immediately available).

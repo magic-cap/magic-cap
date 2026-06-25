@@ -13,7 +13,7 @@ Written in Rust, we provide libraries to read and write data from various source
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
 
-![overview diagram of magic-cap turning plaintext into encrypted data + a read-capability](./mcap-encrypt.svg)
+![overview diagram of magic-cap turning plaintext into encrypted data + a read-capability](./diagrams/mcap-encrypt.svg)
 
 
 ## Capabilities *(not Accounts)*
