@@ -799,6 +799,15 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
     }
 }
 
+impl std::str::FromStr for ImmutableReadCap {
+    type Err = MagicCapError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        ImmutableReadCap::try_from(s)
+    }
+
+}
+
 fn vec_to_array<T, const BLOCKSIZE: usize>(v: Vec<T>) -> Result<[T; BLOCKSIZE], MagicCapError> {
     // todo: surely we can type this shorter, but we so far failed
     let result = v.try_into();
