@@ -22,6 +22,12 @@ Decrypting:
 
 ![overview diagram of magic-cap turning Data + Read Cap back into plaintext](./diagrams/mcap-decrypt.svg)
 
+There is a less-powerful "Verify Cap" that cannot see the plaintext but can confirm all the ciphertext is available and correct:
+
+![diagram of magic-cap Verify Cap confirming the validity of ciphertext](./diagrams/mcap-verify.svg)
+
+Note that the Verify Cap cannot decrypt anything.
+
 
 ## Capabilities *(not Accounts)*
 
