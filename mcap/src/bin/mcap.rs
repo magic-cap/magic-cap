@@ -10,7 +10,7 @@ use tracing_subscriber::FmtSubscriber;
 use std::path::PathBuf;
 use url::Url;
 
-use clap::{Args, Parser, Subcommand, builder::*, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 use tracing::{Level, debug, error};
 
 #[derive(Parser)]
@@ -83,11 +83,8 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-        #[arg(short, long)]
-        ciphertext: Option<PathBuf>,
-
-        #[arg(long)]
-        catalog: Option<PathBuf>,
+        #[command(flatten)]
+        ciphertext_store: CiphertextStore,
 
         #[arg(short, long, default_value_t = 4096)]
         blocksize: usize, // not Option because we have a default value
@@ -189,9 +186,11 @@ struct CiphertextLoad {
 #[group(multiple = true)]
 struct CiphertextStore {
     // index in a catalog
+    #[arg(long)]
     catalog: Option<PathBuf>,
-    // write to an output file
-    file: Option<PathBuf>,
+    // write to a local file
+    #[arg(short, long)]
+    output_file: Option<PathBuf>,
 }
 
 fn main() {
@@ -210,14 +209,13 @@ fn main() {
         // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
-            ciphertext,
-            catalog,
+            ciphertext_store,
             blocksize,
         }) => main_encrypt(
             &mut std::io::stdout(),
             plaintext,
-            ciphertext,
-            catalog,
+            &ciphertext_store.output_file,
+            &ciphertext_store.catalog,
             *blocksize,
         ),
         Some(Commands::Decrypt {
