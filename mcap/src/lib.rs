@@ -224,7 +224,7 @@ pub fn main_decrypt(
         // now we request 'all the rest of the bytes' and stream
         // them into the decryptor (which will write to the output
         // Write-able)
-        InputUrl { url: url.clone() }.extract(cap.clone(), output)?
+        FileUrl { url: url.clone() }.extract(&cap, output)?
     }
 
     if let Some(root_url) = catalog_url {
@@ -232,7 +232,7 @@ pub fn main_decrypt(
         CatalogUrl {
             catalog_url: root_url.clone(),
         }
-        .extract(cap.clone(), output)?
+        .extract(cap, output)?
     }
 
     let immutable = if let Some(input_fname) = input_fname {
@@ -249,11 +249,23 @@ pub fn main_decrypt(
         ))
     };
 
+    if let Some(file_local) = input_fname {
+        FileLocal {
+            file_local: file_local.clone(),
+        }
+        .extract(cap, output)?
+    }
+
+    if let Some(catalog_local) = catalog {
+        CatalogLocal{catalog_local: catalog_local.to_path_buf()}.extract(cap, output)?
+        // CatalogLocal
+    }
+
+    // decrypt to a file or stdout?
     if let Some(outfile) = outfile {
         let mut output = std::fs::File::create(outfile)?;
-        // cap_match(&mut output, cap, outfile, immutable)
+
         cap_match(&mut output, cap, immutable)
-        // out.write_all(plain.as_slice())?;
         // match outfile.to_str() {
         //     Some(of) => {
         //         writeln!(
@@ -537,28 +549,31 @@ pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
     Ok(())
 }
 
-struct InputUrl {
+struct FileUrl {
     url: Url,
 }
 struct CatalogUrl {
     catalog_url: Url,
 }
-struct InputFile {
-    input_file: PathBuf,
+struct FileLocal {
+    file_local: PathBuf,
+}
+struct CatalogLocal {
+    catalog_local: PathBuf,
 }
 
 pub trait Locator {
     fn extract(
         &self,
-        readcap: ImmutableReadCap,
+        readcap: &ImmutableReadCap,
         output: &mut impl Write,
     ) -> Result<(), MagicCapError>;
 }
 
-impl Locator for InputUrl {
+impl Locator for FileUrl {
     fn extract(
         &self,
-        readcap: ImmutableReadCap,
+        readcap: &ImmutableReadCap,
         mut output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
         let mut headers = HeaderMap::new();
@@ -616,7 +631,7 @@ impl Locator for InputUrl {
 impl Locator for CatalogUrl {
     fn extract(
         &self,
-        readcap: ImmutableReadCap,
+        readcap: &ImmutableReadCap,
         output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
         let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
@@ -630,16 +645,29 @@ impl Locator for CatalogUrl {
     }
 }
 
-impl Locator for InputFile {
+impl Locator for FileLocal {
     fn extract(
         &self,
-        readcap: ImmutableReadCap,
+        readcap: &ImmutableReadCap,
         output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
-        let f = std::fs::File::open(self.input_file.clone())?;
+        let f = std::fs::File::open(self.file_local.clone())?;
         let immutable = Immutable::read(&mut std::io::BufReader::new(f));
 
         // cap_match(output, &readcap, outfile, immutable)
+        cap_match(output, &readcap, immutable)
+    }
+}
+impl Locator for CatalogLocal {
+    fn extract(
+        &self,
+        readcap: &ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+                let collect = ImmutableDirectoryCatalog::create(self.catalog_local.clone())?;
+        let locid: ImmutableIdentifier = readcap.into();
+        debug!("Loading location {}", locid);
+        let immutable = collect.load(&locid);
         cap_match(output, &readcap, immutable)
     }
 }
