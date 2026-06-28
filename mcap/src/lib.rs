@@ -208,23 +208,11 @@ pub fn main_decrypt(
     input_url: &Option<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
-    if input_fname.is_some() && input_url.is_some() {
-        todo!();
-        // similar to below, use type system to say "either PathBuf OR Url"
-    }
-    if catalog.is_some() && input_fname.is_some() {
-        // could be error, could say "if filename doesn't exist then use catalog"
-        //
-        // take a Enum in here that is a Catalog OR a input_fname OR catalog-url
-        // so we can only do one
-        todo!();
-    }
-
     if let Some(url) = input_url {
         // now we request 'all the rest of the bytes' and stream
         // them into the decryptor (which will write to the output
         // Write-able)
-        FileUrl { url: url.clone() }.extract(&cap, output)?
+        FileUrl { url: url.clone() }.extract(cap, output)?
     }
 
     if let Some(root_url) = catalog_url {
@@ -235,54 +223,31 @@ pub fn main_decrypt(
         .extract(cap, output)?
     }
 
-    let immutable = if let Some(input_fname) = input_fname {
-        let f = std::fs::File::open(input_fname)?;
-        Immutable::read(&mut std::io::BufReader::new(f))
-    } else if let Some(root) = catalog {
-        let collect = ImmutableDirectoryCatalog::create(root.clone())?;
-        let locid: ImmutableIdentifier = cap.into();
-        debug!("Loading location {}", locid);
-        collect.load(&locid)
-    } else {
-        Err(MagicCapError::GenericError(
-            "Must provide either --ciphertext or --catalog or --catalog-url".to_string(),
-        ))
-    };
+    // decrypt to a file or stdout?
+    let mut output = ugly_wrapper(outfile) as Box<dyn Write>;
 
     if let Some(file_local) = input_fname {
         FileLocal {
             file_local: file_local.clone(),
         }
-        .extract(cap, output)?
+        .extract(cap, &mut output)?
     }
 
     if let Some(catalog_local) = catalog {
-        CatalogLocal{catalog_local: catalog_local.to_path_buf()}.extract(cap, output)?
-        // CatalogLocal
+        CatalogLocal {
+            catalog_local: catalog_local.to_path_buf(),
+        }
+        .extract(cap, &mut output)?;
     }
 
-    // decrypt to a file or stdout?
-    if let Some(outfile) = outfile {
-        let mut output = std::fs::File::create(outfile)?;
+    Ok(())
+}
 
-        cap_match(&mut output, cap, immutable)
-        // match outfile.to_str() {
-        //     Some(of) => {
-        //         writeln!(
-        //             output,
-        //             "Wrote {} bytes of plaintext to \"{}\".",
-        //             plain.len(),
-        //             of,
-        //         )?;
-        //         Ok(())
-        //     }
-        //     None => Ok(()),
-        // }
+fn ugly_wrapper(maybe_output_file: &Option<PathBuf>) -> Box<dyn Write> {
+    if let Some(output_file) = maybe_output_file {
+        Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
     } else {
-        let mut output = std::io::stdout();
-        // cap_match(&mut output, cap, outfile, immutable)
-        cap_match(&mut output, cap, immutable)
-        // out.write_all(plain.as_slice())?;
+        Box::new(std::io::stdout()) as Box<dyn Write>
     }
 }
 
@@ -655,7 +620,7 @@ impl Locator for FileLocal {
         let immutable = Immutable::read(&mut std::io::BufReader::new(f));
 
         // cap_match(output, &readcap, outfile, immutable)
-        cap_match(output, &readcap, immutable)
+        cap_match(output, readcap, immutable)
     }
 }
 impl Locator for CatalogLocal {
@@ -664,10 +629,10 @@ impl Locator for CatalogLocal {
         readcap: &ImmutableReadCap,
         output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
-                let collect = ImmutableDirectoryCatalog::create(self.catalog_local.clone())?;
+        let collect = ImmutableDirectoryCatalog::create(self.catalog_local.clone())?;
         let locid: ImmutableIdentifier = readcap.into();
         debug!("Loading location {}", locid);
         let immutable = collect.load(&locid);
-        cap_match(output, &readcap, immutable)
+        cap_match(output, readcap, immutable)
     }
 }
