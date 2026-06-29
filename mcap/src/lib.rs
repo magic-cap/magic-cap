@@ -208,23 +208,23 @@ pub fn main_decrypt(
     input_url: &Option<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
+    // decrypt to a file or stdout?
+    let mut output: Box<dyn Write> = ugly_wrapper(outfile);
+
     if let Some(url) = input_url {
         // now we request 'all the rest of the bytes' and stream
         // them into the decryptor (which will write to the output
         // Write-able)
-        FileUrl { url: url.clone() }.extract(cap, output)?
+        FileUrl { url: url.clone() }.extract(cap, &mut output)?
     }
 
     if let Some(root_url) = catalog_url {
-        // let mut output = std::io::stdout().lock();
         CatalogUrl {
             catalog_url: root_url.clone(),
         }
-        .extract(cap, output)?
+        .extract(cap, &mut output)?
     }
 
-    // decrypt to a file or stdout?
-    let mut output = ugly_wrapper(outfile) as Box<dyn Write>;
 
     if let Some(file_local) = input_fname {
         FileLocal {
@@ -245,6 +245,7 @@ pub fn main_decrypt(
 
 fn ugly_wrapper(maybe_output_file: &Option<PathBuf>) -> Box<dyn Write> {
     if let Some(output_file) = maybe_output_file {
+        debug!("creating output_file {:?}",output_file);
         Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
     } else {
         Box::new(std::io::stdout()) as Box<dyn Write>

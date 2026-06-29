@@ -131,6 +131,7 @@ impl ImmutableWebCatalog {
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
         let url = root.clone();
         let url = url.join("magic-cap-catalog").unwrap();
+        debug!("url is {}",url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
         let js = result.text()?;
         let js: Value = serde_json::from_str(js.as_str()).unwrap();
