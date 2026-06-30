@@ -199,8 +199,6 @@ pub fn main_encrypt(
 
 /// "mcap decrypt"
 pub fn main_decrypt(
-    // TODO: why do we pass in stdout here?
-    output: &mut impl Write,
     cap: &ImmutableReadCap,
     catalog: &Option<PathBuf>,
     catalog_url: &Option<Url>,
@@ -225,7 +223,6 @@ pub fn main_decrypt(
         .extract(cap, &mut output)?
     }
 
-
     if let Some(file_local) = input_fname {
         FileLocal {
             file_local: file_local.clone(),
@@ -245,7 +242,7 @@ pub fn main_decrypt(
 
 fn ugly_wrapper(maybe_output_file: &Option<PathBuf>) -> Box<dyn Write> {
     if let Some(output_file) = maybe_output_file {
-        debug!("creating output_file {:?}",output_file);
+        debug!("creating output_file {:?}", output_file);
         Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
     } else {
         Box::new(std::io::stdout()) as Box<dyn Write>

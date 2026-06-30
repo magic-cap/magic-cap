@@ -225,7 +225,6 @@ fn main() {
         }) => {
             let cl = ciphertext_load;
             main_decrypt(
-                &mut std::io::stdout(),
                 cap,
                 &cl.local_catalog,
                 &cl.url_catalog,
