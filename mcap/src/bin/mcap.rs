@@ -158,7 +158,7 @@ struct CiphertextLoad {
         env("MCAP_CATALOG"),
         help("root directory of a ciphertext catalog")
     )]
-    local_catalog: Option<PathBuf>,
+    local_catalog: Vec<PathBuf>,
 
     #[arg(
         long,
@@ -166,7 +166,7 @@ struct CiphertextLoad {
         env("MCAP_URL"),
         help("root URL of a ciphertext catalog")
     )]
-    url_catalog: Option<Url>,
+    url_catalog: Vec<Url>,
 
     #[arg(
         short,

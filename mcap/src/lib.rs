@@ -200,19 +200,19 @@ pub fn main_encrypt(
 /// "mcap decrypt"
 pub fn main_decrypt(
     cap: &ImmutableReadCap,
-    catalog: &Option<PathBuf>,
-    catalog_url: &Option<Url>,
+    catalog: &Vec<PathBuf>,
+    catalog_url: &Vec<Url>,
     input_fname: &Option<PathBuf>,
     input_url: &Option<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     // decrypt to a file or stdout?
     let mut output: Box<dyn Write> = if let Some(output_file) = outfile {
-            debug!("creating output_file {:?}", output_file);
-            Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
-        } else {
-            Box::new(std::io::stdout()) as Box<dyn Write>
-        };
+        debug!("creating output_file {:?}", output_file);
+        Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
+    } else {
+        Box::new(std::io::stdout()) as Box<dyn Write>
+    };
 
     if let Some(url) = input_url {
         // now we request 'all the rest of the bytes' and stream
@@ -221,11 +221,13 @@ pub fn main_decrypt(
         FileUrl { url: url.clone() }.extract(cap, &mut output)?
     }
 
-    if let Some(root_url) = catalog_url {
-        CatalogUrl {
-            catalog_url: root_url.clone(),
+    if !catalog_url.is_empty() {
+        for this_url_catalog in catalog_url {
+            CatalogUrl {
+                catalog_url: this_url_catalog.clone(),
+            }
+            .extract(cap, &mut output)?
         }
-        .extract(cap, &mut output)?
     }
 
     if let Some(file_local) = input_fname {
@@ -235,11 +237,13 @@ pub fn main_decrypt(
         .extract(cap, &mut output)?
     }
 
-    if let Some(catalog_local) = catalog {
-        CatalogLocal {
-            catalog_local: catalog_local.to_path_buf(),
+    if !catalog.is_empty() {
+        for this_local_catalog in catalog {
+            CatalogLocal {
+                catalog_local: this_local_catalog.to_path_buf(),
+            }
+            .extract(cap, &mut output)?;
         }
-        .extract(cap, &mut output)?;
     }
 
     Ok(())
