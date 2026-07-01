@@ -207,7 +207,12 @@ pub fn main_decrypt(
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     // decrypt to a file or stdout?
-    let mut output: Box<dyn Write> = ugly_wrapper(outfile);
+    let mut output: Box<dyn Write> = if let Some(output_file) = outfile {
+            debug!("creating output_file {:?}", output_file);
+            Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
+        } else {
+            Box::new(std::io::stdout()) as Box<dyn Write>
+        };
 
     if let Some(url) = input_url {
         // now we request 'all the rest of the bytes' and stream
@@ -238,15 +243,6 @@ pub fn main_decrypt(
     }
 
     Ok(())
-}
-
-fn ugly_wrapper(maybe_output_file: &Option<PathBuf>) -> Box<dyn Write> {
-    if let Some(output_file) = maybe_output_file {
-        debug!("creating output_file {:?}", output_file);
-        Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
-    } else {
-        Box::new(std::io::stdout()) as Box<dyn Write>
-    }
 }
 
 fn cap_match(
