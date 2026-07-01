@@ -223,10 +223,18 @@ pub fn main_decrypt(
 
     if !catalog_url.is_empty() {
         for this_url_catalog in catalog_url {
-            CatalogUrl {
+            let this_result = CatalogUrl {
                 catalog_url: this_url_catalog.clone(),
             }
-            .extract(cap, &mut output)?
+            .extract(cap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    // the file was not found for this catalog, keep going!
+                    MagicCapError::ReqwestError(_error) => continue,
+                    _ => panic!("Something bad happened trying to find your file in a web catalog {err}"),
+                },
+            }
         }
     }
 
@@ -252,7 +260,6 @@ pub fn main_decrypt(
 fn cap_match(
     output: &mut impl Write,
     cap: &ImmutableReadCap,
-    // outfile: &Option<PathBuf>,
     immutable: Result<Immutable<'_>, MagicCapError>,
 ) -> Result<(), MagicCapError> {
     match cap.decrypt(&mut immutable?) {
@@ -597,11 +604,15 @@ impl Locator for CatalogUrl {
         readcap: &ImmutableReadCap,
         output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
+        debug!("before catalog create");
         let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
         let tahoe_cap = readcap.clone();
+        debug!("before readcap.into");
         let locid: ImmutableIdentifier = readcap.into();
+        debug!("before fetch_metadata");
         let metadata = collect.fetch_metadata(&locid)?;
         let key = tahoe_cap.create_tahoe_key();
+        debug!("before stream_push");
         let mut pusher = collect.stream_push(key, metadata, output)?;
         collect.copy_ciphertext_to(&locid, &mut pusher)?;
         Ok(())
@@ -617,7 +628,6 @@ impl Locator for FileLocal {
         let f = std::fs::File::open(self.file_local.clone())?;
         let immutable = Immutable::read(&mut std::io::BufReader::new(f));
 
-        // cap_match(output, &readcap, outfile, immutable)
         cap_match(output, readcap, immutable)
     }
 }
