@@ -9,7 +9,7 @@ fn main() {
         println!("Read Cap: {:?}", readcap);
 
         let verifycap: ImmutableVerifyCap = readcap.into();
-        if !verifycap.corresponds_to(&immutable) {
+        if !verifycap.corresponds_to(&immutable.metadata) {
             println!("Verify Cap does not match data");
         }
     }

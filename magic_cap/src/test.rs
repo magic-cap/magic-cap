@@ -20,7 +20,7 @@ fn doc_example_in_memory() {
         println!("Read Cap: {:?}", readcap);
 
         let verifycap: ImmutableVerifyCap = readcap.into();
-        if !verifycap.corresponds_to(&immutable) {
+        if !verifycap.corresponds_to(&immutable.metadata) {
             println!("Verify Cap does not match data");
         }
     }
@@ -51,7 +51,7 @@ fn doc_example_verify() {
         .try_into()
         .unwrap();
     let mut ciphertext = Immutable::read(File::open("../kitten.mcap").unwrap()).unwrap();
-    assert!(verifycap.corresponds_to(&ciphertext));
+    assert!(verifycap.corresponds_to(&ciphertext.metadata));
     verifycap.verify(&mut ciphertext).unwrap();
 }
 

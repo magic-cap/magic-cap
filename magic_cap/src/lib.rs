@@ -285,8 +285,8 @@ pub struct ImmutableVerifyCap {
 impl ImmutableVerifyCap {
     /// returns true IFF the hash of the passed metadata matches that
     /// in this VerifyCap
-    pub fn corresponds_to(&self, immutable: &Immutable) -> bool {
-        let h = ImmutableVerifyCap::from(&immutable.metadata);
+    pub fn corresponds_to(&self, metadata: &ImmutableMetadata) -> bool {
+        let h = ImmutableVerifyCap::from(metadata);
         h.metadata_hash == self.metadata_hash
     }
 }
@@ -300,7 +300,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.corresponds_to(immutable) {
+        if !self.corresponds_to(&immutable.metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -333,7 +333,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 /// A Cap that is able to both verify the ciphertext and decrypt it
 ///
 /// Use `Display` and `TryFrom` to convert to and from human-usable
-/// rendintions of this data.
+/// renditions of this data.
 ///
 /// For example:
 ///
@@ -630,7 +630,7 @@ impl ReadCap for ImmutableReadCap {
                 immutable.data_provider.block_size() as usize,
             ));
         }
-        if !self.verify.corresponds_to(immutable) {
+        if !self.verify.corresponds_to(&immutable.metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -681,7 +681,7 @@ impl ReadCap for ImmutableReadCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.verify.corresponds_to(immutable) {
+        if !self.verify.corresponds_to(&immutable.metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
