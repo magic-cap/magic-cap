@@ -59,7 +59,7 @@ pub mod test {
             // confirm that "decrypt" can turn back into plaintext
             let immutable_read_cap = ImmutableReadCap::from_str(capstr).unwrap();
             // XXX why does this test pass? The println at the top certainly runs! Something is wrong here!
-            main_decrypt(&immutable_read_cap, &vec![], &vec![], &Some(cipher), &None, &Some(round.clone())).unwrap();
+            main_decrypt(&immutable_read_cap, &vec![], &vec![], &vec![cipher], &None, &Some(round.clone())).unwrap();
 
             let mut og = String::new();
             let mut other = String::new();

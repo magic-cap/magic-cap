@@ -202,7 +202,7 @@ pub fn main_decrypt(
     readcap: &ImmutableReadCap,
     catalog_local: &Vec<PathBuf>,
     catalog_url: &Vec<Url>,
-    file_local: &Option<PathBuf>,
+    file_local: &Vec<PathBuf>,
     file_url: &Option<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
@@ -232,19 +232,33 @@ pub fn main_decrypt(
                 Err(err) => match err {
                     // the file was not found for this catalog, keep going!
                     MagicCapError::ReqwestError(_error) => continue,
-                    _ => panic!("Something bad happened trying to find your file in a web catalog {err}"),
+                    _ => panic!(
+                        "Something bad happened trying to find your file in a web catalog {err}"
+                    ),
                 },
             }
         }
     }
 
-    if let Some(file_local) = file_local {
-        FileLocal {
-            file_local: file_local.clone(),
+    if !file_local.is_empty() {
+        for this_file_local in file_local {
+        let this_result = FileLocal {
+            file_local: this_file_local.clone(),
         }
-        .extract(readcap, &mut output)?
-    }
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    // file not found
+                    MagicCapError::IOError(_error) => continue,
+                    // file found, but does not match the given readcap
+                    MagicCapError::McapMetadataDiscordant() => continue,
+                    _ => panic!("Something bad happened trying to find your file on the drive {this_file_local:?} {err}"),
 
+                },
+            }
+        }
+    }
     if !catalog_local.is_empty() {
         for this_local_catalog in catalog_local {
             let this_result = CatalogLocal {
@@ -255,7 +269,9 @@ pub fn main_decrypt(
                 Ok(done) => return Ok(done),
                 Err(err) => match err {
                     MagicCapError::IOError(_error) => continue,
-                    _ => panic!("something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"),
+                    _ => panic!(
+                        "something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"
+                    ),
                 },
             }
         }

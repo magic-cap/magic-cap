@@ -174,7 +174,7 @@ struct CiphertextLoad {
         value_name("FNAME"),
         help("path to a .mcap ciphertext file")
     )]
-    local_file: Option<PathBuf>,
+    local_file: Vec<PathBuf>,
 
     #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
     url_file: Option<Url>,
