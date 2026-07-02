@@ -203,7 +203,7 @@ pub fn main_decrypt(
     catalog_local: &Vec<PathBuf>,
     catalog_url: &Vec<Url>,
     file_local: &Vec<PathBuf>,
-    file_url: &Option<Url>,
+    file_url: &Vec<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     // decrypt to a file or stdout?
@@ -214,11 +214,20 @@ pub fn main_decrypt(
         Box::new(std::io::stdout()) as Box<dyn Write>
     };
 
-    if let Some(url) = file_url {
-        // now we request 'all the rest of the bytes' and stream
-        // them into the decryptor (which will write to the output
-        // Write-able)
-        FileUrl { url: url.clone() }.extract(readcap, &mut output)?
+    if !file_url.is_empty() {
+        for this_file_url in file_url {
+            let this_result = FileUrl {
+                url: this_file_url.clone(),
+            }
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    MagicCapError::McapMetadataDiscordant() => continue,
+                    _ => panic!("Something bad happened trying to decrypt your web file {err}"),
+                },
+            }
+        }
     }
 
     if !catalog_url.is_empty() {
@@ -242,9 +251,9 @@ pub fn main_decrypt(
 
     if !file_local.is_empty() {
         for this_file_local in file_local {
-        let this_result = FileLocal {
-            file_local: this_file_local.clone(),
-        }
+            let this_result = FileLocal {
+                file_local: this_file_local.clone(),
+            }
             .extract(readcap, &mut output);
             match this_result {
                 Ok(done) => return Ok(done),
@@ -253,8 +262,9 @@ pub fn main_decrypt(
                     MagicCapError::IOError(_error) => continue,
                     // file found, but does not match the given readcap
                     MagicCapError::McapMetadataDiscordant() => continue,
-                    _ => panic!("Something bad happened trying to find your file on the drive {this_file_local:?} {err}"),
-
+                    _ => panic!(
+                        "Something bad happened trying to find your file on the drive {this_file_local:?} {err}"
+                    ),
                 },
             }
         }
@@ -277,6 +287,7 @@ pub fn main_decrypt(
         }
     }
 
+    // XXX this needs to report zero files decrypted!
     Ok(())
 }
 
@@ -588,12 +599,13 @@ impl Locator for FileUrl {
         // reading the last-8-bytes but serde ignores that
         // successfully)
         headers = HeaderMap::new();
-        headers.insert("Range", format!("bytes={}-", off).parse().unwrap());
+        headers.insert("Range", format!("bytes={off}-").parse().unwrap());
 
         let result = reqwest::blocking::Client::new()
             .get(self.url.clone())
             .headers(headers)
-            .send()?;
+            .send()?
+            .error_for_status()?;
         debug!("{:?}", result);
         let metadata_raw: Vec<u8> = result.bytes()?.into();
         debug!("{} bytes", metadata_raw.len());
@@ -603,13 +615,16 @@ impl Locator for FileUrl {
             "size={} blocks={} block_size={}",
             metadata.size, metadata.blocks, metadata.block_size
         );
-
+        // does this readcap match this immutable?
+        if !readcap.verify.corresponds_to(&metadata) {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
         let mut decryptor = readcap.decrypt_stream(metadata, &mut output)?;
 
         // skip the first 8 bytes, which are "mcap" + 32-byte version
         // TODO: check those (version == 1 is the only one)
         headers = HeaderMap::new();
-        headers.insert("Range", format!("bytes=8-{}", off).parse().unwrap());
+        headers.insert("Range", format!("bytes=8-{off}").parse().unwrap());
         let mut result = reqwest::blocking::Client::new()
             .get(self.url.clone())
             .headers(headers)

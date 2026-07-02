@@ -347,7 +347,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 /// ```
 pub struct ImmutableReadCap {
     // "Read" adds on top of Verify: we always need to verify
-    verify: ImmutableVerifyCap,
+    pub verify: ImmutableVerifyCap, // is pub okay here?
 
     // AES in CTR / Counter mode, with IV == 0 to start (for first
     // block) with 16-byte key and 16-byte IV + blocks.  ...we

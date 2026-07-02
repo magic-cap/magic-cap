@@ -177,7 +177,7 @@ struct CiphertextLoad {
     local_file: Vec<PathBuf>,
 
     #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
-    url_file: Option<Url>,
+    url_file: Vec<Url>,
 }
 
 /// When encrypting, where does the output go?
