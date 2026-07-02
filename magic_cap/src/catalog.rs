@@ -49,7 +49,7 @@ impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
     }
 }
 
-impl<'a> std::convert::From<&Immutable<'a>> for ImmutableIdentifier {
+impl std::convert::From<&Immutable<'_>> for ImmutableIdentifier {
     fn from(imm: &Immutable) -> ImmutableIdentifier {
         let verify: ImmutableVerifyCap = ImmutableVerifyCap::from(&imm.metadata);
         ImmutableIdentifier {

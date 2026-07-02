@@ -199,11 +199,11 @@ pub fn main_encrypt(
 
 /// "mcap decrypt"
 pub fn main_decrypt(
-    cap: &ImmutableReadCap,
-    catalog: &Vec<PathBuf>,
+    readcap: &ImmutableReadCap,
+    catalog_local: &Vec<PathBuf>,
     catalog_url: &Vec<Url>,
-    input_fname: &Option<PathBuf>,
-    input_url: &Option<Url>,
+    file_local: &Option<PathBuf>,
+    file_url: &Option<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     // decrypt to a file or stdout?
@@ -214,11 +214,11 @@ pub fn main_decrypt(
         Box::new(std::io::stdout()) as Box<dyn Write>
     };
 
-    if let Some(url) = input_url {
+    if let Some(url) = file_url {
         // now we request 'all the rest of the bytes' and stream
         // them into the decryptor (which will write to the output
         // Write-able)
-        FileUrl { url: url.clone() }.extract(cap, &mut output)?
+        FileUrl { url: url.clone() }.extract(readcap, &mut output)?
     }
 
     if !catalog_url.is_empty() {
@@ -226,7 +226,7 @@ pub fn main_decrypt(
             let this_result = CatalogUrl {
                 catalog_url: this_url_catalog.clone(),
             }
-            .extract(cap, &mut output);
+            .extract(readcap, &mut output);
             match this_result {
                 Ok(done) => return Ok(done),
                 Err(err) => match err {
@@ -238,19 +238,26 @@ pub fn main_decrypt(
         }
     }
 
-    if let Some(file_local) = input_fname {
+    if let Some(file_local) = file_local {
         FileLocal {
             file_local: file_local.clone(),
         }
-        .extract(cap, &mut output)?
+        .extract(readcap, &mut output)?
     }
 
-    if !catalog.is_empty() {
-        for this_local_catalog in catalog {
-            CatalogLocal {
+    if !catalog_local.is_empty() {
+        for this_local_catalog in catalog_local {
+            let this_result = CatalogLocal {
                 catalog_local: this_local_catalog.to_path_buf(),
             }
-            .extract(cap, &mut output)?;
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    MagicCapError::IOError(_error) => continue,
+                    _ => panic!("something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"),
+                },
+            }
         }
     }
 
