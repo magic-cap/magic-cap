@@ -807,7 +807,6 @@ impl std::str::FromStr for ImmutableReadCap {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         ImmutableReadCap::try_from(s)
     }
-
 }
 
 fn vec_to_array<T, const BLOCKSIZE: usize>(v: Vec<T>) -> Result<[T; BLOCKSIZE], MagicCapError> {

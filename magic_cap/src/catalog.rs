@@ -132,7 +132,7 @@ impl ImmutableWebCatalog {
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
         let url = root.clone();
         let url = url.join("magic-cap-catalog").unwrap();
-        debug!("url is {}",url);
+        debug!("url is {}", url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
         debug!("before js result.text");
         let js = result.text()?;
@@ -153,7 +153,10 @@ impl ImmutableWebCatalog {
         let url = url.join((id_str + "/").as_str()).unwrap();
         let url = url.join("metadata").unwrap();
         debug!("URL {:?}", url);
-        let result = reqwest::blocking::Client::new().get(url).send()?.error_for_status()?;
+        let result = reqwest::blocking::Client::new()
+            .get(url)
+            .send()?
+            .error_for_status()?;
         debug!("before js = result.bytes");
         let js = result.bytes()?;
         let slice = &js[0..];
