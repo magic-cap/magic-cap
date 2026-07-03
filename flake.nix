@@ -34,6 +34,7 @@
               extensions = [ "rust-analyzer" "rust-src" "llvm-tools-preview" ];
             })
             cargo
+            cargo-audit
             cargo-autoinherit
             cargo-depgraph
             cargo-duplicates
