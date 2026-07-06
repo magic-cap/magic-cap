@@ -198,6 +198,9 @@ pub fn main_encrypt(
 //static default_catalog: PathBuf = PathBuf::from("~/.magicap");
 
 /// "mcap decrypt"
+/// accepts one readcap 'decryption key', four vectors of sources for encrypted data, and an outfile Option.
+/// if outfile is None, write to standard output.
+/// if the vectors are not empty, search each of them in order for matching encrypted data.
 pub fn main_decrypt(
     readcap: &ImmutableReadCap,
     catalog_local: &Vec<PathBuf>,
@@ -214,6 +217,8 @@ pub fn main_decrypt(
         Box::new(std::io::stdout()) as Box<dyn Write>
     };
 
+    // these four separate pieces could likely be one single much shorter stanza!
+    // something like Vec<impl Locator>.map(|l|l.extract().unwrap_or_else(...)) ?
     if !file_url.is_empty() {
         for this_file_url in file_url {
             let this_result = FileUrl {
@@ -287,7 +292,8 @@ pub fn main_decrypt(
         }
     }
 
-    // XXX this needs to report zero files decrypted!
+    let count_sources = catalog_local.len() + catalog_url.len() + file_local.len() + file_url.len();
+    println!("Searched {count_sources} sources and did not find matching encrypted data to decrypt.");
     Ok(())
 }
 
