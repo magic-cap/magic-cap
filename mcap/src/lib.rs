@@ -293,7 +293,9 @@ pub fn main_decrypt(
     }
 
     let count_sources = catalog_local.len() + catalog_url.len() + file_local.len() + file_url.len();
-    println!("Searched {count_sources} sources and did not find matching encrypted data to decrypt.");
+    println!(
+        "Searched {count_sources} sources and did not find matching encrypted data to decrypt."
+    );
     Ok(())
 }
 
