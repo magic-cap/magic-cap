@@ -9,11 +9,16 @@ on:
   pull_request:
     branches: [ "main" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   audit:
+    name: cargo-audit
     runs-on: ubuntu-latest
     steps:
     - name: Install cargo-audit
@@ -26,6 +31,7 @@ jobs:
       run: cargo audit
 
   code-checks:
+    name: linting
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -39,6 +45,7 @@ jobs:
       run: cargo clippy
 
   tests:
+    name: cargo test
     runs-on: ubuntu-latest
     needs: code-checks
     steps:
@@ -51,6 +58,7 @@ jobs:
       run: cargo test --package magic_cap
 
   coverage:
+    name: cargo llvm-cov
     runs-on: ubuntu-latest
     needs: code-checks
     steps:
