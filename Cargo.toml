@@ -4,14 +4,15 @@ members = ["magic_cap", "mcap"]
 
 [workspace.dependencies]
 aes = "0.9.1"
-bytes = "1.11.1"
-cargo-llvm-cov = "*"
+bytes = "1.12.0"
+# <2026-07-03 Fri> until quick-xml vulnerability is fixed, no more cargo-llvm-cov
+# cargo-llvm-cov = "*"
 cipher = "0.5.2"
 clap = "4.6.1"
 criterion = "0.8"
 ctr = "0.10.1"
 data-encoding = "2.11.0"
-getrandom = "0.4.2"
+getrandom = "0.4.3"
 include-doc = "0.2.2"
 magic_cap = { version = "0.0.1", path = "magic_cap" }
 proptest = "1.11.0"

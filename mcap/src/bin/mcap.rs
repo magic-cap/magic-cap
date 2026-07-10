@@ -1,3 +1,4 @@
+use magic_cap::ImmutableReadCap;
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
     main_encrypt, main_publish, main_reduce, main_verify,
@@ -10,7 +11,7 @@ use tracing_subscriber::FmtSubscriber;
 use std::path::PathBuf;
 use url::Url;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use tracing::{Level, debug, error};
 
 #[derive(Parser)]
@@ -38,7 +39,7 @@ struct Cli {
     #[arg(short, long, default_value_t = Level::INFO)]
     loglevel: Level,
     // todo: maybe promote --catalog up here?
-    // ("mcap reduce" doesn't use it, and not all "mcap debug" command swill, ...)
+    // ("mcap reduce" doesn't use it, and not all "mcap debug" commands will, ...)
     // maybe clap gives us a way to say "--catalog is illegal for ..."?
 }
 
@@ -83,11 +84,8 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-        #[arg(short, long)]
-        ciphertext: Option<PathBuf>,
-
-        #[arg(long)]
-        catalog: Option<PathBuf>,
+        #[command(flatten)]
+        ciphertext_store: CiphertextStore,
 
         #[arg(short, long, default_value_t = 4096)]
         blocksize: usize, // not Option because we have a default value
@@ -95,37 +93,12 @@ enum Commands {
 
     #[command(about = "turn a Read Cap + ciphertext into plaintext")]
     Decrypt {
+        // this flatten is VERY IMPORTANT and took me days to discover.
+        #[command(flatten)]
+        ciphertext_loader: CiphertextLoad,
+
         // non-optional magic-cap string
-        cap: String,
-
-        // todo: shae says we can put these in a group .. see
-        // https://stackoverflow.com/questions/76315540/how-do-i-require-one-of-the-two-clap-options/76315811#76315811
-        #[arg(
-            long,
-            value_name("PATH"),
-            env("MCAP_CATALOG"),
-            help("root directory of a ciphertext catalog")
-        )]
-        catalog: Option<PathBuf>,
-
-        #[arg(
-            long,
-            value_name("URL"),
-            env("MCAP_URL"),
-            help("root URL of a ciphertext catalog")
-        )]
-        catalog_url: Option<Url>,
-
-        #[arg(
-            short,
-            long,
-            value_name("FNAME"),
-            help("path to a .mcap ciphertext file")
-        )]
-        ciphertext: Option<PathBuf>,
-
-        #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
-        url: Option<Url>,
+        cap: ImmutableReadCap,
 
         #[arg(
             short,
@@ -174,6 +147,52 @@ enum Commands {
     },
 }
 
+/// When decrypting ciphertext, where is that ciphertext?
+/// Catalog or File?
+#[derive(Args, Clone)]
+#[group(required = true, multiple = true)]
+struct CiphertextLoad {
+    #[arg(
+        long,
+        value_name("PATH"),
+        env("MCAP_CATALOG"),
+        help("root directory of a ciphertext catalog")
+    )]
+    local_catalog: Vec<PathBuf>,
+
+    #[arg(
+        long,
+        value_name("URL"),
+        env("MCAP_URL"),
+        help("root URL of a ciphertext catalog")
+    )]
+    url_catalog: Vec<Url>,
+
+    #[arg(
+        short,
+        long,
+        value_name("FNAME"),
+        help("path to a .mcap ciphertext file")
+    )]
+    local_file: Vec<PathBuf>,
+
+    #[arg(short, long, value_name("URL"), help("url of the ciphertext file"))]
+    url_file: Vec<Url>,
+}
+
+/// When encrypting, where does the output go?
+/// Catalog, File, or both?
+#[derive(Args, Clone, Debug)]
+#[group(multiple = true)]
+struct CiphertextStore {
+    // index in a catalog
+    #[arg(long)]
+    catalog: Option<PathBuf>,
+    // write to a local file
+    #[arg(short, long)]
+    output_file: Option<PathBuf>,
+}
+
 fn main() {
     let cli = Cli::parse();
     // This will show TRACE, DEBUG, INFO, WARN and ERROR; see tokio's tracing examples
@@ -190,32 +209,30 @@ fn main() {
         // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
-            ciphertext,
-            catalog,
+            ciphertext_store,
             blocksize,
         }) => main_encrypt(
             &mut std::io::stdout(),
             plaintext,
-            ciphertext,
-            catalog,
+            &ciphertext_store.output_file,
+            &ciphertext_store.catalog,
             *blocksize,
         ),
         Some(Commands::Decrypt {
             cap,
-            catalog,
-            catalog_url,
-            ciphertext,
-            url,
+            ciphertext_loader: ciphertext_load,
             plaintext,
-        }) => main_decrypt(
-            &mut std::io::stdout(),
-            cap,
-            catalog,
-            catalog_url,
-            ciphertext,
-            url,
-            plaintext,
-        ),
+        }) => {
+            let cl = ciphertext_load;
+            main_decrypt(
+                cap,
+                &cl.local_catalog,
+                &cl.url_catalog,
+                &cl.local_file,
+                &cl.url_file,
+                plaintext,
+            )
+        }
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         Some(Commands::Publish { catalog, output }) => {

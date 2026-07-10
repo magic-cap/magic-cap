@@ -198,136 +198,114 @@ pub fn main_encrypt(
 //static default_catalog: PathBuf = PathBuf::from("~/.magicap");
 
 /// "mcap decrypt"
+/// accepts one readcap 'decryption key', four vectors of sources for encrypted data, and an outfile Option.
+/// if outfile is None, write to standard output.
+/// if the vectors are not empty, search each of them in order for matching encrypted data.
 pub fn main_decrypt(
-    //    input: &mut impl Read,
-    output: &mut impl Write,
-    cap: &str,
-    catalog: &Option<PathBuf>,
-    catalog_url: &Option<Url>,
-    input_fname: &Option<PathBuf>,
-    input_url: &Option<Url>,
+    readcap: &ImmutableReadCap,
+    catalog_local: &Vec<PathBuf>,
+    catalog_url: &Vec<Url>,
+    file_local: &Vec<PathBuf>,
+    file_url: &Vec<Url>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
-    if input_fname.is_some() && input_url.is_some() {
-        todo!();
-        // similar to below, use type system to say "either PathBuf OR Url"
-    }
-    if catalog.is_some() && input_fname.is_some() {
-        // could be error, could say "if filename doesn't exist then use catalog"
-        //
-        // take a Enum in here that is a Catalog OR a input_fname OR catalog-url
-        // so we can only do one
-        todo!();
-    }
-    let cap = ImmutableReadCap::try_from(cap)?;
-
-    if let Some(url) = input_url {
-        let mut headers = HeaderMap::new();
-        // read the last 8 bytes to get the metadata offset
-        headers.insert("Range", "bytes=-8".parse().unwrap());
-        let result = reqwest::blocking::Client::new()
-            .get(url.clone())
-            .headers(headers)
-            .send();
-
-        if let Ok(result) = result {
-            debug!("{:?}", result);
-            let offset = result.bytes()?;
-            let offraw: Vec<u8> = offset.into();
-            let offslice: [u8; 8] = offraw.try_into().unwrap();
-            let off: u64 = u64::from_be_bytes(offslice);
-            debug!("bytes {:?} {:?}", offslice, off);
-
-            // request the metadata bytes (note that we're also
-            // reading the last-8-bytes but serde ignores that
-            // successfully)
-            headers = HeaderMap::new();
-            headers.insert("Range", format!("bytes={}-", off).parse().unwrap());
-
-            let result = reqwest::blocking::Client::new()
-                .get(url.clone())
-                .headers(headers)
-                .send()?;
-            debug!("{:?}", result);
-            let metadata_raw: Vec<u8> = result.bytes()?.into();
-            debug!("{} bytes", metadata_raw.len());
-            let mut mdbytes = metadata_raw.as_slice();
-            let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
-            debug!(
-                "size={} blocks={} block_size={}",
-                metadata.size, metadata.blocks, metadata.block_size
-            );
-
-            // now we request 'all the rest of the bytes' and stream
-            // them into the decryptor (which will write to the output
-            // Write-able)
-            let mut output = std::io::stdout().lock();
-            let mut decryptor = cap.decrypt_stream(metadata, &mut output)?;
-
-            // skip the first 8 bytes, which are "mcap" + 32-byte version
-            // TODO: check those (version == 1 is the only one)
-            headers = HeaderMap::new();
-            headers.insert("Range", format!("bytes=8-{}", off).parse().unwrap());
-            let mut result = reqwest::blocking::Client::new()
-                .get(url.clone())
-                .headers(headers)
-                .send()
-                .unwrap();
-            // streams the incoming data to the decryptor object
-            result.copy_to(&mut decryptor)?;
-            return Ok(());
-        }
-    }
-
-    // TODO FIXME early return
-    if let Some(root_url) = catalog_url {
-        let collect = ImmutableWebCatalog::create(root_url.clone())?;
-        let locid: ImmutableIdentifier = (&cap).into();
-        let mut output = std::io::stdout().lock();
-        let metadata = collect.fetch_metadata(&locid)?;
-        let key = cap.create_tahoe_key();
-        let mut pusher = collect.stream_push(key, metadata, &mut output)?;
-        collect.copy_ciphertext_to(&locid, &mut pusher)?;
-        return Ok(());
-    }
-
-    let immutable = if let Some(input_fname) = input_fname {
-        let f = std::fs::File::open(input_fname)?;
-        Immutable::read(&mut std::io::BufReader::new(f))
-    } else if let Some(root) = catalog {
-        let collect = ImmutableDirectoryCatalog::create(root.clone())?;
-        let locid: ImmutableIdentifier = (&cap).into();
-        debug!("Loading location {}", locid);
-        collect.load(&locid)
+    // decrypt to a file or stdout?
+    let mut output: Box<dyn Write> = if let Some(output_file) = outfile {
+        debug!("creating output_file {:?}", output_file);
+        Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
     } else {
-        Err(MagicCapError::GenericError(
-            "Must provide either --ciphertext or --catalog or --catalog-url".to_string(),
-        ))
+        Box::new(std::io::stdout()) as Box<dyn Write>
     };
 
-    match cap.decrypt(&mut immutable?) {
-        Ok(plain) => {
-            if let Some(outfile) = outfile {
-                let mut out = std::fs::File::create(outfile)?;
-                out.write_all(plain.as_slice())?;
-                match outfile.to_str() {
-                    Some(of) => {
-                        writeln!(
-                            output,
-                            "Wrote {} bytes of plaintext to \"{}\".",
-                            plain.len(),
-                            of,
-                        )?;
-                        Ok(())
-                    }
-                    None => Ok(()),
-                }
-            } else {
-                let mut out = std::io::stdout();
-                out.write_all(plain.as_slice())?;
-                Ok(())
+    // these four separate pieces could likely be one single much shorter stanza!
+    // something like Vec<impl Locator>.map(|l|l.extract().unwrap_or_else(...)) ?
+    if !file_url.is_empty() {
+        for this_file_url in file_url {
+            let this_result = FileUrl {
+                url: this_file_url.clone(),
+            }
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    MagicCapError::McapMetadataDiscordant() => continue,
+                    _ => panic!("Something bad happened trying to decrypt your web file {err}"),
+                },
             }
         }
+    }
+
+    if !catalog_url.is_empty() {
+        for this_url_catalog in catalog_url {
+            let this_result = CatalogUrl {
+                catalog_url: this_url_catalog.clone(),
+            }
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    // the file was not found for this catalog, keep going!
+                    MagicCapError::ReqwestError(_error) => continue,
+                    _ => panic!(
+                        "Something bad happened trying to find your file in a web catalog {err}"
+                    ),
+                },
+            }
+        }
+    }
+
+    if !file_local.is_empty() {
+        for this_file_local in file_local {
+            let this_result = FileLocal {
+                file_local: this_file_local.clone(),
+            }
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    // file not found
+                    MagicCapError::IOError(_error) => continue,
+                    // file found, but does not match the given readcap
+                    MagicCapError::McapMetadataDiscordant() => continue,
+                    _ => panic!(
+                        "Something bad happened trying to find your file on the drive {this_file_local:?} {err}"
+                    ),
+                },
+            }
+        }
+    }
+    if !catalog_local.is_empty() {
+        for this_local_catalog in catalog_local {
+            let this_result = CatalogLocal {
+                catalog_local: this_local_catalog.to_path_buf(),
+            }
+            .extract(readcap, &mut output);
+            match this_result {
+                Ok(done) => return Ok(done),
+                Err(err) => match err {
+                    MagicCapError::IOError(_error) => continue,
+                    _ => panic!(
+                        "something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"
+                    ),
+                },
+            }
+        }
+    }
+
+    let count_sources = catalog_local.len() + catalog_url.len() + file_local.len() + file_url.len();
+    println!(
+        "Searched {count_sources} sources and did not find matching encrypted data to decrypt."
+    );
+    Ok(())
+}
+
+fn cap_match(
+    output: &mut impl Write,
+    cap: &ImmutableReadCap,
+    immutable: Result<Immutable<'_>, MagicCapError>,
+) -> Result<(), MagicCapError> {
+    match cap.decrypt(&mut immutable?) {
+        Ok(plain) => Ok(output.write_all(plain.as_slice())?),
         Err(e) => match &e {
             MagicCapError::McapMetadataDiscordant() => Err(e),
             _ => {
@@ -581,4 +559,134 @@ pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
     }
 
     Ok(())
+}
+
+struct FileUrl {
+    url: Url,
+}
+struct CatalogUrl {
+    catalog_url: Url,
+}
+struct FileLocal {
+    file_local: PathBuf,
+}
+struct CatalogLocal {
+    catalog_local: PathBuf,
+}
+
+pub trait Locator {
+    fn extract(
+        &self,
+        readcap: &ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError>;
+}
+
+impl Locator for FileUrl {
+    fn extract(
+        &self,
+        readcap: &ImmutableReadCap,
+        mut output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        let mut headers = HeaderMap::new();
+        // read the last 8 bytes to get the metadata offset
+        headers.insert("Range", "bytes=-8".parse().unwrap());
+        let result = reqwest::blocking::Client::new()
+            .get(self.url.clone())
+            .headers(headers)
+            .send()?;
+
+        debug!("{:?}", result);
+        let offset = result.bytes()?;
+        let offraw: Vec<u8> = offset.into();
+        let offslice: [u8; 8] = offraw.try_into().unwrap();
+        let off: u64 = u64::from_be_bytes(offslice);
+        debug!("bytes {:?} {:?}", offslice, off);
+
+        // request the metadata bytes (note that we're also
+        // reading the last-8-bytes but serde ignores that
+        // successfully)
+        headers = HeaderMap::new();
+        headers.insert("Range", format!("bytes={off}-").parse().unwrap());
+
+        let result = reqwest::blocking::Client::new()
+            .get(self.url.clone())
+            .headers(headers)
+            .send()?
+            .error_for_status()?;
+        debug!("{:?}", result);
+        let metadata_raw: Vec<u8> = result.bytes()?.into();
+        debug!("{} bytes", metadata_raw.len());
+        let mut mdbytes = metadata_raw.as_slice();
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
+        debug!(
+            "size={} blocks={} block_size={}",
+            metadata.size, metadata.blocks, metadata.block_size
+        );
+        // does this readcap match this immutable?
+        if !readcap.verify.corresponds_to(&metadata) {
+            return Err(MagicCapError::McapMetadataDiscordant());
+        }
+        let mut decryptor = readcap.decrypt_stream(metadata, &mut output)?;
+
+        // skip the first 8 bytes, which are "mcap" + 32-byte version
+        // TODO: check those (version == 1 is the only one)
+        headers = HeaderMap::new();
+        headers.insert("Range", format!("bytes=8-{off}").parse().unwrap());
+        let mut result = reqwest::blocking::Client::new()
+            .get(self.url.clone())
+            .headers(headers)
+            .send()
+            .unwrap();
+        // streams the incoming data to the decryptor object
+        result.copy_to(&mut decryptor)?;
+        Ok(())
+    }
+}
+
+impl Locator for CatalogUrl {
+    fn extract(
+        &self,
+        readcap: &ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        debug!("before catalog create");
+        let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
+        let tahoe_cap = readcap.clone();
+        debug!("before readcap.into");
+        let locid: ImmutableIdentifier = readcap.into();
+        debug!("before fetch_metadata");
+        let metadata = collect.fetch_metadata(&locid)?;
+        let key = tahoe_cap.create_tahoe_key();
+        debug!("before stream_push");
+        let mut pusher = collect.stream_push(key, metadata, output)?;
+        collect.copy_ciphertext_to(&locid, &mut pusher)?;
+        Ok(())
+    }
+}
+
+impl Locator for FileLocal {
+    fn extract(
+        &self,
+        readcap: &ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        let f = std::fs::File::open(self.file_local.clone())?;
+        let immutable = Immutable::read(&mut std::io::BufReader::new(f));
+
+        cap_match(output, readcap, immutable)
+    }
+}
+impl Locator for CatalogLocal {
+    fn extract(
+        &self,
+        readcap: &ImmutableReadCap,
+        output: &mut impl Write,
+    ) -> Result<(), MagicCapError> {
+        let collect = ImmutableDirectoryCatalog::create(self.catalog_local.clone())?;
+        let locid: ImmutableIdentifier = readcap.into();
+        debug!("Loading location {}", locid);
+        let immutable = collect.load(&locid);
+        cap_match(output, readcap, immutable)
+    }
 }

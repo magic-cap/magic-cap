@@ -49,7 +49,7 @@ impl std::convert::From<&ImmutableVerifyCap> for ImmutableIdentifier {
     }
 }
 
-impl<'a> std::convert::From<&Immutable<'a>> for ImmutableIdentifier {
+impl std::convert::From<&Immutable<'_>> for ImmutableIdentifier {
     fn from(imm: &Immutable) -> ImmutableIdentifier {
         let verify: ImmutableVerifyCap = ImmutableVerifyCap::from(&imm.metadata);
         ImmutableIdentifier {
@@ -128,12 +128,16 @@ pub struct ImmutableWebCatalog {
 
 impl ImmutableWebCatalog {
     pub fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
+        debug!("start of ImmutableWebCatalog create");
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
         let url = root.clone();
         let url = url.join("magic-cap-catalog").unwrap();
+        debug!("url is {}", url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
+        debug!("before js result.text");
         let js = result.text()?;
         let js: Value = serde_json::from_str(js.as_str()).unwrap();
+        debug!("before js version check");
         if js["version"] == 0 {
             return Ok(ImmutableWebCatalog { root });
         }
@@ -149,7 +153,11 @@ impl ImmutableWebCatalog {
         let url = url.join((id_str + "/").as_str()).unwrap();
         let url = url.join("metadata").unwrap();
         debug!("URL {:?}", url);
-        let result = reqwest::blocking::Client::new().get(url).send()?;
+        let result = reqwest::blocking::Client::new()
+            .get(url)
+            .send()?
+            .error_for_status()?;
+        debug!("before js = result.bytes");
         let js = result.bytes()?;
         let slice = &js[0..];
         Ok(rmp_serde::decode::from_read(slice)?)

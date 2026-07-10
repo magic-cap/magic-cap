@@ -285,8 +285,8 @@ pub struct ImmutableVerifyCap {
 impl ImmutableVerifyCap {
     /// returns true IFF the hash of the passed metadata matches that
     /// in this VerifyCap
-    pub fn corresponds_to(&self, immutable: &Immutable) -> bool {
-        let h = ImmutableVerifyCap::from(&immutable.metadata);
+    pub fn corresponds_to(&self, metadata: &ImmutableMetadata) -> bool {
+        let h = ImmutableVerifyCap::from(metadata);
         h.metadata_hash == self.metadata_hash
     }
 }
@@ -300,7 +300,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.corresponds_to(immutable) {
+        if !self.corresponds_to(&immutable.metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -333,7 +333,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 /// A Cap that is able to both verify the ciphertext and decrypt it
 ///
 /// Use `Display` and `TryFrom` to convert to and from human-usable
-/// rendintions of this data.
+/// renditions of this data.
 ///
 /// For example:
 ///
@@ -347,7 +347,7 @@ impl ImmutableVerifier for ImmutableVerifyCap {
 /// ```
 pub struct ImmutableReadCap {
     // "Read" adds on top of Verify: we always need to verify
-    verify: ImmutableVerifyCap,
+    pub verify: ImmutableVerifyCap, // is pub okay here?
 
     // AES in CTR / Counter mode, with IV == 0 to start (for first
     // block) with 16-byte key and 16-byte IV + blocks.  ...we
@@ -385,7 +385,7 @@ pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
 
     let hk = Hkdf::<Sha256>::new(None, key_bytes); //from_prk(&self.key).unwrap();
     let mut derived_key: Vec<u8> = vec![0u8; 32];
-    hk.expand(&info, &mut derived_key).unwrap();
+    hk.expand(info, &mut derived_key).unwrap();
 
     // newer versions of RustCrypto depend on "hybrid-array" instead
     // of "generic-array".  in (older) "generic-array" versions, there
@@ -630,7 +630,7 @@ impl ReadCap for ImmutableReadCap {
                 immutable.data_provider.block_size() as usize,
             ));
         }
-        if !self.verify.corresponds_to(immutable) {
+        if !self.verify.corresponds_to(&immutable.metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -681,7 +681,7 @@ impl ReadCap for ImmutableReadCap {
         // before anything else, we check that the capability
         // corresponds to this Immutable ... by hashing the Metadata,
         // and confirming it matches the Cap's hash
-        if !self.verify.corresponds_to(immutable) {
+        if !self.verify.corresponds_to(&immutable.metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
@@ -796,6 +796,16 @@ impl std::convert::TryFrom<&str> for ImmutableReadCap {
             },
             leaves: vec![],
         })
+    }
+}
+
+// clap wants FromStr
+// https://docs.rs/clap/latest/clap/_cookbook/typed_derive/index.html
+impl std::str::FromStr for ImmutableReadCap {
+    type Err = MagicCapError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        ImmutableReadCap::try_from(s)
     }
 }
 
@@ -976,7 +986,7 @@ impl ImmutableMetadata {
     pub fn secret_metadata(&self, cap: &ImmutableReadCap) -> SecretImmutableMetadata {
         decrypt_metadata(
             derive_key(&cap.key, "magic-cap-metadata-0"),
-            &(*self._secret_metadata),
+            &self._secret_metadata,
         )
         .unwrap()
     }
