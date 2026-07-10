@@ -106,7 +106,7 @@ use rs_merkle::{Hasher, MerkleTree};
 use serde::ser::Serialize;
 use sha2::Sha256;
 
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 use std::convert::Into;
 use std::convert::TryInto;
@@ -507,8 +507,8 @@ where
         // 2. yes? -> encrypt it
         // 3. where do we put the ciphertext? need a writer
         // boring way
+        trace!("ImmutableBuilder::write: {} bytes", buf.len());
         self.this_block.write(buf)?;
-        let mut local_written = 0;
         // if we have a non-full block of plaintext when done() is
         // called, it is padded with 0's and encrypted as the final
         // block.
@@ -523,10 +523,15 @@ where
             };
             // write out a block
             self.output.write_all(&encrypted_block)?;
-            local_written += encrypted_block.len();
             self.ciphertext_bytes += encrypted_block.len();
         }
-        Ok(local_written)
+
+        // things like std::io::copy are grumpy if we don't report
+        // that we wrote everything .. semantically, this makes some
+        // sense: we _have_ dealt with all the bytes in "buf" so
+        // returning that number is valid.
+        Ok(buf.len())
+
         // todo: we're basically "just hosed" if anything errors in
         // here, right? should we mark ourselves as failed then?
     }
@@ -534,7 +539,9 @@ where
     fn flush(&mut self) -> std::io::Result<()> {
         // 1. can we honour this by writing "part of a block"
         // immediately (and then writing the rest when it comes in?)
-        todo!()
+        debug!("flush called");
+        //todo!()
+        Ok(())
     }
     // think: can "done()" be like "close()"??
 }
@@ -954,7 +961,9 @@ pub struct ImmutableMetadata {
     pub size: u64,
     pub blocks: u64,
     pub block_size: u32,
-    // todo: actually we want the WHOLE merkle tree (for random / streaming access, in the future)
+    // this is always a full power-of-two list of leaves in memory, we
+    // serialize only the non-empty ones (and re-do the empty leaf
+    // hashes after loading)
     pub merkle_leaves: Vec<[u8; 32]>,
     pub ciphertext_root: [u8; 32], // merkle root of the ciphertext blocks
 
@@ -980,7 +989,7 @@ impl ImmutableMetadata {
         b.extend_from_slice(&self.blocks.to_be_bytes());
         b.extend_from_slice(&self.block_size.to_be_bytes());
         b.extend_from_slice(&self.ciphertext_root);
-        // todo: should we hash over the secret_metadata too?
+        // todo: should we hash over the secret_metadata too? (probably?)
     }
 
     pub fn write<T>(&self, writer: &mut T) -> Result<(), MagicCapError>
@@ -1065,6 +1074,9 @@ impl<'a> Immutable<'a> {
         reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
         let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
         let bs = metadata.block_size;
+
+        // todo: ideally we wouldn't store any of the "empty" merkle
+        // leaves on disk, and instead re-constitute them here ...
 
         // check that the leaves correspond to the root -- does
         // rmp_serde give us hook so that we can check on every load?

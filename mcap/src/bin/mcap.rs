@@ -1,6 +1,6 @@
 use magic_cap_cli::{
-    main_debug_info, main_debug_locator, main_decrypt, main_encrypt, main_publish, main_reduce,
-    main_verify,
+    main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
+    main_encrypt, main_publish, main_reduce, main_verify,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -55,6 +55,24 @@ enum DebugCommands {
 
         capstr: String,
     },
+}
+
+#[derive(Subcommand)]
+#[command(arg_required_else_help(true))]
+enum AnthologyCommands {
+    #[command(about = "Create a new Anthology into a (possibly existing) Catalog")]
+    Create { directory: PathBuf },
+
+    #[command(about = "List the contents of an Anthology")]
+    List { capstr: String },
+    // talked about having a "anthology download" or similar that will
+    // take an anthology and download it locally -- but probably wants
+    // more thinking? Like maybe this is a good idea for anything or
+    // any collection of Read Caps you have?
+    //#[command(about = "")]
+    //Download {
+    //    directory: PathBuf,
+    //},
 }
 
 #[derive(Subcommand)]
@@ -148,6 +166,12 @@ enum Commands {
         #[command(subcommand)]
         command: Option<DebugCommands>,
     },
+
+    #[command(about = "Tools to create and manipulate Anthologies")]
+    Anthology {
+        #[command(subcommand)]
+        command: Option<AnthologyCommands>,
+    },
 }
 
 fn main() {
@@ -170,7 +194,7 @@ fn main() {
             catalog,
             blocksize,
         }) => main_encrypt(
-            &mut std::io::stderr(),
+            &mut std::io::stdout(),
             plaintext,
             ciphertext,
             catalog,
@@ -201,6 +225,11 @@ fn main() {
         Some(Commands::Debug { command }) => match command {
             Some(DebugCommands::Locator { capstr }) => main_debug_locator(capstr),
             Some(DebugCommands::Info { capstr, catalog }) => main_debug_info(capstr, catalog),
+            None => Ok(()),
+        },
+        Some(Commands::Anthology { command }) => match command {
+            Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory),
+            Some(AnthologyCommands::List { capstr }) => main_anthology_list(capstr),
             None => Ok(()),
         },
         None => Ok(()),
