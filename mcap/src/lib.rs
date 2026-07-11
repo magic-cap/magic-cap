@@ -175,8 +175,8 @@ pub fn main_encrypt(
         }
         let (cap, _) = cryptor.done()?;
 
-        let capstr = format!("{}", cap);
-        writeln!(output, "{}", capstr)?;
+        let capstr = format!("{cap}");
+        writeln!(output, "{capstr}")?;
         return Ok(());
     };
 
@@ -190,8 +190,8 @@ pub fn main_encrypt(
     }
     let (cap, _) = cryptor.done()?;
 
-    let capstr = format!("{}", cap);
-    writeln!(output, "{}", capstr)?;
+    let capstr = format!("{cap}");
+    writeln!(output, "{capstr}")?;
     Ok(())
 }
 
@@ -309,7 +309,7 @@ fn cap_match(
         Err(e) => match &e {
             MagicCapError::McapMetadataDiscordant() => Err(e),
             _ => {
-                writeln!(output, "Error decrypting: {}", e)?;
+                writeln!(output, "Error decrypting: {e}")?;
                 Ok(())
             }
         },
@@ -341,9 +341,9 @@ pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError
 pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapError> {
     if let Ok(readcap) = ImmutableReadCap::try_from(cap) {
         let verifycap = ImmutableVerifyCap::from(readcap);
-        writeln!(output, "{}", verifycap)?;
+        writeln!(output, "{verifycap}")?;
     } else if let Ok(verifycap) = ImmutableVerifyCap::try_from(cap) {
-        writeln!(output, "{}", verifycap)?;
+        writeln!(output, "{verifycap}")?;
     } else {
         writeln!(output, "Unknown kind of cap.")?;
         return Err(MagicCapError::InvalidCap(cap.to_string()));
@@ -357,7 +357,7 @@ pub fn main_publish(
     catalog: &PathBuf,
     output: &PathBuf,
 ) -> Result<(), MagicCapError> {
-    writeln!(stdout, "publish {:?} to {:?}", catalog, output)?;
+    writeln!(stdout, "publish {catalog:?} to {output:?}")?;
     if output.exists() {
         return Err(MagicCapError::GenericError(format!(
             "\"{}\" already exists",
@@ -442,7 +442,7 @@ pub fn main_publish(
 pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
     if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
         let id: ImmutableIdentifier = cap.into();
-        println!("{}", id);
+        println!("{id}");
     }
     // todo: verify cap?
     Ok(())
@@ -461,7 +461,7 @@ pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), Ma
         let id: ImmutableIdentifier = (&cap).into();
         let imm = catalog.load(&id)?;
         let meta = imm.metadata;
-        println!("location-id: {}", id);
+        println!("location-id: {id}");
         println!(" block-size: {}", meta.block_size);
         println!("      bytes: {}", meta.size);
         println!("     blocks: {}", meta.blocks);
@@ -483,7 +483,7 @@ pub struct AnthologyEntry {
 //pub fn create_anthology(entries: Vec<AnthologyEntry>) -> Result<dyn Read>;
 
 /// "mcap anthology create"
-pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
+pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     // need a catalog -- waiting for shapr's PR to "promote" it to top-level
     let mut catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
 
@@ -496,28 +496,29 @@ pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
     // refactor into own function
     let mut anthology: Vec<AnthologyEntry> = vec![];
 
-    for p in directory.read_dir().expect("Cannot list directory") {
-        if let Ok(p) = p {
-            let t = p.file_type().expect("Cannot stat file");
-            if t.is_file() {
-                debug!("Encoding file {:?}", p.file_name());
-                let mut builder = catalog.insert(4096).expect("Creating catalog entry");
-                let mut path: std::path::PathBuf = directory.clone();
-                path.push(p.file_name());
-                let mut plaintext =
-                    std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
-                let written = std::io::copy(&mut plaintext, &mut builder).expect("Copy failed");
-                let (cap, _) = builder.done().expect("Failed to finalize Immutable");
-                eprintln!("{}: {} bytes", path.display(), written);
-                anthology.push(AnthologyEntry {
-                    name: format!("{}", p.file_name().display()),
-                    cap,
-                });
-            }
+    for p in directory
+        .read_dir()
+        .expect("Cannot list directory")
+        .flatten()
+    {
+        let t = p.file_type().expect("Cannot stat file");
+        if t.is_file() {
+            debug!("Encoding file {:?}", p.file_name());
+            let mut builder = catalog.insert(4096).expect("Creating catalog entry");
+            let mut path: std::path::PathBuf = directory.to_path_buf();
+            path.push(p.file_name());
+            let mut plaintext = std::io::BufReader::new(std::fs::File::open(path.clone()).unwrap());
+            let written = std::io::copy(&mut plaintext, &mut builder).expect("Copy failed");
+            let (cap, _) = builder.done().expect("Failed to finalize Immutable");
+            eprintln!("{}: {} bytes", path.display(), written);
+            anthology.push(AnthologyEntry {
+                name: format!("{}", p.file_name().display()),
+                cap,
+            });
         }
     }
 
-    if anthology.len() == 0 {
+    if anthology.is_empty() {
         return Err(MagicCapError::GenericError("Empty Anthology".to_string()));
     }
 
@@ -529,7 +530,7 @@ pub fn main_anthology_create(directory: &PathBuf) -> Result<(), MagicCapError> {
         writeln!(builder, "{} {}", entry.cap, entry.name).expect("Writing anthology entry");
     }
     let (cap, _) = builder.done().expect("Failed to finalize Immutable");
-    println!("{}", cap);
+    println!("{cap}");
 
     Ok(())
 }
@@ -544,18 +545,16 @@ pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
     let plaintext = cap.decrypt(&mut anthology)?;
 
     debug!("{:?}", anthology.metadata);
-    for line in plaintext.lines() {
-        if let Ok(line) = line {
-            debug!("{:?}", line);
-            let two: Vec<&str> = line.split(" ").collect();
-            if two.len() != 2 {
-                return Err(MagicCapError::GenericError(
-                    "illegal line in Anthology".to_string(),
-                ));
-            }
-            let name = two[1];
-            println!("{}", name);
+    for line in plaintext.lines().map_while(Result::ok) {
+        debug!("{:?}", line);
+        let two: Vec<&str> = line.split(' ').collect();
+        if two.len() != 2 {
+            return Err(MagicCapError::GenericError(
+                "illegal line in Anthology".to_string(),
+            ));
         }
+        let name = two[1];
+        println!("{name}");
     }
 
     Ok(())
