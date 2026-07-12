@@ -47,14 +47,14 @@ struct Cli {
 #[command(arg_required_else_help(true))]
 enum DebugCommands {
     #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id")]
-    Locator { capstr: String },
+    Locator { readcap: ImmutableReadCap },
 
     #[command(about = "Print human-readable information about the Read Cap")]
     Info {
         #[arg(long)]
         catalog: Option<PathBuf>,
 
-        capstr: String,
+        readcap: ImmutableReadCap,
     },
 }
 
@@ -65,7 +65,7 @@ enum AnthologyCommands {
     Create { directory: PathBuf },
 
     #[command(about = "List the contents of an Anthology")]
-    List { capstr: String },
+    List { readcap: ImmutableReadCap },
     // talked about having a "anthology download" or similar that will
     // take an anthology and download it locally -- but probably wants
     // more thinking? Like maybe this is a good idea for anything or
@@ -240,13 +240,16 @@ fn main() {
         }
         // todo: might make sense to promote --catalog to top-level
         Some(Commands::Debug { command }) => match command {
-            Some(DebugCommands::Locator { capstr }) => main_debug_locator(capstr),
-            Some(DebugCommands::Info { capstr, catalog }) => main_debug_info(capstr, catalog),
+            Some(DebugCommands::Locator { readcap }) => main_debug_locator(readcap),
+            Some(DebugCommands::Info {
+                readcap,
+                catalog,
+            }) => main_debug_info(readcap, catalog),
             None => Ok(()),
         },
         Some(Commands::Anthology { command }) => match command {
             Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory),
-            Some(AnthologyCommands::List { capstr }) => main_anthology_list(capstr),
+            Some(AnthologyCommands::List { readcap }) => main_anthology_list(readcap),
             None => Ok(()),
         },
         None => Ok(()),

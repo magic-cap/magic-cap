@@ -439,17 +439,17 @@ pub fn main_publish(
 }
 
 /// "mcap debug locator"
-pub fn main_debug_locator(capstr: &str) -> Result<(), MagicCapError> {
-    if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
-        let id: ImmutableIdentifier = cap.into();
-        println!("{id}");
-    }
-    // todo: verify cap?
+pub fn main_debug_locator(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+    let id: ImmutableIdentifier = readcap.into();
+    println!("{id}");
     Ok(())
 }
 
 /// "mcap debug info"
-pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), MagicCapError> {
+pub fn main_debug_info(
+    readcap: &ImmutableReadCap,
+    catalog: &Option<PathBuf>,
+) -> Result<(), MagicCapError> {
     if !catalog.is_some() {
         return Err(MagicCapError::GenericError(
             "Need a catalog to find readcap metadata".to_string(),
@@ -457,19 +457,17 @@ pub fn main_debug_info(capstr: &str, catalog: &Option<PathBuf>) -> Result<(), Ma
     }
     let catalog = ImmutableDirectoryCatalog::create(catalog.clone().unwrap())?;
 
-    if let Ok::<ImmutableReadCap, _>(cap) = capstr.try_into() {
-        let id: ImmutableIdentifier = (&cap).into();
-        let imm = catalog.load(&id)?;
-        let meta = imm.metadata;
-        println!("location-id: {id}");
-        println!(" block-size: {}", meta.block_size);
-        println!("      bytes: {}", meta.size);
-        println!("     blocks: {}", meta.blocks);
-        println!("encrypted metadata:");
-        let secret_meta = meta.secret_metadata(&cap);
-        for (k, v) in secret_meta.data {
-            println!("  {k:>20}: {v}");
-        }
+    let id: ImmutableIdentifier = (readcap).into();
+    let imm = catalog.load(&id)?;
+    let meta = imm.metadata;
+    println!("location-id: {id}");
+    println!(" block-size: {}", meta.block_size);
+    println!("      bytes: {}", meta.size);
+    println!("     blocks: {}", meta.blocks);
+    println!("encrypted metadata:");
+    let secret_meta = meta.secret_metadata(&readcap);
+    for (k, v) in secret_meta.data {
+        println!("  {k:>20}: {v}");
     }
     Ok(())
 }
@@ -535,14 +533,13 @@ pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     Ok(())
 }
 
-pub fn main_anthology_list(capstr: &str) -> Result<(), MagicCapError> {
+pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
     // need a catalog -- waiting for shapr's PR to "promote" it to top-level
     let catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
-    let cap: ImmutableReadCap = capstr.try_into()?;
 
-    let id: ImmutableIdentifier = cap.clone().into();
+    let id: ImmutableIdentifier = readcap.clone().into();
     let mut anthology = catalog.load(&id)?;
-    let plaintext = cap.decrypt(&mut anthology)?;
+    let plaintext = readcap.decrypt(&mut anthology)?;
 
     debug!("{:?}", anthology.metadata);
     for line in plaintext.lines().map_while(Result::ok) {

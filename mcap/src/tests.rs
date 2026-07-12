@@ -35,7 +35,7 @@ pub mod test {
             println!("creating plain file at {:?}",plain);
             {
                 let mut tmp = File::create(&plain)?;
-                tmp.write(s.as_bytes())?;
+                let _written_amount = tmp.write(s.as_bytes())?;
             }  // close tmp
             println!("finished writing to tmp");
             let cipher = outd.path().join("cipher");
