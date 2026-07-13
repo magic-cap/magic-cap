@@ -465,7 +465,7 @@ pub fn main_debug_info(
     println!("      bytes: {}", meta.size);
     println!("     blocks: {}", meta.blocks);
     println!("encrypted metadata:");
-    let secret_meta = meta.secret_metadata(&readcap);
+    let secret_meta = meta.secret_metadata(readcap);
     for (k, v) in secret_meta.data {
         println!("  {k:>20}: {v}");
     }

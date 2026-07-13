@@ -130,7 +130,14 @@ impl ImmutableWebCatalog {
     pub fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
         debug!("start of ImmutableWebCatalog create");
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
-        let url = root.clone();
+        // XXX ugly hack, convert Url to string, append '/' parse back to Url
+        let ugly_hack = root.as_str();
+        let mut hacked_url = String::new();
+        hacked_url.push_str(ugly_hack);
+        hacked_url.push('/');
+        // XXX end ugly_hack
+
+        let url = Url::parse(&hacked_url).expect("could not append trailing slash to url");
         let url = url.join("magic-cap-catalog").unwrap();
         debug!("url is {}", url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
