@@ -889,16 +889,18 @@ dependencies = [
 
 [[package]]
 name = "include-doc"
-version = "0.2.3"
-source = "git+https://github.com/magic-cap/include-doc#4aa63d63595b32cbb2198a975e78367cf6012f4b"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bb8abec1f87bac74b6cf03f8758bb31303a40d954600206de9859f81452064a"
 dependencies = [
  "include-doc-macro",
 ]
 
 [[package]]
 name = "include-doc-macro"
-version = "0.2.3"
-source = "git+https://github.com/magic-cap/include-doc#4aa63d63595b32cbb2198a975e78367cf6012f4b"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f36b3860937a4938ae9139cf4bdef9043e5649516010efee4e06581acb386ab"
 dependencies = [
  "itertools 0.11.0",
  "proc-macro2",

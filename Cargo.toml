@@ -14,7 +14,7 @@ clap = "4.6.1"
 ctr = "0.10.1"
 data-encoding = "2.11.0"
 getrandom = "0.4.3"
-include-doc = { git = "https://github.com/magic-cap/include-doc", version = "0.2.3"}
+include-doc = { version = "0.2.2"}
 magic_cap = { version = "0.1.0", path = "magic_cap" }
 proptest = "1.11.0"
 reqwest = "0.13.4"
