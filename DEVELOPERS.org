@@ -51,6 +51,9 @@ python decode_cap.py kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfX
   - ./Cargo.toml (dependency ... can we automate?)
 - test
   - cargo publish --workspace --all-features --dry-run
+- actually publish:
+  - cargo login
+  - cargo publish --workspace --all-features
 
 * Glossary
 
