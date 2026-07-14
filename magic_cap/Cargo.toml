@@ -1,6 +1,6 @@
 [package]
 name = "magic_cap"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 authors = [
     "meejah <meejah@meejah.ca>",
@@ -31,8 +31,6 @@ serde = { workspace = true, features = ["derive"] }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 tempfile = { workspace = true }
-# can we put this in other deps?
-include-doc = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
 url = { workspace = true }
 serde_json = { workspace = true }
@@ -43,6 +41,7 @@ hkdf = { workspace = true  }
 [dev-dependencies]
 proptest = { workspace = true }
 tempfile = { workspace = true }
+include-doc = { workspace = true }
 # vulns below
 # criterion = { workspace = true, features = ["html_reports"] }
 # cargo-llvm-cov = { workspace = true }
