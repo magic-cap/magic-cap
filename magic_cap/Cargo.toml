@@ -36,12 +36,12 @@ url = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 hkdf = { workspace = true  }
+include-doc = { workspace = true }
 
 
 [dev-dependencies]
 proptest = { workspace = true }
 tempfile = { workspace = true }
-include-doc = { workspace = true }
 # vulns below
 # criterion = { workspace = true, features = ["html_reports"] }
 # cargo-llvm-cov = { workspace = true }
