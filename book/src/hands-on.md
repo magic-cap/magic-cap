@@ -79,6 +79,7 @@ We can ask the software to do this:
 ```base
 $ cargo run -- verify --ciphertext kitten.mcap mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
 $ echo $?
+0
 ```
 
 Notice that there's no output by default; the exit-code indicates success or failure.
