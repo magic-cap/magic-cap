@@ -4,11 +4,6 @@ build:
   os: ubuntu-lts-latest
   tools:
     rust: latest
-  jobs:
-    install:
-      - cargo install mdbook
-    build:
-      html:
-        # For an example book..
-        # - mdbook init docs
-        - mdbook build book --dest-dir $READTHEDOCS_OUTPUT/html
+  commands:
+    - cargo install mdbook
+    - mdbook build book --dest-dir $READTHEDOCS_OUTPUT/html
