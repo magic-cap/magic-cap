@@ -67,6 +67,26 @@ Similarly, where and how the Read Cap is kept is up to the application -- its sm
 This gives users of this library a lot of choice, while keeping the core concepts straightforware to reason about.
 
 
+## Networking
+
+Although we have a couple ideas embedded in the command-line application currently, how to store and fetch Data is very open-ended (on purpose).
+This allows many different uses and experimentation.
+
+It is also possible to layer additional access controls on top, if your threat-model or use-case demands that.
+For example, Data may be on an SSH-accessible server accessed via keys or passwords.
+One may use S3 to store data, taking advantage of additional IAM services -- or not!
+
+The current methods built-in to the command-line tool are:
+
+Local Files
+   : Data is stored on the file-system, with familiar permissions-based read/write access-controls
+
+HTTP ReST-like API
+   : The ``mcap publish`` subcommand can export local filesystem data into a format suitable for direct access via HTTP, simulating a proof-of-concept ReST-style API that can be statically-hosted.
+
+See the "[Hands-On Examples](./hands-on.md)" section for more.
+
+
 ## Use Case Examples
 
 Note that these are ideas about how this technology might be used.

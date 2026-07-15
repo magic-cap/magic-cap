@@ -30,7 +30,7 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
 
 #+begin_src bash
-cargo run -- decrypt --url https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v | display
+cargo run -- decrypt --url-file https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v | display
 #+end_src
 
 An error about "broken pipe" probably means you don't have "display"
@@ -212,11 +212,11 @@ Instead, ciphertexts will be located relative to the root directory (specified b
 We have included an example of "Catalog" usage in this repository.
 The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalog``:
 
-| bruennhilde.jpeg         | mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB |
-| cat-on-shoulder.jpeg     | mcap0rkPgNO_PLPHYnsF21xsuZWclI8Eodt3198G99I3bbgwTcfvRs0AqvJn6vJ0FvBd29 |
-| kittens-in-basket.jpeg   | mcap0r0H3nq1ecRFORya6czK8kKwejLpKrvzXTtjQUicqwVt7Fc_G2zfxP3Y174gxWjq_L |
-| the-cook.jpeg            | mcap0rUMgHUlMK6fb19D3CHII-NLpgwsaGM8xGYpsXJzDELyaR-PnhNiSaudTksLaJaoY7 |
-| three-jolly-kittens.jpeg | mcap0rQOVWH5aeWoZtCJ8GThDs8hSWfcJm0UMAaswgoifCIN1yA0AtLIGfFy-aJRW_7hzP |
+| mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB | bruennhilde.jpeg |
+| mcap0rPa8OKdDYv9ts53IGzK1aBFIpMXOaJ-_xxtC3Hcw9aaxxdsyw1qQTBQ6L57da22z_ | cat-on-shoulder.jpeg |
+| mcap0ryrrZKxiB2xEsdrC5PXG40GXYf1nz5yCCAWZA1NQ7tEN4v-Lt3XwIMT5io1v-UdYN | kittens-in-basket.jpeg |
+| mcap0rWEKGyKhhZm0NCceLWecvWpKECReegpvQO6fjoXTy7OpVLxwe-cfWkvET1ReCBNT5 | the-cook.jpeg |
+| mcap0r1FtiGxu2KEJTmryLJZ2yTUZtfyjuBUqdIlkAOoFR9ggPAJR1npbkHXgwpPCnp4_L | three-jolly-kittens.jpeg |
 
 We can decode one of these without "knowing" which ones goes with which Read Cap.
 Note that the output goes to stdout by default.
