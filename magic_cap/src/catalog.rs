@@ -130,8 +130,10 @@ impl ImmutableWebCatalog {
     pub fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
         debug!("start of ImmutableWebCatalog create");
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
-        let url = root.clone();
-        let url = url.join("magic-cap-catalog").unwrap();
+        let mut url = root.clone();
+        url.path_segments_mut()
+            .expect("Valid base URL")
+            .push("magic-cap-catalog");
         debug!("url is {}", url);
         let result = reqwest::blocking::Client::new().get(url).send()?;
         debug!("before js result.text");
@@ -148,10 +150,12 @@ impl ImmutableWebCatalog {
         &self,
         location: &ImmutableIdentifier,
     ) -> Result<ImmutableMetadata, MagicCapError> {
-        let url = self.root.clone();
+        let mut url = self.root.clone();
         let id_str: String = location.into();
-        let url = url.join((id_str + "/").as_str()).unwrap();
-        let url = url.join("metadata").unwrap();
+        url.path_segments_mut()
+            .expect("Valid base URL")
+            .push((id_str + "/").as_str())
+            .push("metadata");
         debug!("URL {:?}", url);
         let result = reqwest::blocking::Client::new()
             .get(url)
@@ -168,10 +172,12 @@ impl ImmutableWebCatalog {
         location: &ImmutableIdentifier,
         dest: &mut dyn Write,
     ) -> Result<(), MagicCapError> {
-        let url = self.root.clone();
+        let mut url = self.root.clone();
         let id_str: String = location.into();
-        let url = url.join((id_str + "/").as_str()).unwrap();
-        let url = url.join("ciphertext").unwrap();
+        url.path_segments_mut()
+            .expect("Valid base URL")
+            .push((id_str + "/").as_str())
+            .push("ciphertext");
         debug!("URL {:?}", url);
         let mut result = reqwest::blocking::Client::new().get(url).send()?;
         result.copy_to(dest)?;
