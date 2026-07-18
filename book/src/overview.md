@@ -44,7 +44,7 @@ Anyone with both a Read Cap and the corresponding Data can turn it back into the
 
 Anyone with both a Verify Cap and the corresponding Data can confirm the ciphertext is correct and well-formed (but cannot see the plaintext)
 
-This allows many use-cases, facilitating direct peer interactions since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
+This allows many [use-cases](#use-case-examples), facilitating direct peer interactions since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
 
 Magic Cap is inspired by the core ideas of "capability theory" embedded in Tahoe-LAFS.
 
@@ -134,6 +134,13 @@ So, members of an organzation could all have a complete copy of all organization
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.
 (Using the Anthology concept makes it easier to share many items with one Read Cap instead of many).
+
+
+## Source Code, Documentation
+
+- GitHub: https://github.com/magic-cap/magic-cap
+- Prose Documentation: https://magic-cap.readthedocs.io/en/latest/
+- API Documentation: https://docs.rs/magic_cap/latest/magic_cap/
 
 
 ## Next Steps
