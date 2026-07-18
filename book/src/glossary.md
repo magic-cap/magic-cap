@@ -32,3 +32,9 @@ A collection of Data organized by "Identifier" (at some root directory or URL, f
 
 This allows a client holding a Read Cap to derive the Identifier and then ask the storage system if that Data is available.
 For example, an on-disk storage system may simply ask if a particular file exists.
+
+## Anthology
+
+A way to group multiple different Read Caps together.
+For example, all the assets for a blog post.
+This allows you to have a single "top-level" Read Cap that references other Read Caps -- sort of like a Zip file.
