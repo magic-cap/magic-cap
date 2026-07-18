@@ -5,7 +5,11 @@
 //! the corresponding plaintext when presented alongside the correct
 //! ciphertext.
 //!
-//! The repository README has diagrams <https://github.com/magic-cap/magic-cap>
+//! - Crate: <https://docs.rs/magic_cap/latest/magic_cap/>
+//! - CLI: <https://docs.rs/magic_cap_cli/latest/magic_cap_cli/>
+//! - Code: <https://github.com/magic-cap/magic-cap>
+//! - User Documentation: <https://magic-cap.readthedocs.io/en/latest/>
+//! - API Documentation: <https://docs.rs/magic_cap/latest/magic_cap/>
 //!
 //! <div class="warning">
 //! This is a release-early library that has <b>not yet received cryptographic (or other) audits</b>.

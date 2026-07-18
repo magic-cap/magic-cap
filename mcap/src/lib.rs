@@ -646,7 +646,7 @@ impl Locator for CatalogUrl {
         readcap: &ImmutableReadCap,
         output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
-        debug!("before catalog create");
+        debug!("before catalog create {}", self.catalog_url);
         let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
         let tahoe_cap = readcap.clone();
         debug!("before readcap.into");
