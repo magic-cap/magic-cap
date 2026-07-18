@@ -1,6 +1,6 @@
 [package]
 name = "magic_cap_cli"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = [
     "meejah <meejah@meejah.ca>",
