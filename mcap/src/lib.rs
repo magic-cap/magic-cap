@@ -110,6 +110,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use std::error::Error;
 use url::Url;
 
 use walkdir::WalkDir;
@@ -635,7 +636,26 @@ impl Locator for FileUrl {
             .send()
             .unwrap();
         // streams the incoming data to the decryptor object
-        result.copy_to(&mut decryptor)?;
+        let res = result.copy_to(&mut decryptor);
+
+        // if the _output_ stream closes, then copy_to() will return a
+        // BrokenPipe error .. but piping "mcap" output through "head
+        // -n 10" will cause stdout to close, so we ignore this error
+        let res = match res {
+            Ok(x) => Ok(x),
+            Err(e) => {
+                if let Some(src) = &e.source() {
+                    if let Some(ee) = src.downcast_ref::<std::io::Error>() {
+                        if ee.kind() == std::io::ErrorKind::BrokenPipe {
+                            debug!("ignoring BrokenPipe error");
+                            return Ok(());
+                        }
+                    }
+                }
+                Err(e)
+            },
+        };
+        res.unwrap();
         Ok(())
     }
 }
