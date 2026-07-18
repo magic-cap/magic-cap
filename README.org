@@ -6,7 +6,7 @@ This is a release-early library that has *not yet received cryptographic (or oth
 We do appreciate feedback, but you own both pieces if you deploy to production :)
 #+END_QUOTE
 
-**Storage is *boring*** &mdash; and we aim to **keep it that way**.
+*Storage is boring* -- and we aim to **keep it that way**.
 
 Magic Cap keeps private information encrypted and gives you simple tools to control access.
 

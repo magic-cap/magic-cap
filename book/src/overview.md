@@ -138,9 +138,11 @@ Thus, particular members could be given Read Caps as they require them.
 
 ## Source Code, Documentation
 
-- GitHub: https://github.com/magic-cap/magic-cap
-- Prose Documentation: https://magic-cap.readthedocs.io/en/latest/
-- API Documentation: https://docs.rs/magic_cap/latest/magic_cap/
+- Crate: [https://docs.rs/magic_cap/latest/magic_cap/](https://docs.rs/magic_cap/latest/magic_cap/)
+- CLI: [https://docs.rs/magic_cap_cli/latest/magic_cap_cli/](https://docs.rs/magic_cap_cli/latest/magic_cap_cli/)
+- Code: [https://github.com/magic-cap/magic-cap](https://github.com/magic-cap/magic-cap)
+- Prose Documentation: [https://magic-cap.readthedocs.io/en/latest/](https://magic-cap.readthedocs.io/en/latest/)
+- API Documentation: [https://docs.rs/magic_cap/latest/magic_cap/](https://docs.rs/magic_cap/latest/magic_cap/)
 
 
 ## Next Steps
