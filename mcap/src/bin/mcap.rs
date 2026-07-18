@@ -241,10 +241,7 @@ fn main() {
         // todo: might make sense to promote --catalog to top-level
         Some(Commands::Debug { command }) => match command {
             Some(DebugCommands::Locator { readcap }) => main_debug_locator(readcap),
-            Some(DebugCommands::Info {
-                readcap,
-                catalog,
-            }) => main_debug_info(readcap, catalog),
+            Some(DebugCommands::Info { readcap, catalog }) => main_debug_info(readcap, catalog),
             None => Ok(()),
         },
         Some(Commands::Anthology { command }) => match command {

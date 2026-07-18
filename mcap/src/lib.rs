@@ -106,11 +106,11 @@ use magic_cap::{
     ImmutableWebCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;
+use std::error::Error;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::error::Error;
 use url::Url;
 
 use walkdir::WalkDir;
@@ -653,7 +653,7 @@ impl Locator for FileUrl {
                     }
                 }
                 Err(e)
-            },
+            }
         };
         res.unwrap();
         Ok(())
