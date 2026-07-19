@@ -154,7 +154,7 @@ impl ImmutableWebCatalog {
         let id_str: String = location.into();
         url.path_segments_mut()
             .expect("Valid base URL")
-            .push((id_str + "/").as_str())
+            .push(id_str.as_str())
             .push("metadata");
         debug!("URL {:?}", url);
         let result = reqwest::blocking::Client::new()
@@ -176,7 +176,7 @@ impl ImmutableWebCatalog {
         let id_str: String = location.into();
         url.path_segments_mut()
             .expect("Valid base URL")
-            .push((id_str + "/").as_str())
+            .push(id_str.as_str())
             .push("ciphertext");
         debug!("URL {:?}", url);
         let mut result = reqwest::blocking::Client::new().get(url).send()?;
