@@ -49,10 +49,17 @@ pub mod test {
         println!("spawn web");
         let _guard = runtime.enter();
 
-        let listener_f = TcpListener::bind("127.0.0.1:4321");
-        let tcp = runtime.block_on(listener_f).unwrap();
-        println!("tcp {:?}", tcp);
-        let handle = tokio::spawn(_run_web(tcp));
+        use warp::Filter;
+
+        let hello = warp::path!("magic-cap-catalog")
+        // The `map` function takes the extracted parameter and produces a reply.
+            .map(|| "{\"version\": 0}");
+
+        let handle = tokio::spawn(
+            warp::serve(hello)
+                .run(([127, 0, 0, 1], 4321))
+        );
+
         println!("//spawn web");
         CatalogServer { server: handle, runtime }
     }
@@ -71,10 +78,16 @@ pub mod test {
 
         let root = Url::parse("http://127.0.0.1:4321/").expect("valid url");
         println!("{:?}", root);
-        let catalog = ImmutableWebCatalog::create(root);
-        println!("{:?}", catalog);
+        let catalog = ImmutableWebCatalog::create(root).expect("catalog");
+        println!("catalog {:?}", catalog);
 
-        catalog_server.runtime.block_on(catalog_server.server).unwrap();
+        // we have a valid catalog, which made on reqwest to a warp server!
+        use magic_cap::{ImmutableIdentifier, ImmutableReadCap};
+        let rcap: ImmutableReadCap = "mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB".try_into().unwrap();
+        let id: ImmutableIdentifier = rcap.into();
+        let res = catalog.fetch_metadata(&id);
+        println!("FOO {:?}", res);
+        res.unwrap();
     }
 
     #[test]
