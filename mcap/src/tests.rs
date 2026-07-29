@@ -54,6 +54,13 @@ pub mod test {
         let js = warp::path!("magic-cap-catalog")
             .map(|| "{\"version\": 0}");
 
+        // todo:
+        //
+        // - can we implement some trait in ImmutableWebCatalog so
+        // that Warp can "just serve" things at the right spots?
+        // (e.g. Shae speculates "warp::reply::Reply" or similar)
+        //
+        // - failing ^ can we at least do in-memory stuff via Warp paths
         let handle = tokio::spawn(
             warp::serve(warp::fs::dir("../data/published/"))
                 .run(([127, 0, 0, 1], 4321))
