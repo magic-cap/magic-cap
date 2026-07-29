@@ -51,12 +51,11 @@ pub mod test {
 
         use warp::Filter;
 
-        let hello = warp::path!("magic-cap-catalog")
-        // The `map` function takes the extracted parameter and produces a reply.
+        let js = warp::path!("magic-cap-catalog")
             .map(|| "{\"version\": 0}");
 
         let handle = tokio::spawn(
-            warp::serve(hello)
+            warp::serve(warp::fs::dir("../data/published/"))
                 .run(([127, 0, 0, 1], 4321))
         );
 
@@ -78,12 +77,13 @@ pub mod test {
 
         let root = Url::parse("http://127.0.0.1:4321/").expect("valid url");
         println!("{:?}", root);
+        // todo: should "create()" be like "open()" or something?
         let catalog = ImmutableWebCatalog::create(root).expect("catalog");
         println!("catalog {:?}", catalog);
 
         // we have a valid catalog, which made on reqwest to a warp server!
         use magic_cap::{ImmutableIdentifier, ImmutableReadCap};
-        let rcap: ImmutableReadCap = "mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB".try_into().unwrap();
+        let rcap: ImmutableReadCap = "mcap0rEVJOakvltxontWVh2K9Qehglbk9MNt-C8nzyyo0c1_vYpTy8fbIlzCOlFHs3HK0g".try_into().unwrap();
         let id: ImmutableIdentifier = rcap.into();
         let res = catalog.fetch_metadata(&id);
         println!("FOO {:?}", res);
