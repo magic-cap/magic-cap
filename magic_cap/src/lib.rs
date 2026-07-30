@@ -139,6 +139,7 @@ pub trait ImmutableVerifier {
     fn verify(&self, immutable: &mut Immutable) -> Result<(), MagicCapError>;
 }
 
+/// Tracks the state of an ongoing (push-based) decryption
 pub struct ImmutableDecryptor<'a, W>
 where
     W: Write,
@@ -155,6 +156,11 @@ impl<'a, W> ImmutableDecryptor<'a, W>
 where
     W: Write,
 {
+    // todo: "new" here is NOT a public API, we want the only way to
+    // get an ImmutableDecryptor is to call a method on ReadCap /
+    // ImmutableReadCap (then it is checked).
+    // OR: check in here (but ...)
+
     pub fn new(
         key: TahoeAesCtr,
         metadata: ImmutableMetadata,
@@ -225,6 +231,31 @@ pub trait ReadCap: ImmutableVerifier {
         plaintext: &mut [u8],
     ) -> Result<(), MagicCapError>;
 
+    // notes:
+    // "decrypt" is a pull-producer: we stream from the INPUT
+    // ciphertext (but build up plaintext in a single in-memory Vec
+    //
+    // decrypt_stream is a push-producer: we PUSH the ciphertext in
+    // and retrieve the output via a user-supplied Write instance
+    //
+    // so, refactor:
+    // we _should_ be able to use the push-producer to IMPLEMENT the pull-producer (right?)
+    //  - create the "output" Write instance: allocate a Vec<u8>
+    //  - create cryptor via decrypt_stream() (we have metadata already)
+    //  - loop everything in Immutable::data_provider and push to ImmutableDecryptor
+    //  - our Vec<u8> is now full of plaintext
+    //  - return it
+    //  - ...
+    //  - profit: the only "real work" code-path is then inside the
+    //    push-producer / ImmutableDecryptor
+    //
+    //
+    // future-looking:
+    //  - since en/de crypt are symmetric, ImmutableDecryptor can _hopefully_ become just ImmutableCryptor
+    //  - caveat: encrypt needs to PRODUCE merkle leaves + tree
+    //  - ...but decrypt needs to CHECK merkle leaves + root vs. cap
+    //  - (so, IF we can factor that part out, then we can have a ImmutableCryptor...)
+
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError>;
 
     fn decrypt_stream<'a, W>(
@@ -247,7 +278,7 @@ pub trait ReadCap: ImmutableVerifier {
 /// "inner loop" from old "decrypt()" method, which iterates ALL the
 /// blocks
 pub fn decrypt_all(cap: &impl ReadCap, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
-    todo!()
+todo!()
 }*/
 
 /// naive "random access" read-cap function
@@ -553,6 +584,10 @@ where
 //TODO: below is the stuff we want to re-do as an iterator, right?
 // and then also as a "plaintext -> ciphertext" function?
 
+// todo: we believe Itamar told us to use this ReadCap-as-trait
+// structure .. but we only impl it for one thing, so YAGNI until we
+// have two
+
 impl ReadCap for ImmutableReadCap {
     /// encode the provided plaintext into a version 1 file written to
     /// BufWriter, also yielding an ImmutableReadCap that corresponds
@@ -596,12 +631,11 @@ impl ReadCap for ImmutableReadCap {
         Ok(cap)
     }
 
-    ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
-    //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)
-
-    // is this friend shaped?
-    // probably need / want to pass in Metadata too?
-    // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
+    // todo: do we need a Result here at all? When might this fail? (Currently: never)
+    //  - can we check merkle stuff here already?
+    //  - (I think we can check the cap.root vs metadata ONCE, here)
+    //  - so this (maybe) satisfies Shae's desire to "know" if we've check already (parse-don't-validate)
+    //  - i.e. can't get a decryptor w/o it corresponding
     fn decrypt_stream<'a, W>(
         &'a self,
         meta: ImmutableMetadata,
@@ -610,6 +644,7 @@ impl ReadCap for ImmutableReadCap {
     where
         W: Write,
     {
+        // todo: check self.verify vs. "meta" and fail if they don't correspond
         Ok(ImmutableDecryptor::new(
             self.create_tahoe_key(),
             meta,
@@ -1170,6 +1205,9 @@ impl<'a> Immutable<'a> {
         if merkle_root != metadata.ciphertext_root {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
+
+        // todo: we aren't checking merkle_root vs. the cap itself,
+        // does that come later?
 
         // we have our metadata, now set up an on-demand reader to our
         // underlying data source
