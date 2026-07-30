@@ -90,7 +90,11 @@ pub mod test {
 
         // we have a valid catalog, which made on reqwest to a warp server!
         use magic_cap::{ImmutableIdentifier, ImmutableReadCap};
-        let rcap: ImmutableReadCap = "mcap0rEVJOakvltxontWVh2K9Qehglbk9MNt-C8nzyyo0c1_vYpTy8fbIlzCOlFHs3HK0g".try_into().unwrap();
+        // this is the read-cap for "brunnhilde" from the kitten-catalog
+        // to create this test-data run (from the root of the checkout):
+        //  - mkdir data/
+        //  - cargo run -- publish kitten-catalog/ data/published
+        let rcap: ImmutableReadCap = "mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB".try_into().unwrap();
         let id: ImmutableIdentifier = rcap.into();
         let res = catalog.fetch_metadata(&id);
         println!("FOO {:?}", res);
