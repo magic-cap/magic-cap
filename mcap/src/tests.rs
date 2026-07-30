@@ -1,13 +1,105 @@
 #[cfg(test)]
 pub mod test {
+    use rstest::{rstest, fixture};
+    use url::Url;
     use crate::{main_decrypt, main_encrypt, main_reduce, main_verify};
-    use magic_cap::ImmutableReadCap;
+    use magic_cap::{ImmutableReadCap, ImmutableWebCatalog};
     use magic_cap::err::MagicCapError;
     use proptest::prelude::*;
     use std::fs::File;
     use std::io::{Read, Write};
     use std::str::FromStr;
     use tempfile::tempdir;
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio::runtime::{Builder, Runtime};
+
+    async fn process(socket: TcpStream) {
+        println!("process {:?}", socket);
+    }
+
+    async fn _run_web(listener: TcpListener) {
+        println!("listener {:?}", listener);
+        loop {
+            let (socket, _) = listener.accept().await.unwrap();
+            println!("new socket {:?}", socket);
+            // A new task is spawned for each inbound socket. The socket is
+            // moved to the new task and processed there.
+            tokio::spawn(async move {
+                process(socket).await;
+            });
+        }
+    }
+
+    #[derive(Debug)]
+    struct CatalogServer {
+        server: JoinHandle<()>,
+        runtime: Runtime,
+    }
+
+    #[fixture]
+    fn catalog_server() -> CatalogServer {
+        let runtime = Builder::new_multi_thread()
+            .worker_threads(1)
+            .thread_name("catalog-server-runtime")
+            .enable_all()
+            .build()
+            .unwrap();
+
+
+        println!("spawn web");
+        let _guard = runtime.enter();
+
+        use warp::Filter;
+
+        let js = warp::path!("magic-cap-catalog")
+            .map(|| "{\"version\": 0}");
+
+        // todo:
+        //
+        // - can we implement some trait in ImmutableWebCatalog so
+        // that Warp can "just serve" things at the right spots?
+        // (e.g. Shae speculates "warp::reply::Reply" or similar)
+        //
+        // - failing ^ can we at least do in-memory stuff via Warp paths
+        let handle = tokio::spawn(
+            warp::serve(warp::fs::dir("../data/published/"))
+                .run(([127, 0, 0, 1], 4321))
+        );
+
+        println!("//spawn web");
+        CatalogServer { server: handle, runtime }
+    }
+
+    use tokio::task::JoinHandle;
+
+    #[rstest]
+    fn web_fetch(catalog_server: CatalogServer ) {
+        // fetech a thing using Catalog
+        // - start a warp web server
+        // - run it as a fixture (rstest)
+        // - make a reqwest req
+        // - replace above with Catalog
+
+        println!("web_fetch test {:?}", catalog_server);
+
+        let root = Url::parse("http://127.0.0.1:4321/").expect("valid url");
+        println!("{:?}", root);
+        // todo: should "create()" be like "open()" or something?
+        let catalog = ImmutableWebCatalog::create(root).expect("catalog");
+        println!("catalog {:?}", catalog);
+
+        // we have a valid catalog, which made on reqwest to a warp server!
+        use magic_cap::{ImmutableIdentifier, ImmutableReadCap};
+        // this is the read-cap for "brunnhilde" from the kitten-catalog
+        // to create this test-data run (from the root of the checkout):
+        //  - mkdir data/
+        //  - cargo run -- publish kitten-catalog/ data/published
+        let rcap: ImmutableReadCap = "mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB".try_into().unwrap();
+        let id: ImmutableIdentifier = rcap.into();
+        let res = catalog.fetch_metadata(&id);
+        println!("FOO {:?}", res);
+        res.unwrap();
+    }
 
     #[test]
     fn reduce_unknown() {

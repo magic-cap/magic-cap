@@ -121,6 +121,7 @@ impl ImmutableDirectoryCatalog {
 // are both synchronous -- presumably an async thing would be
 // "different"..?)
 
+// why doesn't this implement the trait??
 #[derive(Debug)]
 pub struct ImmutableWebCatalog {
     root: Url,
@@ -138,6 +139,7 @@ impl ImmutableWebCatalog {
         let result = reqwest::blocking::Client::new().get(url).send()?;
         debug!("before js result.text");
         let js = result.text()?;
+        println!("DING {}", js);
         let js: Value = serde_json::from_str(js.as_str()).unwrap();
         debug!("before js version check");
         if js["version"] == 0 {

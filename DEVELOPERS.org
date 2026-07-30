@@ -1,7 +1,12 @@
 * Running
 
 - "cargo run" will run "mcap"
-- tests:
+
+- create test-data:
+  - mkdir data/
+  - cargo run -- publish kitten-catalog/ data/published
+
+- tests (at least one test requires above test-data):
   - cargo test
   - cargo bench
   - cargo llvm-cov --html
