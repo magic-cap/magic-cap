@@ -161,7 +161,7 @@ where
     // ImmutableReadCap (then it is checked).
     // OR: check in here (but ...)
 
-    pub fn new(
+    fn new(
         key: TahoeAesCtr,
         metadata: ImmutableMetadata,
         plain_output: &'a mut W,
