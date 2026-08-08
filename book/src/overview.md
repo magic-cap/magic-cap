@@ -96,7 +96,7 @@ Note that these are ideas about how this technology might be used.
 We haven't built these applications, and highly recommend developing your own security model.
 
 
-### Traditional App
+### Traditional App "but private"
 
 Lots of applications need to store user data.
 A common pattern is to host the data on servers the application operators or developers control (e.g. Amazon S3).
