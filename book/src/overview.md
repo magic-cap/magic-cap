@@ -4,7 +4,8 @@
 
 Magic Cap keeps private information encrypted and gives you simple tools to control access.
 
-No accounts, no identities, safely store user data on untrusted providers.
+No accounts, no identities.
+Safely **store user data on untrusted providers**.
 
 Written in Rust, we provide libraries to read and write data from various sources and a command-line tool for experimentation.
 
@@ -12,7 +13,10 @@ Written in Rust, we provide libraries to read and write data from various source
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
 
+Coming soon: WASM and Android bindings + examples.
+
 We can ignore most details and look at the high-level view of this tool as two diagrams.
+
 Encrypting:
 
 ![overview diagram of magic-cap turning plaintext into encrypted data + a read-capability](./diagrams/mcap-encrypt.svg)
@@ -94,16 +98,16 @@ Note that these are ideas about how this technology might be used.
 We haven't built these applications, and highly recommend developing your own security model.
 
 
-### Traditional App
+### Traditional App "but private"
 
-Lots of application need to store user data.
+Lots of applications need to store user data.
 A common pattern is to host the data on servers the application operators or developers control (e.g. Amazon S3).
 
 Traditionally, these same developers have access to all of this data.
 
-Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage (e.g. the TPM of a smartphone or an encrypted hard-drive of a laptop).
+Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage.
 
-(Read about "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext).
+(See also "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext -- a user device could safely share a Verify Cap with the service-provider).
 
 
 ### Timed Release of Large Digital Artifact (game, movie)
@@ -133,7 +137,7 @@ So, members of an organzation could all have a complete copy of all organization
 
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.
-(Using the Anthology concept makes it easier to share many items with one Read Cap instead of many).
+(Using the Anthology concept makes it easier to share many items with only one Read Cap instead of many).
 
 
 ## Source Code, Documentation
