@@ -5,13 +5,15 @@
 Magic Cap keeps private information encrypted and gives you simple tools to control access.
 
 No accounts, no identities.
-Safely store user data on untrusted providers.
+Safely **store user data on untrusted providers**.
 
 Written in Rust, we provide libraries to read and write data from various sources and a command-line tool for experimentation.
 
 > [!CAUTION]
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
+
+Coming soon: WASM and Android bindings + examples.
 
 We can ignore most details and look at the high-level view of this tool as two diagrams.
 
