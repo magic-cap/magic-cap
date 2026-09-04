@@ -146,7 +146,7 @@ impl ImmutableWebCatalog {
         Err(MagicCapError::GenericError("not a web catalog".to_string()))
     }
 
-    pub fn fetch_metadata(
+    pub async fn fetch_metadata(
         &self,
         location: &ImmutableIdentifier,
     ) -> Result<ImmutableMetadata, MagicCapError> {
@@ -157,12 +157,12 @@ impl ImmutableWebCatalog {
             .push(id_str.as_str())
             .push("metadata");
         debug!("URL {:?}", url);
-        let result = reqwest::blocking::Client::new()
+        let result = reqwest::Client::new()
             .get(url)
-            .send()?
+            .send().await?
             .error_for_status()?;
         debug!("before js = result.bytes");
-        let js = result.bytes()?;
+        let js = result.bytes().await?;
         let slice = &js[0..];
         Ok(rmp_serde::decode::from_read(slice)?)
     }
