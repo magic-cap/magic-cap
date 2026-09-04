@@ -11,6 +11,7 @@ use tracing_subscriber::FmtSubscriber;
 use std::path::PathBuf;
 use url::Url;
 
+
 use clap::{Args, Parser, Subcommand};
 use tracing::{Level, debug, error};
 
@@ -193,7 +194,8 @@ struct CiphertextStore {
     output_file: Option<PathBuf>,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
     // This will show TRACE, DEBUG, INFO, WARN and ERROR; see tokio's tracing examples
     let subscriber = FmtSubscriber::builder()
