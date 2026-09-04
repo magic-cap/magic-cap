@@ -23,6 +23,7 @@ unsafe_code = "forbid"
 aes = { workspace = true }
 cipher = { workspace = true }
 ctr = { workspace = true }
+criterion = { workspace = true }
 data-encoding = { workspace = true }
 getrandom = { workspace = true, features = ["std"] }
 rmp-serde = { workspace = true }

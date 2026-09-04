@@ -202,7 +202,7 @@ pub fn main_encrypt(
 /// accepts one readcap 'decryption key', four vectors of sources for encrypted data, and an outfile Option.
 /// if outfile is None, write to standard output.
 /// if the vectors are not empty, search each of them in order for matching encrypted data.
-pub fn main_decrypt(
+pub async fn main_decrypt(
     readcap: &ImmutableReadCap,
     catalog_local: &Vec<PathBuf>,
     catalog_url: &Vec<Url>,
@@ -225,7 +225,7 @@ pub fn main_decrypt(
             let this_result = FileUrl {
                 url: this_file_url.clone(),
             }
-            .extract(readcap, &mut output);
+            .extract(readcap, &mut output).await;
             match this_result {
                 Ok(done) => return Ok(done),
                 Err(err) => match err {
@@ -241,7 +241,7 @@ pub fn main_decrypt(
             let this_result = CatalogUrl {
                 catalog_url: this_url_catalog.clone(),
             }
-            .extract(readcap, &mut output);
+            .extract(readcap, &mut output).await;
             match this_result {
                 Ok(done) => return Ok(done),
                 Err(err) => match err {
@@ -260,7 +260,7 @@ pub fn main_decrypt(
             let this_result = FileLocal {
                 file_local: this_file_local.clone(),
             }
-            .extract(readcap, &mut output);
+            .extract(readcap, &mut output).await;
             match this_result {
                 Ok(done) => return Ok(done),
                 Err(err) => match err {
@@ -280,7 +280,7 @@ pub fn main_decrypt(
             let this_result = CatalogLocal {
                 catalog_local: this_local_catalog.to_path_buf(),
             }
-            .extract(readcap, &mut output);
+            .extract(readcap, &mut output).await;
             match this_result {
                 Ok(done) => return Ok(done),
                 Err(err) => match err {
@@ -571,8 +571,8 @@ struct CatalogLocal {
     catalog_local: PathBuf,
 }
 
-pub trait Locator {
-    fn extract(
+trait Locator {
+    async fn extract(
         &self,
         readcap: &ImmutableReadCap,
         output: &mut impl Write,
@@ -580,7 +580,7 @@ pub trait Locator {
 }
 
 impl Locator for FileUrl {
-    fn extract(
+    async fn extract(
         &self,
         readcap: &ImmutableReadCap,
         mut output: &mut impl Write,
@@ -661,7 +661,7 @@ impl Locator for FileUrl {
 }
 
 impl Locator for CatalogUrl {
-    fn extract(
+    async fn extract(
         &self,
         readcap: &ImmutableReadCap,
         output: &mut impl Write,
@@ -672,7 +672,7 @@ impl Locator for CatalogUrl {
         debug!("before readcap.into");
         let locid: ImmutableIdentifier = readcap.into();
         debug!("before fetch_metadata");
-        let metadata = collect.fetch_metadata(&locid)?;
+        let metadata = collect.fetch_metadata(&locid).await?;
         let key = tahoe_cap.create_tahoe_key();
         debug!("before stream_push");
         let mut pusher = collect.stream_push(key, metadata, output)?;
@@ -682,7 +682,7 @@ impl Locator for CatalogUrl {
 }
 
 impl Locator for FileLocal {
-    fn extract(
+    async fn extract(
         &self,
         readcap: &ImmutableReadCap,
         output: &mut impl Write,
@@ -694,7 +694,7 @@ impl Locator for FileLocal {
     }
 }
 impl Locator for CatalogLocal {
-    fn extract(
+    async fn extract(
         &self,
         readcap: &ImmutableReadCap,
         output: &mut impl Write,

@@ -233,7 +233,7 @@ async fn main() {
                 &cl.local_file,
                 &cl.url_file,
                 plaintext,
-            )
+            ).await
         }
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),

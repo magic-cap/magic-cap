@@ -59,7 +59,24 @@ pub mod test {
             // confirm that "decrypt" can turn back into plaintext
             let immutable_read_cap = ImmutableReadCap::from_str(capstr).unwrap();
             // XXX why does this test pass? The println at the top certainly runs! Something is wrong here!
-            main_decrypt(&immutable_read_cap, &vec![], &vec![], &vec![cipher], &vec![], &Some(round.clone())).unwrap();
+            let res = tokio::runtime::Runtime::new().unwrap().block_on(
+                main_decrypt(&immutable_read_cap, &vec![], &vec![], &vec![cipher], &vec![], &Some(round.clone()))
+            );
+            res.unwrap();
+            /*
+use futures::future::ready;
+use proptest::prelude::*;
+            use tokio::runtime::Runtime;
+
+proptest! {
+    #[test]
+    fn test_prop(byte in any::<u8>()) {
+        Runtime::new().unwrap().block_on(async {
+            assert_eq!(ready(byte).await, byte);
+        });
+     }
+}
+*/
 
             let mut og = String::new();
             let mut other = String::new();
