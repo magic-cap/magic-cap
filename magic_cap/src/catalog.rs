@@ -127,7 +127,7 @@ pub struct ImmutableWebCatalog {
 }
 
 impl ImmutableWebCatalog {
-    pub fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
+    pub async fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
         debug!("start of ImmutableWebCatalog create");
         // figure out of this looks like a Magic Cap Catalog version 0 REST API
         let mut url = root.clone();
@@ -135,9 +135,9 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push("magic-cap-catalog");
         debug!("url is {}", url);
-        let result = reqwest::blocking::Client::new().get(url).send()?;
+        let result = reqwest::Client::new().get(url).send().await?;
         debug!("before js result.text");
-        let js = result.text()?;
+        let js = result.text().await?;
         let js: Value = serde_json::from_str(js.as_str()).unwrap();
         debug!("before js version check");
         if js["version"] == 0 {
@@ -167,7 +167,7 @@ impl ImmutableWebCatalog {
         Ok(rmp_serde::decode::from_read(slice)?)
     }
 
-    pub fn copy_ciphertext_to(
+    pub async fn copy_ciphertext_to(
         &self,
         location: &ImmutableIdentifier,
         dest: &mut dyn Write,
@@ -179,8 +179,9 @@ impl ImmutableWebCatalog {
             .push(id_str.as_str())
             .push("ciphertext");
         debug!("URL {:?}", url);
-        let mut result = reqwest::blocking::Client::new().get(url).send()?;
-        result.copy_to(dest)?;
+        let mut result = reqwest::Client::new().get(url).send().await?;
+        //FIXME
+        //result.copy_to(dest)?;
         Ok(())
     }
 }

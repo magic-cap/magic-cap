@@ -667,7 +667,7 @@ impl Locator for CatalogUrl {
         output: &mut impl Write,
     ) -> Result<(), MagicCapError> {
         debug!("before catalog create {}", self.catalog_url);
-        let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
+        let collect = ImmutableWebCatalog::create(self.catalog_url.clone()).await?;
         let tahoe_cap = readcap.clone();
         debug!("before readcap.into");
         let locid: ImmutableIdentifier = readcap.into();
@@ -676,7 +676,7 @@ impl Locator for CatalogUrl {
         let key = tahoe_cap.create_tahoe_key();
         debug!("before stream_push");
         let mut pusher = collect.stream_push(key, metadata, output)?;
-        collect.copy_ciphertext_to(&locid, &mut pusher)?;
+        collect.copy_ciphertext_to(&locid, &mut pusher).await?;
         Ok(())
     }
 }
