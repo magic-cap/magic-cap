@@ -98,7 +98,7 @@ Note that these are ideas about how this technology might be used.
 We haven't built these applications, and highly recommend developing your own security model.
 
 
-### Traditional App "but private"
+### Commercial App "but private"
 
 Lots of applications need to store user data.
 A common pattern is to host the data on servers the application operators or developers control (e.g. Amazon S3).
@@ -108,6 +108,20 @@ Traditionally, these same developers have access to all of this data.
 Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage.
 
 (See also "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext -- a user device could safely share a Verify Cap with the service-provider).
+
+
+### Free / Open Source / Hobby App "with privacy"
+
+Many developers interested in freedom and open software develop cool applications.
+Those applications need somewhere to store user data.
+
+It would be great if users could "bring their own" -- Magic Cap can allow exactly this sort of configuration.
+Then, developers don't have to mirror their commercial analogs and pay for setting up and managing expensive storage systems.
+
+Users with GitHub, Amazon, Backblaze or other commercial storage-provider accounts can simply put their data there.
+The Magic Cap portion ensures that data can only be read by users with the correct credentials.
+
+See the "[Bring your own storage](./bring-your-own-storage.md)" examples.
 
 
 ### Timed Release of Large Digital Artifact (game, movie)
