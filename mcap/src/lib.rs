@@ -120,7 +120,7 @@ pub mod tests;
 /// Implementation of "mcap encrypt"
 /// This is the top level function for easy use of this crate by applications or other libraries.
 /// This function does not consider memory use, but instead just does the thing using all the memory.
-pub fn main_encrypt(
+pub async fn main_encrypt(
     output: &mut impl Write,
     plain_text: &Path,
     output_fname: &Option<PathBuf>,
@@ -318,7 +318,7 @@ fn cap_match(
 }
 
 /// "mcap verify"
-pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
+pub async fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
     // if we are given a "Read Cap" then we can still convert it to a
     // Verify Cap for the user, so lets do that .. but if this string
     // is neither a Read Cap _nor_ a Verify Cap then we error out via
@@ -339,7 +339,7 @@ pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError
 }
 
 /// "mcap reduce"
-pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapError> {
+pub async fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapError> {
     if let Ok(readcap) = ImmutableReadCap::try_from(cap) {
         let verifycap = ImmutableVerifyCap::from(readcap);
         writeln!(output, "{verifycap}")?;
@@ -353,7 +353,7 @@ pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapErr
 }
 
 /// "mcap publish"
-pub fn main_publish(
+pub async fn main_publish(
     stdout: &mut impl Write,
     catalog: &PathBuf,
     output: &PathBuf,
@@ -440,14 +440,14 @@ pub fn main_publish(
 }
 
 /// "mcap debug locator"
-pub fn main_debug_locator(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+pub async fn main_debug_locator(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
     let id: ImmutableIdentifier = readcap.into();
     println!("{id}");
     Ok(())
 }
 
 /// "mcap debug info"
-pub fn main_debug_info(
+pub async fn main_debug_info(
     readcap: &ImmutableReadCap,
     catalog: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
@@ -466,7 +466,7 @@ pub fn main_debug_info(
     println!("      bytes: {}", meta.size);
     println!("     blocks: {}", meta.blocks);
     println!("encrypted metadata:");
-    let secret_meta = meta.secret_metadata(&readcap);
+    let secret_meta = meta.secret_metadata(readcap);
     for (k, v) in secret_meta.data {
         println!("  {k:>20}: {v}");
     }
@@ -482,7 +482,7 @@ pub struct AnthologyEntry {
 //pub fn create_anthology(entries: Vec<AnthologyEntry>) -> Result<dyn Read>;
 
 /// "mcap anthology create"
-pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
+pub async fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     // need a catalog -- waiting for shapr's PR to "promote" it to top-level
     let mut catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
 
@@ -534,7 +534,7 @@ pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     Ok(())
 }
 
-pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+pub async fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
     // need a catalog -- waiting for shapr's PR to "promote" it to top-level
     let catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
 
