@@ -219,7 +219,7 @@ async fn main() {
             &ciphertext_store.output_file,
             &ciphertext_store.catalog,
             *blocksize,
-        ),
+        ).await,
         Some(Commands::Decrypt {
             cap,
             ciphertext_loader: ciphertext_load,
@@ -235,20 +235,20 @@ async fn main() {
                 plaintext,
             ).await
         }
-        Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
-        Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
+        Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext).await,
+        Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap).await,
         Some(Commands::Publish { catalog, output }) => {
-            main_publish(&mut std::io::stdout(), catalog, output)
+            main_publish(&mut std::io::stdout(), catalog, output).await
         }
         // todo: might make sense to promote --catalog to top-level
         Some(Commands::Debug { command }) => match command {
-            Some(DebugCommands::Locator { readcap }) => main_debug_locator(readcap),
-            Some(DebugCommands::Info { readcap, catalog }) => main_debug_info(readcap, catalog),
+            Some(DebugCommands::Locator { readcap }) => main_debug_locator(readcap).await,
+            Some(DebugCommands::Info { readcap, catalog }) => main_debug_info(readcap, catalog).await,
             None => Ok(()),
         },
         Some(Commands::Anthology { command }) => match command {
-            Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory),
-            Some(AnthologyCommands::List { readcap }) => main_anthology_list(readcap),
+            Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory).await,
+            Some(AnthologyCommands::List { readcap }) => main_anthology_list(readcap).await,
             None => Ok(()),
         },
         None => Ok(()),

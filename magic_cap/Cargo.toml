@@ -23,7 +23,6 @@ unsafe_code = "forbid"
 aes = { workspace = true }
 cipher = { workspace = true }
 ctr = { workspace = true }
-criterion = { workspace = true }
 data-encoding = { workspace = true }
 getrandom = { workspace = true, features = ["std"] }
 rmp-serde = { workspace = true }
@@ -43,8 +42,8 @@ include-doc = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 tempfile = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
 # vulns below
-# criterion = { workspace = true, features = ["html_reports"] }
 # cargo-llvm-cov = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
