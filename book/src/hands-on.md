@@ -170,5 +170,5 @@ The root-level ``README`` and ``magic-cap-catalog`` JSON explain what this direc
 
 > [!TIP]
 > You should turn off directory-listing when hosting this.
-> Failing to do so allows someone without and Magic Caps to determine how many (and what size) Data you are hosting in the Catalog
+> Failing to do so allows someone without any Magic Caps to determine how many items (and of what size) Data you are hosting in the Catalog
 

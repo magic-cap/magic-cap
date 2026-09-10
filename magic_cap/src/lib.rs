@@ -16,6 +16,7 @@
 //! We do appreciate feedback, but you own both pieces if you deploy to production :)
 //! </div>
 //!
+//!
 //! ## Overview
 //!
 //! Magic Cap turns the problem of having a lot of secret data
@@ -33,6 +34,22 @@
 //! Cap in time or space or both.
 //!
 //! There is a command-line tool, see [magic_cap_cli](https://docs.rs/magic_cap_cli/latest/magic_cap_cli/).
+//!
+//!
+//! ## Completely Made Up Use-Cases
+//!
+//! - store user-data securely in the cloud (Data in cloud, Read Cap in local device storage)
+//! - early downloads of electronic media (Data available for download, Read Cap released on "the release date")
+//! - access only later (Data on device, Read Cap arranged for later-only retrieval)
+//! - could replace [Tahoe-LAFS](https://tahoe-lafs.org) as backend for [Magic Folder](https://github.com/tahoe-lafs/magic-folder) [^mut]
+//! - fine-grained access (organization documents in a remote Catalog, members still need correct Read Cap to access individual items)
+//! - a "sneaker-net" variant on the above: carry all organization in local Catalog, access via Read Cap as-required
+//!
+//!
+//! [^mut]: out-of-band solution for "single writer mutable" still
+//!     necessary, such as "mcap publish" along with "scp" or "rsync" or
+//!     similar.
+//!
 //!
 //! ## Using the Crate
 //!
@@ -64,6 +81,7 @@
 //!    ``mcap0v-Gshm9tyvjXDnfWpLWKMgjcK0AOdC-O12vvLW5rxeV4``
 //!
 //! Notice the ``v`` instead of ``r`` at the start of the string.
+//!
 //!
 //! ## Examples
 //!

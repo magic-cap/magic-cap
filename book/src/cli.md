@@ -5,6 +5,36 @@ To allow rapid experimentation with this library, many aspects of it are exporte
 This is a sub-command based tool.
 There are a few top-level options and several sub commands (even some "sub-sub commands").
 
+## Practical Uses
+
+There are some practical use-cases that the CLI and/or Rust libraries make available to tinkerers and experts right now.
+These include:
+
+**Publish immutables to a Web server** that you control.
+If you can `rsync` or `scp` to a Web server then you can keep a [Catalog](./catalog-anthology.md) published.
+Use `mcap encrypt --catalog ./local/catalog` when creating Immutables.
+To syncrhonize / publish to your Web site, use `mcap ./local/catalog ~/public_html/published_catalog` along with an `rsync` or `scp` command to move all of `~/public_html/published_catalog` to your Web server.
+
+This would then allow other computers to use `mcap decrypt --url-catalog https://meejah.ca/published_catalog` (of course insert your own URL) to retrieve and decrypt an Immutable.
+(You need to share the Read Cap with them somehow).
+You can use Anthologies to group many distinct files together.
+
+**Use Immutables locally** with Rust-based software.
+Although our exact public API is still very early and in flux, we'd appreciate hearing of any success (or failure!) using these primitives inside Rust programs.
+By providing both "push"-style and "pull"-style reading and writing (via `Read`, `Seek` and `Write` traits) our intent is to make it easy to plug in "but private!" use-cases for tools.
+Additional tools for exchanging bytes over the network are coming too!
+
+
+**Immediate release of digital artifacts** can be prototyped with the existing tools.
+Create your ciphertext with `mcap encrypt` and put the resulting `.mcap` file on a public Web server.
+Fans may then download this `.mcap` file at their leisure.
+In order to **do the release later** you simply make the short Read Cap string available to users.
+They can then use `mcap decrypt` to reveal the digital artifact.
+(Of course, a polished end-user tool would likely do this internally via the Rust APIs).
+
+*Please get in touch* if you try any of the above (e.g. file a ticket, find us on IRC or Mastodon) whether it was successful or not!
+
+
 ## Common Top-Level Options
 
 These options apply to every command.
