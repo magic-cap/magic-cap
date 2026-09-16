@@ -19,10 +19,16 @@ publish = true  # when flipping this, ensure GitHub repo is public (add homepage
 [[bin]]
 name = "mcap"
 
+[features]
+default = ["web"]
+web = [
+    "dep:tokio",
+]
+
 [dependencies]
 bytes = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
-magic_cap = { workspace = true }
+magic_cap = { workspace = true, features = ["async_web"] }
 reqwest = { workspace = true, features = ["blocking"] }
 rmp-serde = { workspace = true }
 serde_json = { workspace = true }
@@ -31,7 +37,7 @@ url = { workspace = true }
 walkdir = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

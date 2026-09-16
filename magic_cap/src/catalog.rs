@@ -67,18 +67,7 @@ pub trait AsyncCatalog<'a> {
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
 // smarter about the seeks? (speculative)!
-pub trait ImmutableCatalog<'a> {
-    // todo: probably want "load" vs. "stream" API here
-    // todo: and stream() vs stream_async() probably
-    fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
-    fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
-
-    fn insert(
-        &mut self,
-        blocksize: usize,
-    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
-}
 
 #[derive(Debug, PartialEq)]
 pub struct ImmutableIdentifier {
@@ -145,9 +134,10 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
 // OR: could create a new one in a "well known place" and uses that
 // (this is nice because then it actually works)
 
-/// a file-system implementation of [`ImmutableCatalog`] which
-/// stores magic-caps in a struture similar to Git
-/// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
+/// a file-system implementation of [`Catalog`] which stores
+/// magic-caps in a struture similar to Git
+/// DECIDE: ...should it just BE a Git object-store? Put the .cap
+/// files in Blobs...?)
 #[derive(Debug)]
 pub struct ImmutableDirectoryCatalog {
     root: PathBuf,
@@ -171,11 +161,13 @@ impl ImmutableDirectoryCatalog {
 // are both synchronous -- presumably an async thing would be
 // "different"..?)
 
+#[cfg(feature = "async_web")]
 #[derive(Debug)]
 pub struct ImmutableWebCatalog {
     root: Url,
 }
 
+#[cfg(feature = "async_web")]
 impl ImmutableWebCatalog {
     pub async fn create(root: Url) -> Result<ImmutableWebCatalog, MagicCapError> {
         debug!("start of ImmutableWebCatalog create");
@@ -195,8 +187,11 @@ impl ImmutableWebCatalog {
         }
         Err(MagicCapError::GenericError("not a web catalog".to_string()))
     }
+}
 
-    pub async fn fetch_metadata(
+#[cfg(feature = "async_web")]
+impl<'a> AsyncCatalog<'a> for ImmutableWebCatalog {
+    async fn fetch_metadata(
         &self,
         location: &ImmutableIdentifier,
     ) -> Result<ImmutableMetadata, MagicCapError> {
@@ -217,7 +212,7 @@ impl ImmutableWebCatalog {
         Ok(rmp_serde::decode::from_read(slice)?)
     }
 
-    pub async fn copy_ciphertext_to(
+    async fn copy_ciphertext_to(
         &self,
         location: &ImmutableIdentifier,
         dest: &mut dyn Write,
@@ -230,8 +225,27 @@ impl ImmutableWebCatalog {
             .push("ciphertext");
         debug!("URL {:?}", url);
         let mut result = reqwest::Client::new().get(url).send().await?;
-        //FIXME
-        //result.copy_to(dest)?;
+        loop {
+            let piece = result.chunk().await?;
+            if let Some(piece) = piece {
+                dest.write_all(&piece)?;
+            } else {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    async fn stream_decrypt<'b, W: Write>(
+        &self,
+        location: &ImmutableIdentifier,
+        key: TahoeAesCtr,
+        plaintext_output: &'b mut W,
+    ) -> Result<(), MagicCapError> {
+        let metadata = self.fetch_metadata(location).await?;
+        debug!("before stream_push");
+        let mut decryptor = ImmutableDecryptor::new(key, metadata, plaintext_output);
+        self.copy_ciphertext_to(location, &mut decryptor).await?;
         Ok(())
     }
 }
@@ -249,20 +263,7 @@ pub fn add_identifier(root: &Path, locator: &ImmutableIdentifier) -> PathBuf {
     Path::join(&Path::join(root, dir), name)
 }
 
-// promote into the trait?
-// fn stream_push() that returns ImmutableDecryptor ??
-impl ImmutableWebCatalog {
-    pub fn stream_push<'b, W: Write>(
-        &self,
-        key: TahoeAesCtr,
-        metadata: ImmutableMetadata,
-        plaintext_output: &'b mut W,
-    ) -> Result<ImmutableDecryptor<'b, W>, MagicCapError> {
-        Ok(ImmutableDecryptor::new(key, metadata, plaintext_output))
-    }
-}
-
-impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
+impl<'a> Catalog<'a> for ImmutableDirectoryCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
         let fname = add_identifier(&self.root, locator);
         let f = File::open(fname)?;
