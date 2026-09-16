@@ -17,6 +17,7 @@ categories = ["cryptography", "command-line-utilities", "data-structures", "enco
 publish = true  # when flipping this, ensure GitHub repo is public (add homepage etc too if avail)
 
 [features]
+default = ["async_web"]
 async_web = []
 
 [lints.rust]

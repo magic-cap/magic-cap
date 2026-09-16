@@ -101,9 +101,9 @@ use tracing::debug;
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    Immutable, ImmutableBuilder, Catalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
-    ImmutableWebCatalog, ReadCap,
+    ImmutableWebCatalog, AsyncCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;
 use std::error::Error;
@@ -672,11 +672,7 @@ impl Locator for CatalogUrl {
         debug!("before readcap.into");
         let locid: ImmutableIdentifier = readcap.into();
         debug!("before fetch_metadata");
-        let metadata = collect.fetch_metadata(&locid).await?;
-        let key = tahoe_cap.create_tahoe_key();
-        debug!("before stream_push");
-        let mut pusher = collect.stream_push(key, metadata, output)?;
-        collect.copy_ciphertext_to(&locid, &mut pusher).await?;
+        collect.stream_decrypt(&locid, tahoe_cap.create_tahoe_key(), output).await?;
         Ok(())
     }
 }

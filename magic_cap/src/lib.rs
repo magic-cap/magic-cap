@@ -97,7 +97,8 @@ pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
 pub use catalog::{
-    ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
+    Catalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
+    AsyncCatalog,
     add_identifier,
 };
 
