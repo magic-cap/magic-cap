@@ -147,7 +147,7 @@ where
     metadata: ImmutableMetadata,
     key: TahoeAesCtr,
     this_block: Vec<u8>,
-    this_block_num: usize,
+    current_block: usize,
     //plaintext_bytes: usize,
 }
 
@@ -166,7 +166,7 @@ where
             plain_output,
             metadata,
             this_block: Vec::with_capacity(bs),
-            this_block_num: 0,
+            current_block: 0,
         }
     }
 }
@@ -196,10 +196,10 @@ where
 
             // does it correspond?
             let h = TahoeLeaf::hash(this_block_bytes.as_slice());
-            if h != self.metadata.merkle_leaves[self.this_block_num] {
+            if h != self.metadata.merkle_leaves[self.current_block] {
                 panic!("Leaf hash mismatch");
             }
-            self.this_block_num += 1;
+            self.current_block += 1;
 
             // decrypt the block
             self.key.apply_keystream(&mut this_block_bytes);
