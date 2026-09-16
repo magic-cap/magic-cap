@@ -16,6 +16,9 @@ keywords = ["crypto", "cryptography", "cli", "security"]
 categories = ["cryptography", "command-line-utilities", "data-structures", "encoding", "security"]
 publish = true  # when flipping this, ensure GitHub repo is public (add homepage etc too if avail)
 
+[features]
+async_web = []
+
 [lints.rust]
 unsafe_code = "forbid"
 
