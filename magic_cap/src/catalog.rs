@@ -104,6 +104,7 @@ pub struct ImmutableDirectoryCatalog {
 }
 
 impl ImmutableDirectoryCatalog {
+    // todo: different API for "create a brand-new one" vs. "use an existing one"..?
     pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCatalog, MagicCapError> {
         if !root.is_dir() {
             return Err(MagicCapError::NotDirectory());

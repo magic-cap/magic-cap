@@ -85,6 +85,29 @@
 //!
 //! ## Examples
 //!
+//! This library is about the safe handling of data, so at the core we
+//! want to read plaintext out of encrypted locations and write
+//! plaintext into encrypted locations.
+//!
+//! We start with the low-level APIs, but most users will want to use
+//! a "Catalog" (like [`ImmutableDirectoryCatalog`]) which stores a
+//! collection of Data indexed by an "Identifier" derived from the
+//! Read Cap.
+//!
+//! ### Loading an Existing Immutable
+//!
+//! If you want all the plaintext loaded into memory, the easiest API
+//! is [`ReadCap::decrypt`]. This directly reads all the ciphertext
+//! from the provided [`Read`] implementation and returns the
+//! plaintext as a `Vec<u8>`.
+//! (If you have large files or memory use is a concern, read on).
+//! `cargo run --example read-memory`.
+//!
+//! ```rust
+#![doc = include_doc::source_file!("examples/read-memory.rs")]
+//! ```
+//! ### Creation From Plaintext
+//!
 //! One way to create an [`ImmutableReadCap`] is to stream plaintext
 //! to it using the [`Write`] trait to an [`ImmutableBuilder`]. For
 //! example:
@@ -101,6 +124,71 @@
 //! ```rust
 #![doc = include_doc::source_file!("examples/in-memory.rs")]
 //! ```
+//!
+//! ## Using Catalogs
+//!
+//! You may choose to associate Read Caps with Data using your own scheme (e.g. a database).
+//! We provide a mechanism using [`ImmutableIdentifier`] (deterministically derived from [`ImmutableReadCap`] or [`ImmutableVerifyCap`]) called a "Catalog" (see also [the Magic Cap glossary](https://magic-cap.readthedocs.io/en/latest/glossary.html)).
+//!
+//! We recommend using [`ImmutableIdentifier`] to index / find Data bytes even if you implement your own method.
+//! There is a proposed ReST API as well (see [`ImmutableWebCatalog`]).
+//!
+//! On the client side, one may create an appropriate [`ImmutableCatalog`] instance.
+//! That is [`ImmutableDirectoryCatalog`] for local on-disk Data files or [`ImmutableWebCatalog`] to access the ReST-style API remotely.
+//! In the near future we will finalize async vs. sync APIs.
+//! Ideas for other ways to access Data? [Get in touch](https://github.com/magic-cap/magic-cap/issues/new/choose>).
+//!
+//! Note that access-control is NOT part of any of the "remote" designs -- that is completely up to you.
+//! That can be as simple as file-permissions for local access, IAM or other credetials for commodity services.
+//! This could even be an unguessable URL like a Tor Onion service.
+//!
+//! ### The APIs
+//!
+//! There are two parts to decoding: you need the [`ImmutableReadCap`] **and** the corresponding [`Immutable`].
+//! These Catalog APIs get you the second part.
+//! A common way to get the first part is to parse a user-provided string.
+//!
+//! You can decide how to handle the ciphertext:
+//!
+//! * entirely in-memory: [`ImmutableCatalog::load`]
+//! * streamed on-demand from a [`Read`] instance: [`ImmutableCatalog::stream`]
+//! * outside handling by user code (ciphertext is "pushed" in via [`Write`] calls).
+//! 
+//! The trait [`ImmutableCatalog`] shows the common API for Catalogs.
+//! [`ImmutableCatalog::load`] immediately reads all ciphertext into memory.
+//! [`ImmutableCatalog::stream`] sets up to read ciphertext on-demand via [`Read`] trait calls; only the metadata is read immediately.
+//!
+//! Doing everything in-memory:
+//!
+//! ```rust
+#![doc = include_doc::source_file!("examples/catalog-read.rs")]
+//! ```
+//!
+//! **Exercise 1**: Arrange to stream the ciphertext in by changing
+//! the ``catalog.load(..)`` line in the above to ``catalog.stream``.
+//! That it! The difference is that an entire copy of the ciphertext
+//! now won't exist in memory.
+//!
+//! (You might want to use ``load()`` when the ciphertext is *already* in memory anyway, for example).
+//!
+//! **Exercise 2**: Try loading different kittens from the kitten-catalog.
+//! Choose different Read Cap strings from README.org and replace them in the code.
+//! (The total number of bytes in the plaintext will differ between kittens).
+//!
+//! **Exercise 3**: Write out the plaintext to disk (e.g. to
+//! ``kitten.jpeg``) and then load it with your favourite photo
+//! viewer.
+//!
+//!
+//! ### Synchronous, Local Access: ``ImmutableDirectoryCatalog``
+//!
+//! Our method for storing Data locally is to have a "root" directory that looks a lot like a `.git` object database.
+//! That is, a ``root/`` directory followed by two-digit sub-directories which themselves contain files.
+//! See the ``kitten-catalog/`` in the root of this checkout for a concrete example.
+//!
+//! [`ImmutableDirectoryCatalog::create`] takes a root path (e.g. ``/path/to/kitten-catalog``).
+//! Upon [`ImmutableCatalog::load`], Data files are looked up by taking the base32 encoding of the [`ImmutableIdentifier`] and using the first two characters as the sub-directory and the entire encoding as the filename.
+//! Each file is the result of serializing an [`Immutable`].
 //!
 
 mod catalog;
