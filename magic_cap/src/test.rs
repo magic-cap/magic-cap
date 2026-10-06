@@ -100,6 +100,43 @@ fn handcrafted_filesystem_round_trip_stream() {
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let mut data = std::io::BufReader::new(fm);
+
+
+    // okay, so we need some function that can open a file and returns
+    // an ImmutableMetadata + "the rest of the owl" stream -- that is,
+    // probably "consume input and return it again?"
+    // (the .decrypt_stream() is basically for Catalog?)
+    
+    let imm = Immutable::stream(&mut data).unwrap();
+
+    println!("{:?}", imm.metadata.merkle_leaves);
+
+    let mut plain: Vec<u8> = vec!();
+    let mut decryptor = cap.decrypt_stream(imm.metadata, &mut plain).unwrap();
+    // copy data from file ...
+    let mut chunk: Vec<u8> = vec![0u8; 11];
+    loop {
+        let r = data.read(&mut chunk).unwrap();
+        decryptor.write_all(&chunk).unwrap();
+        if r == 0 {
+            break;
+        }
+    }
+    assert_eq!(input, plain);
+}
+
+#[test]
+fn handcrafted_filesystem_round_trip_single_block() {
+    let blocksize = 2;
+    let input: Vec<u8> = b"abcdef".to_vec();
+    let tmp = TempDir::new().unwrap();
+
+    let fm = File::create(tmp.path().join("encrypted")).unwrap();
+    let cap =
+        ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize).unwrap();
+
+    let fm = File::open(tmp.path().join("encrypted")).unwrap();
+    let mut data = std::io::BufReader::new(fm);
     let mut imm = Immutable::stream(&mut data).unwrap();
 
     println!("{:?}", imm.metadata.merkle_leaves);
