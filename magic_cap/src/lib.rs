@@ -618,6 +618,9 @@ impl ReadCap for ImmutableReadCap {
     // is this friend shaped?
     // probably need / want to pass in Metadata too?
     // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
+
+    // problems: see the test, not really straightforward to use and
+    // can't we just return a thing that does Read?
     fn decrypt_stream<'a, W>(
         &'a self,
         meta: ImmutableMetadata,

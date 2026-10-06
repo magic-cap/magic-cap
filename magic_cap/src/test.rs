@@ -110,6 +110,10 @@ fn handcrafted_filesystem_round_trip_stream() {
     // can we avoid this clone by passing ref?
     let mut decryptor = cap.decrypt_stream(imm.metadata.clone(), &mut plain).unwrap();
     // copy data from file ...
+
+    // (here we're only providing the EncryptedImmutable interface
+    // .. but can we make an adaptor or just implement Read
+    // ...somewhere?)
     let mut chunk: Vec<u8> = vec![0u8; imm.metadata.block_size as usize];
     for block in 0..imm.metadata.blocks as usize {
         imm.data_provider.get_block(block, &mut chunk).unwrap();
