@@ -102,25 +102,18 @@ fn handcrafted_filesystem_round_trip_stream() {
     let mut data = std::io::BufReader::new(fm);
 
 
-    // okay, so we need some function that can open a file and returns
-    // an ImmutableMetadata + "the rest of the owl" stream -- that is,
-    // probably "consume input and return it again?"
-    // (the .decrypt_stream() is basically for Catalog?)
-    
-    let imm = Immutable::stream(&mut data).unwrap();
+    let mut imm = Immutable::stream(&mut data).unwrap();
 
     println!("{:?}", imm.metadata.merkle_leaves);
 
     let mut plain: Vec<u8> = vec!();
-    let mut decryptor = cap.decrypt_stream(imm.metadata, &mut plain).unwrap();
+    // can we avoid this clone by passing ref?
+    let mut decryptor = cap.decrypt_stream(imm.metadata.clone(), &mut plain).unwrap();
     // copy data from file ...
-    let mut chunk: Vec<u8> = vec![0u8; 11];
-    loop {
-        let r = data.read(&mut chunk).unwrap();
+    let mut chunk: Vec<u8> = vec![0u8; imm.metadata.block_size as usize];
+    for block in 0..imm.metadata.blocks as usize {
+        imm.data_provider.get_block(block, &mut chunk).unwrap();
         decryptor.write_all(&chunk).unwrap();
-        if r == 0 {
-            break;
-        }
     }
     assert_eq!(input, plain);
 }
