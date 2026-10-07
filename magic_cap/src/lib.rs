@@ -153,7 +153,7 @@
 //! * entirely in-memory: [`ImmutableCatalog::load`]
 //! * streamed on-demand from a [`Read`] instance: [`ImmutableCatalog::stream`]
 //! * outside handling by user code (ciphertext is "pushed" in via [`Write`] calls).
-//! 
+//!
 //! The trait [`ImmutableCatalog`] shows the common API for Catalogs.
 //! [`ImmutableCatalog::load`] immediately reads all ciphertext into memory.
 //! [`ImmutableCatalog::stream`] sets up to read ciphertext on-demand via [`Read`] trait calls; only the metadata is read immediately.

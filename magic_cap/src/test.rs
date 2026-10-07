@@ -101,14 +101,15 @@ fn handcrafted_filesystem_round_trip_stream() {
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let mut data = std::io::BufReader::new(fm);
 
-
     let mut imm = Immutable::stream(&mut data).unwrap();
 
     println!("{:?}", imm.metadata.merkle_leaves);
 
-    let mut plain: Vec<u8> = vec!();
+    let mut plain: Vec<u8> = vec![];
     // can we avoid this clone by passing ref?
-    let mut decryptor = cap.decrypt_stream(imm.metadata.clone(), &mut plain).unwrap();
+    let mut decryptor = cap
+        .decrypt_stream(imm.metadata.clone(), &mut plain)
+        .unwrap();
     // copy data from file ...
 
     // (here we're only providing the EncryptedImmutable interface
