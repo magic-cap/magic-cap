@@ -3,7 +3,12 @@ use magic_cap::{
 };
 
 fn main() {
-    let root = std::path::PathBuf::from("kitten-catalog/");
+    // "cargo test --doc" will run this in "<git-root>/magic_cap"
+    let mut root = std::path::PathBuf::from("../kitten-catalog");
+    if !root.exists() {
+        // ..but users probably run from the git checkout root
+        root = std::path::PathBuf::from("kitten-catalog");
+    }
     let catalog = ImmutableDirectoryCatalog::create(root).expect("catalog init");
 
     // to load something, we need a ReadCap from somewhere; here we
