@@ -12,7 +12,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use tracing::debug;
+use tracing::{debug, info};
 
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
@@ -29,6 +29,7 @@ pub trait ImmutableCatalog<'a> {
         blocksize: usize,
     ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
 }
+
 
 #[derive(Debug, PartialEq)]
 pub struct ImmutableIdentifier {
@@ -98,7 +99,7 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
 /// a file-system implementation of [`ImmutableCatalog`] which
 /// stores magic-caps in a struture similar to Git
 /// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImmutableDirectoryCatalog {
     root: PathBuf,
 }
@@ -107,7 +108,9 @@ impl ImmutableDirectoryCatalog {
     // todo: different API for "create a brand-new one" vs. "use an existing one"..?
     pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCatalog, MagicCapError> {
         if !root.is_dir() {
-            return Err(MagicCapError::NotDirectory());
+            return Err(MagicCapError::GenericError(
+                format!("{}: not a directory", root.as_path().to_str().unwrap_or("weird path"))
+            ));
         }
         // todo: consider putting a README or similar in here that
         // both more-accurately marks this as an
@@ -136,10 +139,14 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push("magic-cap-catalog");
         debug!("url is {}", url);
-        let result = reqwest::blocking::Client::new().get(url).send()?;
-        debug!("before js result.text");
+        let result = reqwest::blocking::Client::new().get(url.clone()).send()?;
+        if result.status() != reqwest::StatusCode::OK {
+            return Err(MagicCapError::GenericError(
+                format!("{}: {}", url, result.status())
+            ));
+        }
         let js = result.text()?;
-        let js: Value = serde_json::from_str(js.as_str()).unwrap();
+        let js: Value = serde_json::from_str(js.as_str())?;
         debug!("before js version check");
         if js["version"] == 0 {
             return Ok(ImmutableWebCatalog { root });
@@ -157,12 +164,11 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push(id_str.as_str())
             .push("metadata");
-        debug!("URL {:?}", url);
+        debug!("fetch: {}", url.as_str());
         let result = reqwest::blocking::Client::new()
             .get(url)
             .send()?
             .error_for_status()?;
-        debug!("before js = result.bytes");
         let js = result.bytes()?;
         let slice = &js[0..];
         Ok(rmp_serde::decode::from_read(slice)?)
@@ -179,7 +185,7 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push(id_str.as_str())
             .push("ciphertext");
-        debug!("URL {:?}", url);
+        debug!("copy: {}", url.as_str());
         let mut result = reqwest::blocking::Client::new().get(url).send()?;
         result.copy_to(dest)?;
         Ok(())
@@ -211,6 +217,49 @@ impl ImmutableWebCatalog {
         Ok(ImmutableDecryptor::new(key, metadata, plaintext_output))
     }
 }
+
+impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
+    fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
+        let metadata = self.fetch_metadata(&locator)?;
+        debug!("load {} * {} = {}", metadata.blocks, metadata.block_size, metadata.size);
+        let size = metadata.blocks * metadata.block_size as u64;
+        let mut data: Vec<u8> = vec!();//Vec::with_capacity(size as usize);
+        self.copy_ciphertext_to(&locator, &mut data)?;
+
+        Ok(Immutable {
+            metadata: metadata.clone(),
+            data_provider: Box::new(crate::EncryptedImmutableReader {
+                provider: std::io::Cursor::new(data),
+                blocks: metadata.blocks,
+                offset: 0,
+                block_size: metadata.block_size,
+            }),
+        })
+    }
+
+    fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
+        // should be able to do this by using Read from "response"
+        // ..so similar to load()
+        // ..but no copy_ciphertext_to and we haev to "remember state"
+        // ..can just use EncryptedImmutableReader?? (because reqwest::Response is Read??)
+        todo!()
+    }
+
+    fn insert(
+        &mut self,
+        blocksize: usize,
+    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
+        todo!()
+    }
+}
+
+// impl Clone for ImmutableDirectoryCatalog {
+//     fn clone(&self) -> Self {
+//         Self {
+//             root: self.root.clone(),
+//         }
+//     }
+// }
 
 impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
@@ -263,5 +312,29 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
             Some(Box::new(completed)),
         )?;
         Ok(builder)
+    }
+}
+
+
+/**
+Create an instance implementing [`ImmutableCatalog`] according to
+the configuration string. Currently the following are recognized:
+
+- a local path produces [`ImmutableFileCatalog`]
+- a valid HTTP URL uses the ReST API via tokio + <insert web library>
+
+*/
+
+pub fn connect_catalog<'a>(config: &str) -> Result<Box<dyn ImmutableCatalog<'a>>, MagicCapError> {
+    if let Ok(url) = Url::parse(config) {
+        let catalog = ImmutableWebCatalog::create(url)?;
+        Ok(Box::new(catalog))
+    } else {
+        let path: PathBuf = config.into();
+        // think: do we want to see if this path exists first? Then
+        // we'd need a different command or option for "create this
+        // catalog", perhaps?
+        let catalog = ImmutableDirectoryCatalog::create(path)?;
+        Ok(Box::new(catalog))
     }
 }

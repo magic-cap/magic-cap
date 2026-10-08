@@ -204,6 +204,7 @@ use tahoe::{TahoeInside, TahoeLeaf};
 
 pub use catalog::{
     ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
+    connect_catalog,
     add_identifier,
 };
 

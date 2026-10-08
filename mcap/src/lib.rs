@@ -204,10 +204,7 @@ pub fn main_encrypt(
 /// if the vectors are not empty, search each of them in order for matching encrypted data.
 pub fn main_decrypt(
     readcap: &ImmutableReadCap,
-    catalog_local: &Vec<PathBuf>,
-    catalog_url: &Vec<Url>,
-    file_local: &Vec<PathBuf>,
-    file_url: &Vec<Url>,
+    catalogs: &Vec<Box<dyn ImmutableCatalog>>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     // decrypt to a file or stdout?
@@ -218,77 +215,9 @@ pub fn main_decrypt(
         Box::new(std::io::stdout()) as Box<dyn Write>
     };
 
-    // these four separate pieces could likely be one single much shorter stanza!
-    // something like Vec<impl Locator>.map(|l|l.extract().unwrap_or_else(...)) ?
-    for this_file_url in file_url {
-        let this_result = FileUrl {
-            url: this_file_url.clone(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                MagicCapError::McapMetadataDiscordant() => continue,
-                _ => panic!("Something bad happened trying to decrypt your web file {err}"),
-            },
-        }
-    }
-
-    for this_url_catalog in catalog_url {
-        let this_result = CatalogUrl {
-            catalog_url: this_url_catalog.clone(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                // the file was not found for this catalog, keep going!
-                MagicCapError::ReqwestError(_error) => continue,
-                _ => {
-                    panic!("Something bad happened trying to find your file in a web catalog {err}")
-                }
-            },
-        }
-    }
-
-    for this_file_local in file_local {
-        let this_result = FileLocal {
-            file_local: this_file_local.clone(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                // file not found
-                MagicCapError::IOError(_error) => continue,
-                // file found, but does not match the given readcap
-                MagicCapError::McapMetadataDiscordant() => continue,
-                _ => panic!(
-                    "Something bad happened trying to find your file on the drive {this_file_local:?} {err}"
-                ),
-            },
-        }
-    }
-
-    for this_local_catalog in catalog_local {
-        let this_result = CatalogLocal {
-            catalog_local: this_local_catalog.to_path_buf(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                MagicCapError::IOError(_error) => continue,
-                _ => panic!(
-                    "something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"
-                ),
-            },
-        }
-    }
-
-    let count_sources = catalog_local.len() + catalog_url.len() + file_local.len() + file_url.len();
     println!(
-        "Searched {count_sources} sources and did not find matching encrypted data to decrypt."
+        "Searched {} sources and did not find matching encrypted data to decrypt.",
+        catalogs.len(),
     );
     Ok(())
 }
@@ -550,6 +479,30 @@ pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapErr
 
     Ok(())
 }
+
+
+// okay, thinking about this all in terms of Catalogs
+//
+// static config?
+// - each catalog has petname
+// - can be read-only or writable (e.g. no-creds HTTP is read-only)
+// - probably countless other metadatas (ideally only in support of features)
+//
+// for the "read" / decrypt side it's easy: keep looking until you
+// find the right Data. Tahoe-style. User might want:
+// - priority order (first filesystems, then remote)
+// - "no network"?
+// - w/ named config: "--catalog foo" or "--catalog-ignore bar" for filtering (from the whole config'd list)
+//
+// for "write" / encrypt side it's a little more complex:
+// - write to ALL configured Catalogs?
+// - only to named-on-the-command-line ones?
+// - (w/ named config that can be "--catalog foo")
+// - default is the set ("default", )
+// - if no catalog in static config named "default", the default is "one that makes sense on your system"
+// - default-default is like "~/.config/magic-cap/default-catalog" or something?
+// - (what's the crate that does platform-specific defaults for Rust?)
+
 
 struct FileUrl {
     url: Url,

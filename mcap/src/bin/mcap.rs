@@ -1,4 +1,4 @@
-use magic_cap::ImmutableReadCap;
+use magic_cap::{ImmutableReadCap, connect_catalog};
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
     main_encrypt, main_publish, main_reduce, main_verify,
@@ -9,10 +9,12 @@ use tracing_subscriber::FmtSubscriber;
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
 // using tahoe libs.
 use std::path::PathBuf;
+//use std::sync::Arc;
 use url::Url;
 
 use clap::{Args, Parser, Subcommand};
 use tracing::{Level, debug, error};
+use magic_cap::ImmutableCatalog;
 
 #[derive(Parser)]
 #[command(version = "25.12.1")]
@@ -32,15 +34,19 @@ Any Read Cap may be turned into a Verify Cap offline.
 
 Anyone with both the Data and corresponding Read Cap may re-create the plaintext.
 ")]
+
+
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
     /// ERROR, WARN, INFO, DEBUG, TRACE in that order.
     #[arg(short, long, default_value_t = Level::INFO)]
     loglevel: Level,
-    // todo: maybe promote --catalog up here?
-    // ("mcap reduce" doesn't use it, and not all "mcap debug" commands will, ...)
-    // maybe clap gives us a way to say "--catalog is illegal for ..."?
+
+    // todo: does clap have a way to error when passingt --catalog to
+    // a subcommand that doesn't need / want it?
+    #[arg(short = 'c', long = "catalog")]
+    catalogs: Vec<String>,
 }
 
 #[derive(Subcommand)]
@@ -94,8 +100,8 @@ enum Commands {
     #[command(about = "turn a Read Cap + ciphertext into plaintext")]
     Decrypt {
         // this flatten is VERY IMPORTANT and took me days to discover.
-        #[command(flatten)]
-        ciphertext_loader: CiphertextLoad,
+//        #[command(flatten)]
+//        ciphertext_loader: CiphertextLoad,
 
         // non-optional magic-cap string
         cap: ImmutableReadCap,
@@ -203,6 +209,19 @@ fn main() {
     let _fail = tracing::subscriber::set_global_default(subscriber);
     debug!("after tracing subscriber init");
     debug!("set log level to {}", cli.loglevel);
+
+    // convert any Catalog configurations into proper objects
+    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec!();
+    for cfg in cli.catalogs {
+        match connect_catalog(&cfg) {
+            Ok(catalog) => catalogs.push(catalog),
+            Err(e) => {
+                println!("--catalog: {}", e);
+                std::process::exit(3);
+            },
+        }
+    }
+
     let result = match &cli.command {
         // if the MCAP output went to stdout a user will have a pretty
         // hard time separating the data file from the mcap string, so
@@ -220,16 +239,12 @@ fn main() {
         ),
         Some(Commands::Decrypt {
             cap,
-            ciphertext_loader: ciphertext_load,
+//            ciphertext_loader: ciphertext_load,
             plaintext,
         }) => {
-            let cl = ciphertext_load;
             main_decrypt(
                 cap,
-                &cl.local_catalog,
-                &cl.url_catalog,
-                &cl.local_file,
-                &cl.url_file,
+                &catalogs,
                 plaintext,
             )
         }
