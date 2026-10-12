@@ -220,76 +220,69 @@ pub fn main_decrypt(
 
     // these four separate pieces could likely be one single much shorter stanza!
     // something like Vec<impl Locator>.map(|l|l.extract().unwrap_or_else(...)) ?
-    if !file_url.is_empty() {
-        for this_file_url in file_url {
-            let this_result = FileUrl {
-                url: this_file_url.clone(),
-            }
-            .extract(readcap, &mut output);
-            match this_result {
-                Ok(done) => return Ok(done),
-                Err(err) => match err {
-                    MagicCapError::McapMetadataDiscordant() => continue,
-                    _ => panic!("Something bad happened trying to decrypt your web file {err}"),
-                },
-            }
+    for this_file_url in file_url {
+        let this_result = FileUrl {
+            url: this_file_url.clone(),
+        }
+        .extract(readcap, &mut output);
+        match this_result {
+            Ok(done) => return Ok(done),
+            Err(err) => match err {
+                MagicCapError::McapMetadataDiscordant() => continue,
+                _ => panic!("Something bad happened trying to decrypt your web file {err}"),
+            },
         }
     }
 
-    if !catalog_url.is_empty() {
-        for this_url_catalog in catalog_url {
-            let this_result = CatalogUrl {
-                catalog_url: this_url_catalog.clone(),
-            }
-            .extract(readcap, &mut output);
-            match this_result {
-                Ok(done) => return Ok(done),
-                Err(err) => match err {
-                    // the file was not found for this catalog, keep going!
-                    MagicCapError::ReqwestError(_error) => continue,
-                    _ => panic!(
-                        "Something bad happened trying to find your file in a web catalog {err}"
-                    ),
-                },
-            }
+    for this_url_catalog in catalog_url {
+        let this_result = CatalogUrl {
+            catalog_url: this_url_catalog.clone(),
+        }
+        .extract(readcap, &mut output);
+        match this_result {
+            Ok(done) => return Ok(done),
+            Err(err) => match err {
+                // the file was not found for this catalog, keep going!
+                MagicCapError::ReqwestError(_error) => continue,
+                _ => {
+                    panic!("Something bad happened trying to find your file in a web catalog {err}")
+                }
+            },
         }
     }
 
-    if !file_local.is_empty() {
-        for this_file_local in file_local {
-            let this_result = FileLocal {
-                file_local: this_file_local.clone(),
-            }
-            .extract(readcap, &mut output);
-            match this_result {
-                Ok(done) => return Ok(done),
-                Err(err) => match err {
-                    // file not found
-                    MagicCapError::IOError(_error) => continue,
-                    // file found, but does not match the given readcap
-                    MagicCapError::McapMetadataDiscordant() => continue,
-                    _ => panic!(
-                        "Something bad happened trying to find your file on the drive {this_file_local:?} {err}"
-                    ),
-                },
-            }
+    for this_file_local in file_local {
+        let this_result = FileLocal {
+            file_local: this_file_local.clone(),
+        }
+        .extract(readcap, &mut output);
+        match this_result {
+            Ok(done) => return Ok(done),
+            Err(err) => match err {
+                // file not found
+                MagicCapError::IOError(_error) => continue,
+                // file found, but does not match the given readcap
+                MagicCapError::McapMetadataDiscordant() => continue,
+                _ => panic!(
+                    "Something bad happened trying to find your file on the drive {this_file_local:?} {err}"
+                ),
+            },
         }
     }
-    if !catalog_local.is_empty() {
-        for this_local_catalog in catalog_local {
-            let this_result = CatalogLocal {
-                catalog_local: this_local_catalog.to_path_buf(),
-            }
-            .extract(readcap, &mut output);
-            match this_result {
-                Ok(done) => return Ok(done),
-                Err(err) => match err {
-                    MagicCapError::IOError(_error) => continue,
-                    _ => panic!(
-                        "something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"
-                    ),
-                },
-            }
+
+    for this_local_catalog in catalog_local {
+        let this_result = CatalogLocal {
+            catalog_local: this_local_catalog.to_path_buf(),
+        }
+        .extract(readcap, &mut output);
+        match this_result {
+            Ok(done) => return Ok(done),
+            Err(err) => match err {
+                MagicCapError::IOError(_error) => continue,
+                _ => panic!(
+                    "something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"
+                ),
+            },
         }
     }
 
@@ -383,7 +376,7 @@ pub fn main_publish(
     }
 
     let walker = WalkDir::new(catalog);
-    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+    for entry in walker.into_iter().filter_map(Result::ok) {
         if entry.metadata().unwrap().is_file() {
             let mut r = std::io::BufReader::new(std::fs::File::open(entry.path())?);
             let mut imm = Immutable::stream(&mut r)?;
@@ -466,7 +459,7 @@ pub fn main_debug_info(
     println!("      bytes: {}", meta.size);
     println!("     blocks: {}", meta.blocks);
     println!("encrypted metadata:");
-    let secret_meta = meta.secret_metadata(&readcap);
+    let secret_meta = meta.secret_metadata(readcap);
     for (k, v) in secret_meta.data {
         println!("  {k:>20}: {v}");
     }
@@ -644,13 +637,12 @@ impl Locator for FileUrl {
         let res = match res {
             Ok(x) => Ok(x),
             Err(e) => {
-                if let Some(src) = &e.source() {
-                    if let Some(ee) = src.downcast_ref::<std::io::Error>() {
-                        if ee.kind() == std::io::ErrorKind::BrokenPipe {
-                            debug!("ignoring BrokenPipe error");
-                            return Ok(());
-                        }
-                    }
+                if let Some(src) = &e.source()
+                    && let Some(ee) = src.downcast_ref::<std::io::Error>()
+                    && ee.kind() == std::io::ErrorKind::BrokenPipe
+                {
+                    debug!("ignoring BrokenPipe error");
+                    return Ok(());
                 }
                 Err(e)
             }

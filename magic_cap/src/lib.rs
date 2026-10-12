@@ -1362,7 +1362,7 @@ fn fill_empty_merkle_leaves(leaves: &mut Vec<[u8; 32]>) {
     let mut leaf = leaves.len();
     while leaves.len() < next_pow {
         leaf += 1;
-        let leaf_num = format!("{:?}", leaf);
+        let leaf_num = format!("{leaf:?}");
         let empty_leaf = tahoe::tagged_hash::<32>(b"Merkle tree empty leaf", leaf_num.as_bytes());
         let mut temp = [0u8; 32];
         temp.copy_from_slice(empty_leaf.as_slice());
