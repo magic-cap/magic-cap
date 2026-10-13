@@ -90,8 +90,11 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-        #[command(flatten)]
-        ciphertext_store: CiphertextStore,
+//        #[command(flatten)]
+//        ciphertext_store: CiphertextStore,
+
+        #[arg(short, long)]
+        ciphertext: Option<PathBuf>,
 
         #[arg(short, long, default_value_t = 4096)]
         blocksize: usize, // not Option because we have a default value
@@ -228,13 +231,12 @@ fn main() {
         // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
-            ciphertext_store,
+            ciphertext,
             blocksize,
         }) => main_encrypt(
             &mut std::io::stdout(),
             plaintext,
-            &ciphertext_store.output_file,
-            &ciphertext_store.catalog,
+            &mut catalogs,
             *blocksize,
         ),
         Some(Commands::Decrypt {

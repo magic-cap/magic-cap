@@ -249,7 +249,8 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
         &mut self,
         blocksize: usize,
     ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
-        todo!()
+        Err(MagicCapError::GenericError("we cannot write to Web Catalogs yet".to_string()))
+        //todo!()
     }
 }
 

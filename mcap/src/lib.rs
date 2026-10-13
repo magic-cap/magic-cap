@@ -121,10 +121,9 @@ pub mod tests;
 /// This is the top level function for easy use of this crate by applications or other libraries.
 /// This function does not consider memory use, but instead just does the thing using all the memory.
 pub fn main_encrypt(
-    output: &mut impl Write,
-    plain_text: &Path,
-    output_fname: &Option<PathBuf>,
-    catalog: &Option<PathBuf>,
+    output: &mut impl Write,  // where we write the Magic Cap string
+    plain_text: &Path,  // input data
+    catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>,
     blocksize: usize,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
@@ -144,12 +143,15 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    let mut cryptor: ImmutableBuilder<BufWriter<File>> = if let Some(output_fname) = output_fname {
-        let output_file = File::create(output_fname)?;
-        ImmutableBuilder::new(blocksize, BufWriter::new(output_file), None)?
-    } else if let Some(catalog) = catalog {
-        let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
-        catalog.insert(blocksize)?
+    // XXX FIXME how do we choose _which_ catalog to use??
+    if catalogs.len() != 1 {
+        return Err(MagicCapError::GenericError("We need exactly one Catalog".to_string()));
+    }
+    let mut cryptor: ImmutableBuilder<BufWriter<File>> = catalogs[0].insert(blocksize)?;
+
+    // XXX FIXME TODO we still want a way to do stdout (or maybe
+    // arbitrary file too) output..
+    /*
     } else {
         // no output file AND no catalog, so user wants ciphertext on stdout
         let stdio = std::io::stdout(); //.lock();
@@ -180,7 +182,8 @@ pub fn main_encrypt(
         writeln!(output, "{capstr}")?;
         return Ok(());
     };
-
+     */
+    
     let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
     let mut r = input_file.read(&mut plaintext)?;
