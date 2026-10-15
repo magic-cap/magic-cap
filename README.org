@@ -61,7 +61,7 @@ Encrypt "README.org" into:
 
 #+name: encrypt
 #+begin_src bash :results output :tangle data/readme-examples.sh
-  cargo run -- encrypt README.org --ciphertext encrypted
+  cargo run -- --catalog kitten-catalog/ encrypt README.org
 #+end_src
 
 #+RESULTS: encrypt

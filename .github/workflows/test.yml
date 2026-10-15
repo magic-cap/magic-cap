@@ -69,3 +69,18 @@ jobs:
       run: cargo install cargo-llvm-cov
     - name: Run llvm-cov
       run: cargo llvm-cov
+
+  examples:
+    name: run README examples
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        persist-credentials: false
+    - uses: purcell/setup-emacs@master
+      with:
+        version: 24.5
+    - name: extract examples
+      run: mkdir data && emacs --script run-readme.el
+    - name: run examples
+      run: bash data/readme-examples.sh
