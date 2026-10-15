@@ -543,7 +543,7 @@ type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 /// for the duration of the encryption.
 ///
 /// Note that we do NOT need a [`Seek`] implementation here due to the
-/// file layout but in exchanged [`Seek`] is required when reading.
+/// file layout but in exchange [`Seek`] is required when reading.
 pub struct ImmutableBuilder<W>
 where
     W: Write,

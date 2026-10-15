@@ -24,10 +24,15 @@ pub trait ImmutableCatalog<'a> {
 
     fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
+    // todo: we're going to want something more-generic for the return here
+    // (see e.g. main_encrypt in mcap)
+    // a Web Catalog doesn't want a "BufWriter<File>"
+    // can we return like Arc<ImmutableBuilder<dyn Write>> or something??
     fn insert(
         &mut self,
         blocksize: usize,
     ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
+//) -> Result<std::boxed::Box<ImmutableBuilder<dyn Write>>, MagicCapError>;
 }
 
 

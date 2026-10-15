@@ -128,14 +128,6 @@ pub fn main_encrypt(
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
 
-    // "write as one file"
-    // write "mcap"
-    // write 4-byte version number (1?)
-    // write all the ciphertext blocks
-    // write the metadata
-    // write 8-byte offset to metadata
-    // done
-
     // file format version 1 is:
     // 4 bytes: "mcap"
     // 4 bytes: 0x01  (the version number, big-endian)
@@ -149,8 +141,11 @@ pub fn main_encrypt(
     }
     let mut cryptor: ImmutableBuilder<BufWriter<File>> = catalogs[0].insert(blocksize)?;
 
-    // XXX FIXME TODO we still want a way to do stdout (or maybe
-    // arbitrary file too) output..
+    // todo: do we we want a way to do stdout (or maybe arbitrary
+    // file) output..?
+    //
+    // (having _just_ stdout would solve this, if you redirect to a
+    // file .. and then we write the cap-string to stderr??)
     /*
     } else {
         // no output file AND no catalog, so user wants ciphertext on stdout
