@@ -144,13 +144,15 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push("magic-cap-catalog");
         debug!("url is {}", url);
-        let result = reqwest::blocking::Client::new().get(url.clone()).send()?;
+        let client = reqwest::blocking::Client::new();
+        let result = client.get(url.clone()).send()?;
         if result.status() != reqwest::StatusCode::OK {
             return Err(MagicCapError::GenericError(
                 format!("{}: {}", url, result.status())
             ));
         }
         let js = result.text()?;
+        debug!("{} bytes of metadata JSON", js.len());
         let js: Value = serde_json::from_str(js.as_str())?;
         debug!("before js version check");
         if js["version"] == 0 {
