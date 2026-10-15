@@ -60,8 +60,8 @@ Encrypt "README.org" into:
 2) a Magic Cap string:
 
 #+name: encrypt
-#+begin_src bash :results output
-cargo run -- encrypt README.org --ciphertext encrypted
+#+begin_src bash :results output :tangle data/readme-examples.sh
+  cargo run -- encrypt README.org --ciphertext encrypted
 #+end_src
 
 #+RESULTS: encrypt
@@ -118,7 +118,7 @@ Inside this same folder is "kitten.mcap".
 The mcap to unlock it is: =mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v=
 If you're using "cargo" a command-line to do that is:
 
-#+begin_src sh
+#+begin_src sh :tangle data/readme-examples.sh
   cargo run -- decrypt --ciphertext kitten.mcap mcap0rajRAVOgzmSuSsNQt5yA5JAEypic23eM5kRtGp9b5Mq2etDldhibLLwEzHOSOHAo3 --plaintext kitten.jpeg
 #+end_src
 
@@ -128,7 +128,7 @@ If you're using "cargo" a command-line to do that is:
 We have found an amazing cat picture from a public domain source[fn:1] for your viewing pleasure.
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
-#+begin_src sh
+#+begin_src sh :tangle data/readme-examples.sh
   cargo run -- verify --ciphertext kitten.mcap mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
 #+end_src
 
@@ -232,7 +232,7 @@ The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalo
 We can decode one of these without "knowing" which ones goes with which Read Cap.
 Note that the output goes to stdout by default.
 
-#+begin_src sh
+#+begin_src sh :tangle data/readme-examples.sh
   cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB | display
 #+end_src
 
