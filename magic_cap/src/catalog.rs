@@ -32,9 +32,8 @@ pub trait ImmutableCatalog<'a> {
         &mut self,
         blocksize: usize,
     ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
-//) -> Result<std::boxed::Box<ImmutableBuilder<dyn Write>>, MagicCapError>;
+    //) -> Result<std::boxed::Box<ImmutableBuilder<dyn Write>>, MagicCapError>;
 }
-
 
 #[derive(Debug, PartialEq)]
 pub struct ImmutableIdentifier {
@@ -113,9 +112,10 @@ impl ImmutableDirectoryCatalog {
     // todo: different API for "create a brand-new one" vs. "use an existing one"..?
     pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCatalog, MagicCapError> {
         if !root.is_dir() {
-            return Err(MagicCapError::GenericError(
-                format!("{}: not a directory", root.as_path().to_str().unwrap_or("weird path"))
-            ));
+            return Err(MagicCapError::GenericError(format!(
+                "{}: not a directory",
+                root.as_path().to_str().unwrap_or("weird path")
+            )));
         }
         // todo: consider putting a README or similar in here that
         // both more-accurately marks this as an
@@ -147,9 +147,11 @@ impl ImmutableWebCatalog {
         let client = reqwest::blocking::Client::new();
         let result = client.get(url.clone()).send()?;
         if result.status() != reqwest::StatusCode::OK {
-            return Err(MagicCapError::GenericError(
-                format!("{}: {}", url, result.status())
-            ));
+            return Err(MagicCapError::GenericError(format!(
+                "{}: {}",
+                url,
+                result.status()
+            )));
         }
         let js = result.text()?;
         debug!("{} bytes of metadata JSON", js.len());
@@ -228,9 +230,12 @@ impl ImmutableWebCatalog {
 impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
         let metadata = self.fetch_metadata(&locator)?;
-        debug!("load {} * {} = {}", metadata.blocks, metadata.block_size, metadata.size);
+        debug!(
+            "load {} * {} = {}",
+            metadata.blocks, metadata.block_size, metadata.size
+        );
         let size = metadata.blocks * metadata.block_size as u64;
-        let mut data: Vec<u8> = vec!();//Vec::with_capacity(size as usize);
+        let mut data: Vec<u8> = vec![]; //Vec::with_capacity(size as usize);
         self.copy_ciphertext_to(&locator, &mut data)?;
 
         Ok(Immutable {
@@ -256,7 +261,9 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
         &mut self,
         blocksize: usize,
     ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
-        Err(MagicCapError::GenericError("we cannot write to Web Catalogs yet".to_string()))
+        Err(MagicCapError::GenericError(
+            "we cannot write to Web Catalogs yet".to_string(),
+        ))
         //todo!()
     }
 }
@@ -322,7 +329,6 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
         Ok(builder)
     }
 }
-
 
 /**
 Create an instance implementing [`ImmutableCatalog`] according to

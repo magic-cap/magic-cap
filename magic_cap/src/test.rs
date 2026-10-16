@@ -107,9 +107,7 @@ fn handcrafted_filesystem_round_trip_stream() {
 
     let mut plain: Vec<u8> = vec![];
     // can we avoid this clone by passing ref?
-    let mut decryptor = cap
-        .decrypt_stream(&imm.metadata, &mut plain)
-        .unwrap();
+    let mut decryptor = cap.decrypt_stream(&imm.metadata, &mut plain).unwrap();
     // copy data from file ...
 
     // (here we're only providing the EncryptedImmutable interface

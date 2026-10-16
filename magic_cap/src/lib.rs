@@ -204,8 +204,7 @@ use tahoe::{TahoeInside, TahoeLeaf};
 
 pub use catalog::{
     ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
-    connect_catalog,
-    add_identifier,
+    add_identifier, connect_catalog,
 };
 
 // why can't we use KeyInit ?!
@@ -326,9 +325,11 @@ where
             if self.this_block_num == self.metadata.blocks as usize {
                 let rawsize = self.metadata.block_size as u64 * self.metadata.blocks;
                 let last_block_leftover = rawsize - self.metadata.size;
-                let last_block_size: usize = (self.metadata.block_size as u64 - last_block_leftover) as usize;
+                let last_block_size: usize =
+                    (self.metadata.block_size as u64 - last_block_leftover) as usize;
                 debug!("last block: {last_block_size}");
-                self.plain_output.write_all(&this_block_bytes[0..last_block_size as usize])?;
+                self.plain_output
+                    .write_all(&this_block_bytes[0..last_block_size as usize])?;
             } else {
                 self.plain_output.write_all(&this_block_bytes)?;
             }

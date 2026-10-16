@@ -13,8 +13,8 @@ use std::path::PathBuf;
 use url::Url;
 
 use clap::{Args, Parser, Subcommand};
-use tracing::{Level, debug, error};
 use magic_cap::ImmutableCatalog;
+use tracing::{Level, debug, error};
 
 #[derive(Parser)]
 #[command(version = "25.12.1")]
@@ -34,7 +34,6 @@ Any Read Cap may be turned into a Verify Cap offline.
 
 Anyone with both the Data and corresponding Read Cap may re-create the plaintext.
 ")]
-
 
 struct Cli {
     #[command(subcommand)]
@@ -90,9 +89,8 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-//        #[command(flatten)]
-//        ciphertext_store: CiphertextStore,
-
+        //        #[command(flatten)]
+        //        ciphertext_store: CiphertextStore,
         #[arg(short, long)]
         ciphertext: Option<PathBuf>,
 
@@ -103,8 +101,8 @@ enum Commands {
     #[command(about = "turn a Read Cap + ciphertext into plaintext")]
     Decrypt {
         // this flatten is VERY IMPORTANT and took me days to discover.
-//        #[command(flatten)]
-//        ciphertext_loader: CiphertextLoad,
+        //        #[command(flatten)]
+        //        ciphertext_loader: CiphertextLoad,
 
         // non-optional magic-cap string
         cap: ImmutableReadCap,
@@ -214,14 +212,14 @@ fn main() {
     debug!("set log level to {}", cli.loglevel);
 
     // convert any Catalog configurations into proper objects
-    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec!();
+    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec![];
     for cfg in cli.catalogs {
         match connect_catalog(&cfg) {
             Ok(catalog) => catalogs.push(catalog),
             Err(e) => {
                 println!("--catalog: {}", e);
                 std::process::exit(3);
-            },
+            }
         }
     }
 
@@ -233,23 +231,12 @@ fn main() {
             plaintext,
             ciphertext,
             blocksize,
-        }) => main_encrypt(
-            &mut std::io::stdout(),
-            plaintext,
-            &mut catalogs,
-            *blocksize,
-        ),
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, &mut catalogs, *blocksize),
         Some(Commands::Decrypt {
             cap,
-//            ciphertext_loader: ciphertext_load,
+            //            ciphertext_loader: ciphertext_load,
             plaintext,
-        }) => {
-            main_decrypt(
-                cap,
-                &catalogs,
-                plaintext,
-            )
-        }
+        }) => main_decrypt(cap, &catalogs, plaintext),
         Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         Some(Commands::Publish { catalog, output }) => {

@@ -121,8 +121,8 @@ pub mod tests;
 /// This is the top level function for easy use of this crate by applications or other libraries.
 /// This function does not consider memory use, but instead just does the thing using all the memory.
 pub fn main_encrypt(
-    output: &mut impl Write,  // where we write the Magic Cap string
-    plain_text: &Path,  // input data
+    output: &mut impl Write, // where we write the Magic Cap string
+    plain_text: &Path,       // input data
     catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>,
     blocksize: usize,
 ) -> Result<(), MagicCapError> {
@@ -137,7 +137,9 @@ pub fn main_encrypt(
 
     // XXX FIXME how do we choose _which_ catalog to use??
     if catalogs.len() != 1 {
-        return Err(MagicCapError::GenericError("We need exactly one Catalog".to_string()));
+        return Err(MagicCapError::GenericError(
+            "We need exactly one Catalog".to_string(),
+        ));
     }
     let mut cryptor: ImmutableBuilder<BufWriter<File>> = catalogs[0].insert(blocksize)?;
 
@@ -178,7 +180,7 @@ pub fn main_encrypt(
         return Ok(());
     };
      */
-    
+
     let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
     let mut r = input_file.read(&mut plaintext)?;
@@ -492,7 +494,6 @@ pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapErr
     Ok(())
 }
 
-
 // okay, thinking about this all in terms of Catalogs
 //
 // static config?
@@ -514,7 +515,6 @@ pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapErr
 // - if no catalog in static config named "default", the default is "one that makes sense on your system"
 // - default-default is like "~/.config/magic-cap/default-catalog" or something?
 // - (what's the crate that does platform-specific defaults for Rust?)
-
 
 struct FileUrl {
     url: Url,
