@@ -1,9 +1,14 @@
 """
-This encodes all of the kitten pictures in data/kittens/ into
-immutable caps in the catalog at data/root/
+Encode all the kitten pictures.
+
+This puts the results into ./kitten-catalog
+We also "publish" into ./kitten-catalog-published for ReST API use.
+
+NOTE that you must then change all the Magic Cap strings in the
+README.org and the examples/ directory to match!!
 
 The corresponding Read Caps for each file are put in
-data/root/kittens-anthology.txt
+data/kittens-anthology.txt
 """
 
 import os
