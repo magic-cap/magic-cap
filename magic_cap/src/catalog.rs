@@ -335,7 +335,7 @@ Create an instance implementing [`ImmutableCatalog`] according to
 the configuration string. Currently the following are recognized:
 
 - a local path produces [`ImmutableFileCatalog`]
-- a valid HTTP URL uses the ReST API via tokio + <insert web library>
+- a valid HTTP URL produces [`ImmutableWebCatalog`] that uses the ReST API via reqwest
 
 */
 
