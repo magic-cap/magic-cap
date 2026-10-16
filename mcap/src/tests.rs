@@ -67,9 +67,7 @@ pub mod test {
 
             let mut og = String::new();
             let mut other = String::new();
-            println!("opening plain to og");
             File::open(plain)?.read_to_string(&mut og)?;
-            println!("opening round to other");
             File::open(round)?.read_to_string(&mut other)?;
 
             assert_eq!(og, other);

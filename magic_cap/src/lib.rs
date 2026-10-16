@@ -259,7 +259,7 @@ where
     W: Write,
 {
     plain_output: &'a mut W,
-    metadata: ImmutableMetadata,
+    metadata: &'a ImmutableMetadata,
     key: TahoeAesCtr, // contains key state, thus consumed
     this_block: Vec<u8>,
     this_block_num: usize,
@@ -273,7 +273,7 @@ where
     // private constructor: the only way to make these is calls like ReadCap::decrypt_stream()
     fn new(
         key: TahoeAesCtr,
-        metadata: ImmutableMetadata,
+        metadata: &'a ImmutableMetadata,
         plain_output: &'a mut W,
     ) -> ImmutableDecryptor<'a, W> {
         let bs = metadata.block_size as usize;
@@ -320,8 +320,18 @@ where
             // decrypt the block
             self.key.apply_keystream(&mut this_block_bytes);
 
-            // write out plaintext block
-            self.plain_output.write_all(&this_block_bytes)?;
+            // write out plaintext block -- but we have to be careful
+            // if this is the last block to only write out what is
+            // valid
+            if self.this_block_num == self.metadata.blocks as usize {
+                let rawsize = self.metadata.block_size as u64 * self.metadata.blocks;
+                let last_block_leftover = rawsize - self.metadata.size;
+                let last_block_size: usize = (self.metadata.block_size as u64 - last_block_leftover) as usize;
+                debug!("last block: {last_block_size}");
+                self.plain_output.write_all(&this_block_bytes[0..last_block_size as usize])?;
+            } else {
+                self.plain_output.write_all(&this_block_bytes)?;
+            }
         }
         Ok(buf.len())
     }
@@ -345,7 +355,7 @@ pub trait ReadCap: ImmutableVerifier {
 
     fn decrypt_stream<'a, W>(
         &'a self,
-        meta: ImmutableMetadata,
+        meta: &'a ImmutableMetadata,
         output: &'a mut W,
     ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
     where
@@ -712,7 +722,7 @@ impl ReadCap for ImmutableReadCap {
     // can't we just return a thing that does Read?
     fn decrypt_stream<'a, W>(
         &'a self,
-        meta: ImmutableMetadata,
+        meta: &'a ImmutableMetadata,
         output: &'a mut W,
     ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
     where

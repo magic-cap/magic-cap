@@ -210,8 +210,22 @@ pub fn main_decrypt(
         debug!("creating output_file {:?}", output_file);
         Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
     } else {
+        debug!("output to stdout");
         Box::new(std::io::stdout()) as Box<dyn Write>
     };
+
+    let id: ImmutableIdentifier = readcap.into();
+
+    for catalog in catalogs {
+        if let Ok(mut imm) = catalog.stream(&id) {
+            let mut block: Vec<u8> = vec![0u8; imm.metadata.block_size as usize];
+            let mut decryptor = readcap.decrypt_stream(&imm.metadata, &mut output)?;
+            for i in 0..imm.metadata.blocks as usize {
+                imm.data_provider.get_block(i, &mut block)?;
+                decryptor.write_all(&block)?;
+            }
+        }
+    }
 
     println!(
         "Searched {} sources and did not find matching encrypted data to decrypt.",
@@ -568,7 +582,7 @@ impl Locator for FileUrl {
         if !readcap.verify.corresponds_to(&metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
-        let mut decryptor = readcap.decrypt_stream(metadata, &mut output)?;
+        let mut decryptor = readcap.decrypt_stream(&metadata, &mut output)?;
 
         // skip the first 8 bytes, which are "mcap" + 32-byte version
         // TODO: check those (version == 1 is the only one)
@@ -618,7 +632,7 @@ impl Locator for CatalogUrl {
         let metadata = collect.fetch_metadata(&locid)?;
         let key = tahoe_cap.create_tahoe_key();
         debug!("before stream_push");
-        let mut pusher = collect.stream_push(key, metadata, output)?;
+        let mut pusher = collect.stream_push(key, &metadata, output)?;
         collect.copy_ciphertext_to(&locid, &mut pusher)?;
         Ok(())
     }

@@ -218,7 +218,7 @@ impl ImmutableWebCatalog {
     pub fn stream_push<'b, W: Write>(
         &self,
         key: TahoeAesCtr,
-        metadata: ImmutableMetadata,
+        metadata: &'b ImmutableMetadata,
         plaintext_output: &'b mut W,
     ) -> Result<ImmutableDecryptor<'b, W>, MagicCapError> {
         Ok(ImmutableDecryptor::new(key, metadata, plaintext_output))
