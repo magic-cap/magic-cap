@@ -232,7 +232,7 @@ We can decode one of these without "knowing" which ones goes with which Read Cap
 Note that the output goes to stdout by default.
 
 #+begin_src sh :tangle data/readme-examples.sh
-  cargo run -- decrypt --catalog kitten-catalog mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
+  cargo run -- --catalog kitten-catalog decrypt mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
 #+end_src
 
 #+RESULTS:
