@@ -10,13 +10,13 @@ fn main() {
 
     // this is the path to bruennhilde.jpeg's encoding in the
     // kitten-catalog at the root of this repository
-    root.push("3d");
-    root.push("3d364f1a8913f365e8d686ef594f79c980762c83cb01956730157a38459e15b1");
+    root.push("7e");
+    root.push("7e58f88d088f6d312102f2571c1d67d9ec6332112141cb9f9ced3de692e55ab3");
     let data = std::io::BufReader::new(std::fs::File::open(root).expect("find Bruennhilde"));
     // ...so we'll need the corresponding Magic Cap to read it (see
     // README.org for more of these)
     let readcap = ImmutableReadCap::try_from(
-        "mcap0rlnzyN_KuH9bRBUHP3QkXBlkWipQ6JMw50NbNBpt6aj15q2pSnh85eKib9Ac-2m51",
+        "mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h",
     )
     .expect("valid readcap");
 

@@ -222,18 +222,17 @@ Instead, ciphertexts will be located relative to the root directory (specified b
 We have included an example of "Catalog" usage in this repository.
 The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalog``:
 
-| mcap0rlnzyN_KuH9bRBUHP3QkXBlkWipQ6JMw50NbNBpt6aj15q2pSnh85eKib9Ac-2m51 | bruennhilde.jpeg |
-| mcap0rAGkuRf82Cy5AYsS_1Xh8ngZoxa2Ra31dv4SOWQ-7UTbOEuu2iGL-GFRJ_hJTnVuP | cat-on-shoulder.jpeg |
-| mcap0rWoPqhovsj1gNIWosnS4BeB0yCt8JCTCiFuCiMoVwKFax8e0XiiUHk-Le96ImU8eT | kittens-in-basket.jpeg |
-| mcap0rQJ08bwA8dj4NFCMCTyzp5YaGq2JXZHB7kj3wUmTWXO7G_0PIs2hqi5SHc3QUPsRs | the-cook.jpeg |
-| mcap0r-A3km_Op0GEpxQO3vNDH0wyEaaBcBtfOHAqp47Y8ukfiCdhLipNVjJlatMtmT3le | three-jolly-kittens.jpeg |
-
+| mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | bruennhilde.jpeg |
+| mcap0rO_3Uowjy7b7nd-ZtV5_mhe4p2nvbR3faharTi0-dppHYhRuKcWymzHs6O06h5rwU | cat-on-shoulder.jpeg |
+| mcap0rjdkLUf3octmD4iidiUQkcL8htVLJlSxXO7jQjYdCCKADCXlI3mDghVBawnkhwOJg | kittens-in-basket.jpeg |
+| mcap0rym3W7AW4qg8-7XdMWXjyNhE21dk23hgC4EPcKpPTfxBxZXOg6OHrvlYYym1YF292 | the-cook.jpeg |
+| mcap0r9Dhndd2ytdbWHAJenJN7IaC0ivCR7_QaZzV9FPrxC45b0cN7Og4HMC0uFwnIAImF | three-jolly-kittens.jpeg |
 
 We can decode one of these without "knowing" which ones goes with which Read Cap.
 Note that the output goes to stdout by default.
 
 #+begin_src sh :tangle data/readme-examples.sh
-  cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB | display
+  cargo run -- decrypt --catalog kitten-catalog mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
 #+end_src
 
 #+RESULTS:

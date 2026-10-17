@@ -13,7 +13,7 @@ fn main() {
     // to load something, we need a ReadCap from somewhere; here we
     // choose our favourite kitten from the README.org example catalog
     let bruennhilde = ImmutableReadCap::try_from(
-        "mcap0rlnzyN_KuH9bRBUHP3QkXBlkWipQ6JMw50NbNBpt6aj15q2pSnh85eKib9Ac-2m51",
+        "mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h",
     )
     .expect("valid Magic Cap");
 

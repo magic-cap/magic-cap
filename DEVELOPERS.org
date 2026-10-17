@@ -93,8 +93,6 @@ REST API as implemented by the output of "mcap publish" is:
 
 In Rust, we have ``magic_cap::catalog::ImmutableWebCatalog`` which knows how to access the above REST API (using ``reqwest``).
 
-Using the CLI: ``mcap decrypt --catalog-url https://meejah.ca/media/mcap/secret-name/ mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > bruennhilde.jpeg``
-
 You can create a ready-to-static-host version of a catalog using ``mcap publish``.
 So if the above on-disk catalog was in ``kittens-catalog/`` you could turn it into something that can be scp'd or rsync'd to a remote server and statically-hosted by any Web server (turn off directory listings!).
 
@@ -105,7 +103,7 @@ So if the above on-disk catalog was in ``kittens-catalog/`` you could turn it in
 - thinking a little about "network caps"
 - right now we can do something like this:
 
-  cargo run -- decrypt --catalog ./kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB > kitten.jpeg
+  cargo run -- decrypt --catalog ./kitten-catalog mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h > kitten.jpeg
 
 - generalizing a bit, "--catalog <network-read-cap>" could generalize
   to any sort of "place to get ciphertext" (github, S3, ...)
