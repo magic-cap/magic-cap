@@ -41,6 +41,14 @@ with Path("data/kittens-anthology.txt").open("w") as f:
         print(line)
         f.write(line + "\n")
 
+args = [
+    "cargo", "run", "--",
+    "--catalog", collection,
+    "encrypt", Path("data/kittens-anthology.txt"),
+]
+cap = subprocess.check_output(args)
+print("anthology: {cap}")        
+
 print("publishing")
 shutil.rmtree("kitten-catalog-published")
 subprocess.check_output([

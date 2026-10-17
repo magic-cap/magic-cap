@@ -227,16 +227,25 @@ The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalo
 | mcap0rjdkLUf3octmD4iidiUQkcL8htVLJlSxXO7jQjYdCCKADCXlI3mDghVBawnkhwOJg | kittens-in-basket.jpeg |
 | mcap0rym3W7AW4qg8-7XdMWXjyNhE21dk23hgC4EPcKpPTfxBxZXOg6OHrvlYYym1YF292 | the-cook.jpeg |
 | mcap0r9Dhndd2ytdbWHAJenJN7IaC0ivCR7_QaZzV9FPrxC45b0cN7Og4HMC0uFwnIAImF | three-jolly-kittens.jpeg |
-
+ 
 We can decode one of these without "knowing" which ones goes with which Read Cap.
 Note that the output goes to stdout by default.
 
 #+begin_src sh :tangle data/readme-examples.sh
-  cargo run -- --catalog kitten-catalog decrypt mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
+  cargo run -- --catalog kitten-catalog/ decrypt mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
 #+end_src
 
 #+RESULTS:
 
+
+An "Anthology" is a collection of Read Caps, itself recorded as a Read Cap.
+Here is one collecting all the above kitten pictures:
+
+#+begin_src sh :tangle data/readme-examples.sh
+  cargo run -- --catalog kitten-catalog/ anthology list mcap0r_eX0bI_Nmm2kdwuFPqEHrVbjdbVo4_i9H_hVL13G2NWACUaXowpM6rXRR7iwFnED
+#+end_src
+
+#+RESULTS:
 
 * Where From and Where To
 

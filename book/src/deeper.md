@@ -2,6 +2,9 @@
 
 The [Overview](./overview.md) glosses over or doesn't discuss several other details.
 
+[Cryptographic Primitives](./cryptography.md)
+  : The particular cryptography-relevant primitives in use by Magic Cap
+
 [Locating and Retriving Data](./locations.md)
   : Locating the correct Data to go with a Read Cap will be required by many applications
 

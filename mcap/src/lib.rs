@@ -477,28 +477,29 @@ pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     Ok(())
 }
 
-pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
-    // need a catalog -- waiting for shapr's PR to "promote" it to top-level
-    let catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
-
+pub fn main_anthology_list(catalogs: &Vec<Box<dyn ImmutableCatalog>>, readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
     let id: ImmutableIdentifier = readcap.clone().into();
-    let mut anthology = catalog.load(&id)?;
-    let plaintext = readcap.decrypt(&mut anthology)?;
+    for catalog in catalogs {
+        if let Ok(mut anthology) = catalog.load(&id) {
+            let plaintext = readcap.decrypt(&mut anthology)?;
+            debug!("{:?}", anthology.metadata);
 
-    debug!("{:?}", anthology.metadata);
-    for line in plaintext.lines().map_while(Result::ok) {
-        debug!("{:?}", line);
-        let two: Vec<&str> = line.split(' ').collect();
-        if two.len() != 2 {
-            return Err(MagicCapError::GenericError(
-                "illegal line in Anthology".to_string(),
-            ));
+            for line in plaintext.lines().map_while(Result::ok) {
+                debug!("{:?}", line);
+                let two: Vec<&str> = line.split(' ').collect();
+                if two.len() != 2 {
+                    return Err(MagicCapError::GenericError(
+                        "illegal line in Anthology".to_string(),
+                    ));
+                }
+                let name = two[1];
+                println!("{name}");
+            }
+            return Ok(());
         }
-        let name = two[1];
-        println!("{name}");
     }
 
-    Ok(())
+    Err(MagicCapError::GenericError("Couldn't find corresponding Data".to_string()))
 }
 
 // okay, thinking about this all in terms of Catalogs

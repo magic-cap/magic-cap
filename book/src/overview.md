@@ -39,7 +39,7 @@ A Read Cap may be transformed (offline) into a Verify Cap.
 The size of the Data is a few percent larger than the plaintext.
 Read and Verify Caps look like this:
 
-```
+```ignore
 mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
 mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
 ```

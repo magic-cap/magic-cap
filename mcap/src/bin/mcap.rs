@@ -249,7 +249,7 @@ fn main() {
         },
         Some(Commands::Anthology { command }) => match command {
             Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory),
-            Some(AnthologyCommands::List { readcap }) => main_anthology_list(readcap),
+            Some(AnthologyCommands::List { readcap }) => main_anthology_list(&catalogs, readcap),
             None => Ok(()),
         },
         None => Ok(()),

@@ -39,6 +39,9 @@ Anthology
 : A way to group multiple different Read Caps together ("like a Zip file").
   For example, all the assets for a blog post.
   This allows you to have a single "top-level" Read Cap that references other Read Caps of various kinds.
+  
+Netstring
+: A length-prefixed ASCII string which looks like `4:this,` which is the netstring encoding of the 4-byte ASCII string `"this"`. See also [djb97](https://cr.yp.to/proto/netstrings.txt).
 
 # Catalog vs. Anthology
 
