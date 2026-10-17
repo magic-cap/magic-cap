@@ -39,7 +39,7 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 
 If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
 
-#+begin_src bash
+#+begin_src bash :tangle data/readme-examples.sh
 cargo run -- --catalog https://github.com/meejah/magic-cap/tree/unify/kitten-catalog-published decrypt  mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v | display
 #+end_src
 

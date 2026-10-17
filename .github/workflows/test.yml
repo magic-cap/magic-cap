@@ -83,4 +83,4 @@ jobs:
     - name: extract examples
       run: mkdir data && emacs --script run-readme.el
     - name: run examples
-      run: bash data/readme-examples.sh
+      run: bash -e data/readme-examples.sh

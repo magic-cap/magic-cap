@@ -2,13 +2,14 @@ use crate::err::MagicCapError;
 use crate::tahoe::tagged_hash;
 use crate::{
     Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata, ImmutableReadCap,
-    ImmutableVerifyCap, TahoeAesCtr,
+    ImmutableVerifyCap, TahoeAesCtr, EncryptedImmutable
+
 };
 use data_encoding::HEXLOWER;
 use serde_json::Value;
 use std::fmt;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Write, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -214,6 +215,61 @@ pub fn add_identifier(root: &Path, locator: &ImmutableIdentifier) -> PathBuf {
     Path::join(&Path::join(root, dir), name)
 }
 
+
+#[derive(Debug, PartialEq)]
+/// Access all ciphertext via a [`Read`] provider **alone**
+///
+/// Note that we have no choice here but to buffer 'skipped' blocks so
+/// (worst case) the whole file ends up in memory (e.g. if you read
+/// backwards)
+pub struct EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    provider: R,
+    blocks: u64,
+    block_size: u32,
+    prior_blocks: Vec<Vec<u8>>
+}
+
+impl<R> EncryptedImmutable for EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    fn total_blocks(&self) -> usize {
+        self.blocks as usize
+    }
+
+    fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.len() != self.block_size as usize {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+            ))
+        } else {
+            // todo: this is a naive implementation that will always
+            // end up with all the ciphertext in memory -- with
+            // penalty of possible panics (if an old block is asked
+            // for a second time), we could evict older stuff? perhaps
+            // make this optional?
+            while self.prior_blocks.len() <= index {
+                let mut data = vec![0u8; self.block_size as usize];
+                self.provider.read_exact(&mut data)?;
+                self.prior_blocks.push(data);
+            }
+
+            // we now must contain 'index' or we errored out on a read above
+            buf.copy_from_slice(&self.prior_blocks[index]);
+            return Ok(buf.len());
+        }
+    }
+}
+
+
 // promote into the trait?
 // fn stream_push() that returns ImmutableDecryptor ??
 impl ImmutableWebCatalog {
@@ -250,11 +306,35 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
     }
 
     fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
-        // should be able to do this by using Read from "response"
-        // ..so similar to load()
-        // ..but no copy_ciphertext_to and we haev to "remember state"
-        // ..can just use EncryptedImmutableReader?? (because reqwest::Response is Read??)
-        todo!()
+        let metadata = self.fetch_metadata(&locator)?;
+        debug!(
+            "load {} * {} = {}",
+            metadata.blocks, metadata.block_size, metadata.size
+        );
+        let size = metadata.blocks * metadata.block_size as u64;
+
+        // set up a Read for the ciphertext
+        let mut url = self.root.clone();
+        let id_str: String = locator.into();
+        url.path_segments_mut()
+            .expect("Valid base URL")
+            .push(id_str.as_str())
+            .push("ciphertext");
+        let mut result = reqwest::blocking::Client::new().get(url).send()?;
+
+        // result only implements Read, not Seek so we can't use
+        // EncryptedImmutableReader directly, we need to remember any
+        // "skipped" blocks
+
+        Ok(Immutable {
+            metadata: metadata.clone(),
+            data_provider: Box::new(EncryptedImmutableReadAdaptor {
+                provider: result,
+                blocks: metadata.blocks,
+                block_size: metadata.block_size,
+                prior_blocks: vec!(),
+            }),
+        })
     }
 
     fn insert(

@@ -989,7 +989,7 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 }
 
 #[derive(Debug, PartialEq)]
-/// Access all ciphertext via a [`Read`] provider
+/// Access all ciphertext via a [`Read`] + [`Seek`] provider
 pub struct EncryptedImmutableReader<R>
 where
     R: Read + Seek,
@@ -1023,6 +1023,55 @@ where
             self.provider.seek(std::io::SeekFrom::Start(offset))?;
             self.provider.read_exact(buf)?;
             Ok(self.block_size as usize)
+        }
+    }
+}
+
+
+#[derive(Debug, PartialEq)]
+/// Access all ciphertext via a [`Read`] provider **alone**
+///
+/// Note that we have no choice here but to buffer 'skipped' blocks so
+/// (worst case) the whole file ends up in memory (e.g. if you read
+/// backwards)
+pub struct EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    provider: R,
+    blocks: u64,
+    block_size: u32,
+    prior_blocks: Vec<Vec<u8>>
+}
+
+impl<R> EncryptedImmutable for EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    fn total_blocks(&self) -> usize {
+        self.blocks as usize
+    }
+
+    fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.len() != self.block_size as usize {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+            ))
+        } else {
+            while self.prior_blocks.len() <= index {
+                let mut data = vec![0u8; self.block_size as usize];
+                self.provider.read_exact(&mut data)?;
+                self.prior_blocks.push(data);
+            }
+
+            // we now must contain 'index' or we errored out on a read above
+            buf.copy_from_slice(&self.prior_blocks[index]);
+            return Ok(buf.len());
         }
     }
 }
