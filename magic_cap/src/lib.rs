@@ -1027,7 +1027,6 @@ where
     }
 }
 
-
 #[derive(Debug, PartialEq)]
 /// Access all ciphertext via a [`Read`] provider **alone**
 ///
@@ -1041,7 +1040,7 @@ where
     provider: R,
     blocks: u64,
     block_size: u32,
-    prior_blocks: Vec<Vec<u8>>
+    prior_blocks: Vec<Vec<u8>>,
 }
 
 impl<R> EncryptedImmutable for EncryptedImmutableReadAdaptor<R>

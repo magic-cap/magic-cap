@@ -1,15 +1,14 @@
 use crate::err::MagicCapError;
 use crate::tahoe::tagged_hash;
 use crate::{
-    Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata, ImmutableReadCap,
-    ImmutableVerifyCap, TahoeAesCtr, EncryptedImmutable
-
+    EncryptedImmutable, Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata,
+    ImmutableReadCap, ImmutableVerifyCap, TahoeAesCtr,
 };
 use data_encoding::HEXLOWER;
 use serde_json::Value;
 use std::fmt;
 use std::fs::File;
-use std::io::{BufWriter, Write, Read};
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -215,7 +214,6 @@ pub fn add_identifier(root: &Path, locator: &ImmutableIdentifier) -> PathBuf {
     Path::join(&Path::join(root, dir), name)
 }
 
-
 #[derive(Debug, PartialEq)]
 /// Access all ciphertext via a [`Read`] provider **alone**
 ///
@@ -229,7 +227,7 @@ where
     provider: R,
     blocks: u64,
     block_size: u32,
-    prior_blocks: Vec<Vec<u8>>
+    prior_blocks: Vec<Vec<u8>>,
 }
 
 impl<R> EncryptedImmutable for EncryptedImmutableReadAdaptor<R>
@@ -268,7 +266,6 @@ where
         }
     }
 }
-
 
 // promote into the trait?
 // fn stream_push() that returns ImmutableDecryptor ??
@@ -332,7 +329,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
                 provider: result,
                 blocks: metadata.blocks,
                 block_size: metadata.block_size,
-                prior_blocks: vec!(),
+                prior_blocks: vec![],
             }),
         })
     }

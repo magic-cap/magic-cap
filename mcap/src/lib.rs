@@ -226,16 +226,14 @@ pub fn main_decrypt(
                 imm.data_provider.get_block(i, &mut block)?;
                 decryptor.write_all(&block)?;
             }
-            return Ok(())
+            return Ok(());
         }
     }
 
-    Err(MagicCapError::GenericError(
-        format!(
-            "Failed to find corresponding Data in {} Catalogs",
-            catalogs.len(),
-        )
-    ))
+    Err(MagicCapError::GenericError(format!(
+        "Failed to find corresponding Data in {} Catalogs",
+        catalogs.len(),
+    )))
 }
 
 fn cap_match(
@@ -256,7 +254,10 @@ fn cap_match(
 }
 
 /// "mcap verify"
-pub fn main_verify(capstr: &str, catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>) -> Result<(), MagicCapError> {
+pub fn main_verify(
+    capstr: &str,
+    catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>,
+) -> Result<(), MagicCapError> {
     // if we are given a "Read Cap" then we can still convert it to a
     // Verify Cap for the user, so lets do that .. but if this string
     // is neither a Read Cap _nor_ a Verify Cap then we error out via
@@ -275,7 +276,9 @@ pub fn main_verify(capstr: &str, catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>
             return cap.verify(&mut imm);
         }
     }
-    Err(MagicCapError::GenericError("Could not find corresponding Data".to_string()))
+    Err(MagicCapError::GenericError(
+        "Could not find corresponding Data".to_string(),
+    ))
 }
 
 /// "mcap reduce"

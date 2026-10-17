@@ -121,9 +121,8 @@ enum Commands {
     #[command(about = "Confirm a ciphertext is valid")]
     Verify {
         cap: String,
-
-//        #[arg(short, long)]
-//        ciphertext: PathBuf,
+        //        #[arg(short, long)]
+        //        ciphertext: PathBuf,
     },
 
     #[command(about = "Turn a Read Cap into a less-powerful Verify Cap")]
