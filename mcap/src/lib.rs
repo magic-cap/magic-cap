@@ -226,14 +226,16 @@ pub fn main_decrypt(
                 imm.data_provider.get_block(i, &mut block)?;
                 decryptor.write_all(&block)?;
             }
+            return Ok(())
         }
     }
 
-    println!(
-        "Searched {} sources and did not find matching encrypted data to decrypt.",
-        catalogs.len(),
-    );
-    Ok(())
+    Err(MagicCapError::GenericError(
+        format!(
+            "Failed to find corresponding Data in {} Catalogs",
+            catalogs.len(),
+        )
+    ))
 }
 
 fn cap_match(
