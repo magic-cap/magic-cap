@@ -256,10 +256,7 @@ fn cap_match(
 }
 
 /// "mcap verify"
-
-//todo: make work with catalogs
-
-pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
+pub fn main_verify(capstr: &str, catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>) -> Result<(), MagicCapError> {
     // if we are given a "Read Cap" then we can still convert it to a
     // Verify Cap for the user, so lets do that .. but if this string
     // is neither a Read Cap _nor_ a Verify Cap then we error out via
@@ -272,11 +269,13 @@ pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError
     // we have a verify-cap, load all the data and verify
     // todo: should be able to stream this instead
     // todo: support "--catalog" for finding the ciphertext
-    let f = std::fs::File::open(input_fname)?;
-    let mut imm = Immutable::read(&mut std::io::BufReader::new(f))?;
-
-    cap.verify(&mut imm)?;
-    Ok(())
+    let id: ImmutableIdentifier = cap.clone().into();
+    for catalog in catalogs {
+        if let Ok(mut imm) = catalog.stream(&id) {
+            return cap.verify(&mut imm);
+        }
+    }
+    Err(MagicCapError::GenericError("Could not find corresponding Data".to_string()))
 }
 
 /// "mcap reduce"

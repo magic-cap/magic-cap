@@ -122,8 +122,8 @@ enum Commands {
     Verify {
         cap: String,
 
-        #[arg(short, long)]
-        ciphertext: PathBuf,
+//        #[arg(short, long)]
+//        ciphertext: PathBuf,
     },
 
     #[command(about = "Turn a Read Cap into a less-powerful Verify Cap")]
@@ -237,7 +237,7 @@ fn main() {
             //            ciphertext_loader: ciphertext_load,
             plaintext,
         }) => main_decrypt(cap, &catalogs, plaintext),
-        Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
+        Some(Commands::Verify { cap }) => main_verify(cap, &mut catalogs),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         Some(Commands::Publish { catalog, output }) => {
             main_publish(&mut std::io::stdout(), catalog, output)
