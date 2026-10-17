@@ -40,7 +40,7 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
 
 #+begin_src bash :tangle data/readme-examples.sh
-cargo run -- --catalog https://github.com/meejah/magic-cap/tree/unify/kitten-catalog-published decrypt  mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v | display
+cargo run -- --catalog https://raw.githubusercontent.com/meejah/magic-cap/refs/heads/unify/kitten-catalog-published decrypt  mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
 #+end_src
 
 An error about "broken pipe" probably means you don't have "display"
@@ -73,7 +73,7 @@ The latter is =mcap0r<base64-encoded data>=
 Before we break that down, lets convert the DataFile + Magic Cap string back into this README!
 
 #+begin_src bash :results output :var MCAP=encrypt
-  cargo run -- decrypt --ciphertext encrypted ${MCAP} --plaintext plain
+  cargo run -- --catalog kitten-catalog/ decrypt ${MCAP} --plaintext plain
 #+end_src
 
 #+RESULTS:
@@ -119,7 +119,7 @@ The mcap to unlock it is: =mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU
 If you're using "cargo" a command-line to do that is:
 
 #+begin_src sh :tangle data/readme-examples.sh
-  cargo run -- decrypt --ciphertext kitten.mcap mcap0rajRAVOgzmSuSsNQt5yA5JAEypic23eM5kRtGp9b5Mq2etDldhibLLwEzHOSOHAo3 --plaintext kitten.jpeg
+  cargo run -- --catalog kitten-catalog/ decrypt mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h > kitten.jpeg
 #+end_src
 
 #+RESULTS:
@@ -129,7 +129,7 @@ We have found an amazing cat picture from a public domain source[fn:1] for your 
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
 #+begin_src sh :tangle data/readme-examples.sh
-  cargo run -- verify --ciphertext kitten.mcap mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
+  cargo run -- --catalog kitten-catalog/ verify mcap0vildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo550
 #+end_src
 
 #+RESULTS:

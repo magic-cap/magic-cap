@@ -256,6 +256,9 @@ fn cap_match(
 }
 
 /// "mcap verify"
+
+//todo: make work with catalogs
+
 pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
     // if we are given a "Read Cap" then we can still convert it to a
     // Verify Cap for the user, so lets do that .. but if this string
