@@ -1,4 +1,5 @@
 [book]
 title = "Magic Cap"
 authors = ["meejah", "shapr"]
+description = "A full high-level explanation of the Magic Cap system"
 language = "en"

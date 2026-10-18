@@ -4,7 +4,8 @@
 
 Magic Cap keeps private information encrypted and gives you simple tools to control access.
 
-No accounts, no identities, safely store user data on untrusted providers.
+No accounts, no identities.
+Safely **store user data on untrusted providers**.
 
 Written in Rust, we provide libraries to read and write data from various sources and a command-line tool for experimentation.
 
@@ -12,7 +13,10 @@ Written in Rust, we provide libraries to read and write data from various source
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
 
+Coming soon: WASM and Android bindings + examples.
+
 We can ignore most details and look at the high-level view of this tool as two diagrams.
+
 Encrypting:
 
 ![overview diagram of magic-cap turning plaintext into encrypted data + a read-capability](./diagrams/mcap-encrypt.svg)
@@ -46,9 +50,9 @@ Anyone with both a Verify Cap and the corresponding Data can confirm the ciphert
 
 This allows many [use-cases](#use-case-examples), facilitating direct peer interactions since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
 
-Magic Cap is inspired by the core ideas of "capability theory" embedded in Tahoe-LAFS.
-
-Magic Cap currently implements two kinds of "data capabilities" (or "Caps" for short).
+> [!NOTE]
+> Magic Cap is inspired by the core ideas of "capability theory" embedded in [Tahoe-LAFS](https://www.tahoe-lafs.org/).
+> Magic Cap currently implements two kinds of "data capabilities" (or "Caps" for short).
 
 Immutable Read Cap
   : can be exchanged for the plaintext (alongside a corresponding Data)
@@ -62,7 +66,8 @@ The Read Cap is a short string (approximately 73 bytes).
 The size of the encrypted Data is the same as the plaintext (plus a little overhead)
 
 Where and how the Data is stored, moved or transmitted is up to the application.
-Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage or even printed out or transcribed hard-copy.
+Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage.
+It could even printed be out or transcribed to a hard-copy.
 
 This gives users of this library a lot of choice, while keeping the core concepts straightforware to reason about.
 
@@ -73,8 +78,12 @@ Although we have a couple ideas embedded in the command-line application current
 This allows many different uses and experimentation.
 
 It is also possible to layer additional access controls on top, if your threat-model or use-case demands that.
-For example, Data may be on an SSH-accessible server accessed via keys or passwords.
+For example, Data may be on an SSH-accessible server behind keys (or even passwords).
 One may use S3 to store data, taking advantage of additional IAM services -- or not!
+
+We **currently do not address** what is often called a "*network write capability*" -- that is, the way that Data gets to a server is up to you.
+Some of our examples use GitHub -- you could be uploading to GitHub via SSH keys, temporary tokens or because it's public.
+All of this is up to the application.
 
 The current methods built-in to the command-line tool are:
 
@@ -94,16 +103,32 @@ Note that these are ideas about how this technology might be used.
 We haven't built these applications, and highly recommend developing your own security model.
 
 
-### Traditional App
+### Commercial App "but private"
 
-Lots of application need to store user data.
+Lots of applications need to store user data.
 A common pattern is to host the data on servers the application operators or developers control (e.g. Amazon S3).
 
-Traditionally, these same developers have access to all of this data.
+Traditionally, these same developers (e.g. their company) have access to all of this data.
 
-Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage (e.g. the TPM of a smartphone or an encrypted hard-drive of a laptop).
+Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage.
 
-(Read about "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext).
+(See also "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext -- a user device could safely share a Verify Cap with the service-provider).
+
+
+### Free / Open Source / Hobby App "with privacy"
+
+Many developers interested in freedom and open software develop cool applications.
+Those applications need somewhere to store user data.
+
+It would be great if users could "bring their own" storage -- Magic Cap can allow exactly this sort of configuration.
+Then, developers don't have to mirror their commercial analogs and pay for setting up and managing expensive storage systems.
+
+Users with GitHub, Amazon, Backblaze or other commercial storage-provider accounts can simply put their data there.
+The Magic Cap portion ensures that data can only be read by users with the correct credentials.
+
+That is, users can bring their own commodity systems (including self-hosted) to store the Data ciphertext, while application authors worry about who can read what by managing the Read Cap distribution.
+
+See the "[Bring your own storage](./bring-your-own-storage.md)" examples.
 
 
 ### Timed Release of Large Digital Artifact (game, movie)
@@ -133,7 +158,7 @@ So, members of an organzation could all have a complete copy of all organization
 
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.
-(Using the Anthology concept makes it easier to share many items with one Read Cap instead of many).
+(Using the Anthology concept makes it easier to share many items with only one Read Cap instead of many).
 
 
 ## Source Code, Documentation
