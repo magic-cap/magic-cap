@@ -477,7 +477,10 @@ pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     Ok(())
 }
 
-pub fn main_anthology_list(catalogs: &Vec<Box<dyn ImmutableCatalog>>, readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+pub fn main_anthology_list(
+    catalogs: &Vec<Box<dyn ImmutableCatalog>>,
+    readcap: &ImmutableReadCap,
+) -> Result<(), MagicCapError> {
     let id: ImmutableIdentifier = readcap.clone().into();
     for catalog in catalogs {
         if let Ok(mut anthology) = catalog.load(&id) {
@@ -499,7 +502,9 @@ pub fn main_anthology_list(catalogs: &Vec<Box<dyn ImmutableCatalog>>, readcap: &
         }
     }
 
-    Err(MagicCapError::GenericError("Couldn't find corresponding Data".to_string()))
+    Err(MagicCapError::GenericError(
+        "Couldn't find corresponding Data".to_string(),
+    ))
 }
 
 // okay, thinking about this all in terms of Catalogs
