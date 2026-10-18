@@ -5,7 +5,7 @@ Using book-adjacent naming, we have several actors in our system:
 - **Author**: computer controlled by a human who creates **Data** to share with other humans
 - **Data**: encrypted digital information, rendered accessible with a Read Cap
 - **Reader**: computer controlled by a human to find, download and decrypt Data (for use by particular apps)
-- **Catalog**: a collection of (encrypted) Data in a particular place (e.g. a GitHub repository, a Web site, an S3 bucket, a BackblazeB2 folder, a thumb drive, etc) accessible to **Readers** somehow (e.g. Internet-connected)
+- **Catalog**: a collection of (encrypted) Data in a particular place accessible to **Readers** somehow (e.g. a GitHub repository, a Web site, an S3 bucket, a BackblazeB2 folder, a thumb drive, etc)
 - **Anthology**: a group of Data deemed related by some Author (e.g. all the 3D printer files for a project; or the html, css and images making up a Web page; or anything you might group in a Zip file)
 - **Publisher**: a computer which has the correct credentials to put new Data into a **Catalog**.
 
@@ -19,8 +19,16 @@ We have support for the following sorts of Catalogs:
 - HTTP ReST-style API (in Rust, it's `ImmutableWebCatalog`).
 - [planned](https://github.com/magic-cap/magic-cap/issues/43): S3 compatible API
 
-When thinking about how to organize things, "Catalog" is the top level.
+Any Publisher necessarily also has some way to do read access; that is, a Publisher has an associated Catalog.
+We have support for the following sorts of Publishers:
+
+- local, directory-based Publisher
+- GitHub API via token
+- via example: rsync, scp
+
+When thinking about how to organize things, "Catalog" is the top level (for Readers).
 An "Anthology" must live inside a Catalog.
+
 Let us consider the distinction between the two categories.
 
 ## Catalogs
