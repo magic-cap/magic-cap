@@ -47,7 +47,9 @@ args = [
     "encrypt", Path("data/kittens-anthology.txt"),
 ]
 cap = subprocess.check_output(args)
-print("anthology: {cap}")        
+print("anthology: {cap}")
+with open("data/kittens-anthology.txt.mcap", "w") as f:
+    f.write("{}\n".format(cap))
 
 print("publishing")
 shutil.rmtree("kitten-catalog-published")
