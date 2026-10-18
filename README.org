@@ -40,7 +40,7 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
 
 #+begin_src bash :tangle data/readme-examples.sh
-cargo run -- --catalog https://raw.githubusercontent.com/meejah/magic-cap/refs/heads/unify/kitten-catalog-published decrypt  mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
+cargo run -- --catalog https://raw.githubusercontent.com/meejah/magic-cap/refs/heads/unify/kitten-catalog-published decrypt  mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h > kitten.jpeg
 #+end_src
 
 An error about "broken pipe" probably means you don't have "display"
@@ -232,7 +232,7 @@ We can decode one of these without "knowing" which ones goes with which Read Cap
 Note that the output goes to stdout by default.
 
 #+begin_src sh :tangle data/readme-examples.sh
-  cargo run -- --catalog kitten-catalog/ decrypt mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h | display
+  cargo run -- --catalog kitten-catalog/ decrypt mcap0rildcStSbzL7YSinGb6b-Jnsh6xc40L68zKaW8JJo551JuKdzGe5EQUTQt64BBU0h > kitten.jpeg
 #+end_src
 
 #+RESULTS:
