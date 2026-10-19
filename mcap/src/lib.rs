@@ -101,14 +101,12 @@ use tracing::debug;
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutablePublisher, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
     ImmutableWebCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;
 use std::error::Error;
-use std::fs::File;
-use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -123,7 +121,7 @@ pub mod tests;
 pub fn main_encrypt(
     output: &mut impl Write, // where we write the Magic Cap string
     plain_text: &Path,       // input data
-    catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>,
+    publishers: &mut Vec<Box<dyn ImmutablePublisher<'_>>>,
     blocksize: usize,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
@@ -135,13 +133,13 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    // XXX FIXME how do we choose _which_ catalog to use??
-    if catalogs.len() != 1 {
+    // todo: factor out so we can do N publishers
+    if publishers.len() != 1 {
         return Err(MagicCapError::GenericError(
-            "We need exactly one Catalog".to_string(),
+            "We need exactly one Publisher".to_string(),
         ));
     }
-    let mut cryptor: ImmutableBuilder<BufWriter<File>> = catalogs[0].insert(blocksize)?;
+    let mut cryptor: ImmutableBuilder = publishers[0].insert(blocksize)?;
 
     // todo: do we we want a way to do stdout (or maybe arbitrary
     // file) output..?

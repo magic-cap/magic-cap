@@ -1,4 +1,4 @@
-use magic_cap::{ImmutableReadCap, connect_catalog};
+use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
     main_encrypt, main_publish, main_reduce, main_verify,
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use clap::{Args, Parser, Subcommand};
-use magic_cap::ImmutableCatalog;
+use magic_cap::{ImmutableCatalog, ImmutablePublisher};
 use tracing::{Level, debug, error};
 
 #[derive(Parser)]
@@ -42,9 +42,9 @@ struct Cli {
     #[arg(short, long, default_value_t = Level::INFO)]
     loglevel: Level,
 
-    // todo: does clap have a way to error when passingt --catalog to
+    // todo: does clap have a way to error when passing --catalog to
     // a subcommand that doesn't need / want it?
-    #[arg(short = 'c', long = "catalog")]
+    #[arg(short = 'c', long = "catalog", help = "A way to find and read Data. A local catalog root directory or a URL to the ReST API")]
     catalogs: Vec<String>,
 }
 
@@ -89,10 +89,8 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-        //        #[command(flatten)]
-        //        ciphertext_store: CiphertextStore,
-        #[arg(short, long)]
-        ciphertext: Option<PathBuf>,
+        #[arg(short = 'p', long = "publisher", required = true, name = "PUBLISHER", help = "Where to publish the Data. Local catalog root directory")]
+        publishers: Vec<String>,
 
         #[arg(short, long, default_value_t = 4096)]
         blocksize: usize, // not Option because we have a default value
@@ -199,6 +197,34 @@ struct CiphertextStore {
     output_file: Option<PathBuf>,
 }
 
+fn parse_catalogs(configs: &Vec<String>) -> Vec<Box<dyn ImmutableCatalog>> {
+    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec![];
+    for cfg in configs {
+        match connect_catalog(&cfg) {
+            Ok(catalog) => catalogs.push(catalog),
+            Err(e) => {
+                println!("--catalog: {}", e);
+                std::process::exit(3);
+            }
+        }
+    }
+    catalogs
+}
+
+fn parse_publishers(configs: &Vec<String>) -> Vec<Box<dyn ImmutablePublisher>> {
+    let mut publishers: Vec<Box<dyn ImmutablePublisher>> = vec![];
+    for cfg in configs {
+        match connect_publisher(&cfg) {
+            Ok(publisher) => publishers.push(publisher),
+            Err(e) => {
+                println!("--publisher: {}", e);
+                std::process::exit(3);
+            }
+        }
+    }
+    publishers
+}
+
 fn main() {
     let cli = Cli::parse();
     // This will show TRACE, DEBUG, INFO, WARN and ERROR; see tokio's tracing examples
@@ -211,16 +237,7 @@ fn main() {
     debug!("set log level to {}", cli.loglevel);
 
     // convert any Catalog configurations into proper objects
-    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec![];
-    for cfg in cli.catalogs {
-        match connect_catalog(&cfg) {
-            Ok(catalog) => catalogs.push(catalog),
-            Err(e) => {
-                println!("--catalog: {}", e);
-                std::process::exit(3);
-            }
-        }
-    }
+    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = parse_catalogs(&cli.catalogs);
 
     let result = match &cli.command {
         // if the MCAP output went to stdout a user will have a pretty
@@ -228,9 +245,9 @@ fn main() {
         // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
-            ciphertext,
+            publishers,
             blocksize,
-        }) => main_encrypt(&mut std::io::stdout(), plaintext, &mut catalogs, *blocksize),
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, &mut parse_publishers(&publishers), *blocksize),
         Some(Commands::Decrypt {
             cap,
             //            ciphertext_loader: ciphertext_load,

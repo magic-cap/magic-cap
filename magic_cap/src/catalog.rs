@@ -12,7 +12,7 @@ use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use tracing::{debug, info};
+use tracing::debug;
 
 // todo: might want a more fine-grained API so we do "get_metadata"
 // vs. "get_ciphertext" so that a network / storage-server can be
@@ -23,7 +23,13 @@ pub trait ImmutableCatalog<'a> {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
+}
 
+// rejected: making ImmutableCatalog a super-trait probably doesn't
+// make sense (for example we could have the Catalog on an https://
+// URL but the publisher is git-push or ssh)
+
+pub trait ImmutablePublisher<'a> {
     // todo: we're going to want something more-generic for the return here
     // (see e.g. main_encrypt in mcap)
     // a Web Catalog doesn't want a "BufWriter<File>"
@@ -31,8 +37,8 @@ pub trait ImmutableCatalog<'a> {
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
-    //) -> Result<std::boxed::Box<ImmutableBuilder<dyn Write>>, MagicCapError>;
+    //) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
+    ) -> Result<ImmutableBuilder, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -288,7 +294,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
             metadata.blocks, metadata.block_size, metadata.size
         );
         let size = metadata.blocks * metadata.block_size as u64;
-        let mut data: Vec<u8> = vec![]; //Vec::with_capacity(size as usize);
+        let mut data: Vec<u8> = Vec::with_capacity(size as usize);
         self.copy_ciphertext_to(&locator, &mut data)?;
 
         Ok(Immutable {
@@ -308,7 +314,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
             "load {} * {} = {}",
             metadata.blocks, metadata.block_size, metadata.size
         );
-        let size = metadata.blocks * metadata.block_size as u64;
+        let _size = metadata.blocks * metadata.block_size as u64;
 
         // set up a Read for the ciphertext
         let mut url = self.root.clone();
@@ -317,7 +323,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
             .expect("Valid base URL")
             .push(id_str.as_str())
             .push("ciphertext");
-        let mut result = reqwest::blocking::Client::new().get(url).send()?;
+        let result = reqwest::blocking::Client::new().get(url).send()?;
 
         // result only implements Read, not Seek so we can't use
         // EncryptedImmutableReader directly, we need to remember any
@@ -333,15 +339,16 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
             }),
         })
     }
+}
 
+impl<'a> ImmutablePublisher<'a> for ImmutableWebCatalog {
     fn insert(
         &mut self,
-        blocksize: usize,
-    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
+        _blocksize: usize,
+    ) -> Result<ImmutableBuilder, MagicCapError> {
         Err(MagicCapError::GenericError(
             "we cannot write to Web Catalogs yet".to_string(),
         ))
-        //todo!()
     }
 }
 
@@ -367,11 +374,13 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
         let imm = Immutable::stream(f)?;
         Ok(imm)
     }
+}
 
+impl<'a> ImmutablePublisher<'a> for ImmutableDirectoryCatalog {
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
+    ) -> Result<ImmutableBuilder, MagicCapError> {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
         // 3. return the builder with Write to our ephemeral file
@@ -398,9 +407,9 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
             std::fs::rename(uploaded, fname).unwrap();
         });
 
-        let builder = ImmutableBuilder::<BufWriter<File>>::new(
+        let builder = ImmutableBuilder::new(
             blocksize,
-            bufwriter,
+            Box::new(bufwriter),
             Some(Box::new(completed)),
         )?;
         Ok(builder)
@@ -428,4 +437,34 @@ pub fn connect_catalog<'a>(config: &str) -> Result<Box<dyn ImmutableCatalog<'a>>
         let catalog = ImmutableDirectoryCatalog::create(path)?;
         Ok(Box::new(catalog))
     }
+}
+
+/**
+Create an instance implementing [`ImmutablePublisher`] according to
+the configuration string. Currently the following are recognized:
+
+- a local path produces [`ImmutableFilePublisher`]
+
+*/
+
+pub fn connect_publisher<'a>(config: &str) -> Result<Box<dyn ImmutablePublisher<'a>>, MagicCapError> {
+    // todo: URL -> GitHub? ImmutableGitHubPublisher
+    // todo: S3
+
+    let path: PathBuf = config.into();
+    // we want to publish; if this path doesn't exist, create a directory
+    // if the path _does_ exist, check that it's writable
+
+    if !path.exists() {
+        std::fs::create_dir(path.as_path())?;
+    }
+    if !path.is_dir() {
+        return Err(MagicCapError::GenericError("path is not a directory".to_string()));
+    }
+    if path.metadata()?.permissions().readonly() {
+        return Err(MagicCapError::GenericError("path is read-only".to_string()));
+    }
+    
+    let publisher = ImmutableDirectoryCatalog::create(path)?;
+    Ok(Box::new(publisher))
 }

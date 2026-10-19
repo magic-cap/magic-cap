@@ -203,8 +203,8 @@ pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
 pub use catalog::{
-    ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
-    add_identifier, connect_catalog,
+    ImmutableCatalog, ImmutablePublisher, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
+    add_identifier, connect_catalog, connect_publisher, 
 };
 
 // why can't we use KeyInit ?!
@@ -221,8 +221,6 @@ use tracing::{debug, error, info, trace};
 use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
-use std::fs::File;
-use std::io::BufWriter;
 use std::io::prelude::*;
 
 use err::MagicCapError;
@@ -364,7 +362,7 @@ pub trait ReadCap: ImmutableVerifier {
 
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: BufWriter<File>, // probably want "dyn Write" or so? why demand a File here?
+        writer: Box<dyn Write>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
 }
@@ -555,26 +553,22 @@ type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 ///
 /// Note that we do NOT need a [`Seek`] implementation here due to the
 /// file layout but in exchange [`Seek`] is required when reading.
-pub struct ImmutableBuilder<W>
-where
-    W: Write,
+pub struct ImmutableBuilder
 {
     context: EncryptionContext,
-    output: W,
+    output: Box<dyn Write>,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
     completed: Option<BuilderDoneCb>,
 }
 
-impl<W> ImmutableBuilder<W>
-where
-    W: Write,
+impl ImmutableBuilder
 {
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(
         blocksize: usize,
-        mut writer: W,
+        mut writer: Box<dyn Write>,
         completed: Option<BuilderDoneCb>,
     ) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // 4 tag bytes at beginnging
@@ -596,7 +590,7 @@ where
     /// consumed). Note that you receive the `output` [`Write`]
     /// instance back in case you have more to do; most use-cases
     /// should just close it (e.g. if it's a file).
-    pub fn done(mut self) -> Result<(ImmutableReadCap, W), MagicCapError> {
+    pub fn done(mut self) -> Result<(ImmutableReadCap, Box<dyn Write>), MagicCapError> {
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
@@ -634,9 +628,7 @@ where
     }
 }
 
-impl<W> Write for ImmutableBuilder<W>
-where
-    W: Write,
+impl Write for ImmutableBuilder
 {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         // buffer the incoming data
@@ -703,7 +695,7 @@ impl ReadCap for ImmutableReadCap {
     /// to the encoded data.
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: std::io::BufWriter<File>,
+        writer: Box<dyn Write>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError> {
         let mut builder = ImmutableBuilder::new(blocksize, writer, None)?;
