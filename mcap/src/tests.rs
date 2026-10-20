@@ -35,6 +35,9 @@ pub mod test {
                 let mut catalogs: Vec<Box<dyn magic_cap::ImmutableCatalog<'_>>> = vec![
                     std::boxed::Box::new(magic_cap::ImmutableDirectoryCatalog::create(tmpd.as_ref().to_path_buf())?),
                 ];
+                let mut publishers: Vec<Box<dyn magic_cap::ImmutablePublisher<'_>>> = vec![
+                    std::boxed::Box::new(magic_cap::ImmutableDirectoryCatalog::create(tmpd.as_ref().to_path_buf())?),
+                ];
 
                 let plain = tmpd.path().join("plain");
                 println!("creating plain file at {:?}",plain);
@@ -44,7 +47,7 @@ pub mod test {
                 }  // close tmp
                 println!("finished writing to tmp");
                 let mut output = vec!();
-                main_encrypt(&mut output, &plain, &mut catalogs, 4096).unwrap();
+                main_encrypt(&mut output, &plain, &mut publishers, 4096).unwrap();
 
                 let capstr: &str = std::str::from_utf8(&output)?.trim_end();
                 let round = tmpd.path().join("decrypted");

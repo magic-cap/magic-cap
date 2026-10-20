@@ -113,7 +113,7 @@
 //! example:
 //!
 //! ```rust
-#![doc = include_doc::source_file!("examples/stream.rs")]
+//////#![doc = include_doc::source_file!("examples/stream.rs")]
 //! ```
 //!
 //! Another way is to create a completely in-memory [`Immutable`] and
@@ -222,6 +222,7 @@ use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::io::prelude::*;
+use std::any::Any;
 
 use err::MagicCapError;
 
@@ -362,7 +363,7 @@ pub trait ReadCap: ImmutableVerifier {
 
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: Box<dyn Write>,
+        writer: Box<dyn AnyWrite>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
 }
@@ -536,6 +537,19 @@ pub fn derive_key(key_bytes: &[u8; 16], purpose: &str) -> TahoeAesCtr {
 
 type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 
+/// This allows one to use Box.downcast() on the second object
+/// returned from ImmutableBuiler.done() ... see most of the tests for
+/// examples.
+pub trait AnyWrite: Any + Write {
+}
+
+// not _entirely_ sure what types this will instantiate / mark but it
+// works for what we use in here already. (i.e. do we need to
+// explicitly mark interesting std-lib types that users may want, or
+// does this cover that?)
+impl<T: Any + Write> AnyWrite for T {} 
+
+
 /// Incrementally encrypt to an underlying [`Write`] object
 ///
 /// Instances of this are used to build up an [`Immutable`] by writing
@@ -556,10 +570,10 @@ type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 pub struct ImmutableBuilder
 {
     context: EncryptionContext,
-    output: Box<dyn Write>,
+    output: Box<dyn AnyWrite>,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
-    completed: Option<BuilderDoneCb>,
+    completed_f: Option<BuilderDoneCb>,
 }
 
 impl ImmutableBuilder
@@ -568,18 +582,19 @@ impl ImmutableBuilder
     /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(
         blocksize: usize,
-        mut writer: Box<dyn Write>,
-        completed: Option<BuilderDoneCb>,
+        mut writer: Box<dyn AnyWrite>,
+        completed_f: Option<BuilderDoneCb>,
     ) -> Result<Self, MagicCapError> {
+
         writer.write_all(b"mcap")?; // 4 tag bytes at beginnging
-        writer.write_all(&1u32.to_be_bytes())?; // 4-byte version == 0x0001
+        writer.write_all(&1u32.to_be_bytes())?; // 4-byte "version" number == 0x0001
 
         let result = Self {
             context: EncryptionContext::new(blocksize)?,
             output: writer,
             this_block: Vec::with_capacity(blocksize),
             ciphertext_bytes: 0,
-            completed,
+            completed_f,
         };
         Ok(result)
     }
@@ -590,7 +605,7 @@ impl ImmutableBuilder
     /// consumed). Note that you receive the `output` [`Write`]
     /// instance back in case you have more to do; most use-cases
     /// should just close it (e.g. if it's a file).
-    pub fn done(mut self) -> Result<(ImmutableReadCap, Box<dyn Write>), MagicCapError> {
+    pub fn done(mut self) -> Result<(ImmutableReadCap, Box<dyn AnyWrite>), MagicCapError> {
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
@@ -621,7 +636,8 @@ impl ImmutableBuilder
         // metadata. this lets us *write* without demanding Seek but
         // upon reading we do need Seek
         self.output.write_all(&offset.to_be_bytes())?;
-        if let Some(completion_cb) = self.completed {
+
+        if let Some(completion_cb) = self.completed_f {
             completion_cb(&cap);
         }
         Ok((cap, self.output))
@@ -650,6 +666,12 @@ impl Write for ImmutableBuilder
                 Err(err) => return Err(std::io::Error::other(err)),
             };
             // write out a block
+            // (is there an idiom for the match here and above for error-handling)
+            /*
+            let mut writer = match self.output.try_borrow_mut() {
+                Ok(it) => it,
+                Err(err) => return Err(std::io::Error::other(err)),
+            };*/
             self.output.write_all(&encrypted_block)?;
             self.ciphertext_bytes += encrypted_block.len();
         }
@@ -695,7 +717,7 @@ impl ReadCap for ImmutableReadCap {
     /// to the encoded data.
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: Box<dyn Write>,
+        writer: Box<dyn AnyWrite>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError> {
         let mut builder = ImmutableBuilder::new(blocksize, writer, None)?;

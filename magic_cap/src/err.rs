@@ -60,6 +60,14 @@ pub enum MagicCapError {
     #[error("Cannot download")]
     ReqwestError(#[from] reqwest::Error),
 
+    #[error("Internal error: borrow failed")]
+    BorrowFailed(#[from] std::cell::BorrowMutError),
+
+    // for reasons unknown to me this demands Sync .. but we're not
+    // actually referencing the sub-error longer-term are we?
+    //#[error("Failed to downcast correctly")]
+    //DowncastFailed(#[from] std::boxed::Box<dyn std::any::Any>),
+
     #[error("{0}")]
     GenericError(String),
 }
