@@ -39,7 +39,7 @@ A Read Cap may be transformed (offline) into a Verify Cap.
 The size of the Data is a few percent larger than the plaintext.
 Read and Verify Caps look like this:
 
-```
+```ignore
 mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
 mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
 ```
@@ -69,7 +69,7 @@ Where and how the Data is stored, moved or transmitted is up to the application.
 Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage.
 It could even printed be out or transcribed to a hard-copy.
 
-This gives users of this library a lot of choice, while keeping the core concepts straightforware to reason about.
+This gives users of this library a lot of choice, while keeping the core concepts straightforward to reason about.
 
 
 ## Networking
@@ -91,7 +91,7 @@ Local Files
    : Data is stored on the file-system, with familiar permissions-based read/write access-controls
 
 HTTP ReST-like API
-   : The ``mcap publish`` subcommand can export local filesystem data into a format suitable for direct access via HTTP, simulating a proof-of-concept ReST-style API that can be statically-hosted.
+   : The ``mcap publish`` sub-command can export local file-system data into a format suitable for direct access via HTTP, simulating a proof-of-concept ReST-style API that can be statically-hosted.
 
 See the "[Hands-On Examples](./hands-on.md)" section for more.
 
@@ -148,13 +148,13 @@ This separates the distribution from the actual "release", reducing server bandw
 
 ### Shared Organizational Data
 
-An organazation often has lots of data, often with different visibility requirements.
+An organization often has lots of data, often with different visibility requirements.
 
 A system centered around Magic Caps (along with the Catalog and Anthology concepts) could allow members of the organization to carry offline copies of all the data while only allowing access to particular pieces of it.
 
 While Magic Cap itself has no concept of identity or users, application developers may layer this on top.
 
-So, members of an organzation could all have a complete copy of all organization Data items (and keep in sync periodically via rsync or similar).
+So, members of an organization could all have a complete copy of all organization Data items (and keep in sync periodically via rsync or similar).
 
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.

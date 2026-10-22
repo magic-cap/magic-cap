@@ -101,14 +101,12 @@ use tracing::debug;
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutablePublisher, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
     ImmutableWebCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;
 use std::error::Error;
-use std::fs::File;
-use std::io::BufWriter;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -121,21 +119,12 @@ pub mod tests;
 /// This is the top level function for easy use of this crate by applications or other libraries.
 /// This function does not consider memory use, but instead just does the thing using all the memory.
 pub fn main_encrypt(
-    output: &mut impl Write,
-    plain_text: &Path,
-    output_fname: &Option<PathBuf>,
-    catalog: &Option<PathBuf>,
+    output: &mut impl Write, // where we write the Magic Cap string
+    plain_text: &Path,       // input data
+    publishers: &mut Vec<Box<dyn ImmutablePublisher<'_>>>,
     blocksize: usize,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
-
-    // "write as one file"
-    // write "mcap"
-    // write 4-byte version number (1?)
-    // write all the ciphertext blocks
-    // write the metadata
-    // write 8-byte offset to metadata
-    // done
 
     // file format version 1 is:
     // 4 bytes: "mcap"
@@ -144,12 +133,20 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    let mut cryptor: ImmutableBuilder<BufWriter<File>> = if let Some(output_fname) = output_fname {
-        let output_file = File::create(output_fname)?;
-        ImmutableBuilder::new(blocksize, BufWriter::new(output_file), None)?
-    } else if let Some(catalog) = catalog {
-        let mut catalog = ImmutableDirectoryCatalog::create(catalog.clone())?;
-        catalog.insert(blocksize)?
+    // todo: factor out so we can do N publishers
+    if publishers.len() != 1 {
+        return Err(MagicCapError::GenericError(
+            "We need exactly one Publisher".to_string(),
+        ));
+    }
+    let mut cryptor: ImmutableBuilder = publishers[0].insert(blocksize)?;
+
+    // todo: do we we want a way to do stdout (or maybe arbitrary
+    // file) output..?
+    //
+    // (having _just_ stdout would solve this, if you redirect to a
+    // file .. and then we write the cap-string to stderr??)
+    /*
     } else {
         // no output file AND no catalog, so user wants ciphertext on stdout
         let stdio = std::io::stdout(); //.lock();
@@ -180,6 +177,7 @@ pub fn main_encrypt(
         writeln!(output, "{capstr}")?;
         return Ok(());
     };
+     */
 
     let mut plaintext: Vec<u8> = vec![0u8; blocksize];
 
@@ -204,10 +202,7 @@ pub fn main_encrypt(
 /// if the vectors are not empty, search each of them in order for matching encrypted data.
 pub fn main_decrypt(
     readcap: &ImmutableReadCap,
-    catalog_local: &Vec<PathBuf>,
-    catalog_url: &Vec<Url>,
-    file_local: &Vec<PathBuf>,
-    file_url: &Vec<Url>,
+    catalogs: &Vec<Box<dyn ImmutableCatalog>>,
     outfile: &Option<PathBuf>,
 ) -> Result<(), MagicCapError> {
     // decrypt to a file or stdout?
@@ -215,82 +210,28 @@ pub fn main_decrypt(
         debug!("creating output_file {:?}", output_file);
         Box::new(std::fs::File::create(output_file).unwrap()) as Box<dyn Write>
     } else {
+        debug!("output to stdout");
         Box::new(std::io::stdout()) as Box<dyn Write>
     };
 
-    // these four separate pieces could likely be one single much shorter stanza!
-    // something like Vec<impl Locator>.map(|l|l.extract().unwrap_or_else(...)) ?
-    for this_file_url in file_url {
-        let this_result = FileUrl {
-            url: this_file_url.clone(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                MagicCapError::McapMetadataDiscordant() => continue,
-                _ => panic!("Something bad happened trying to decrypt your web file {err}"),
-            },
+    let id: ImmutableIdentifier = readcap.into();
+
+    for catalog in catalogs {
+        if let Ok(mut imm) = catalog.stream(&id) {
+            let mut block: Vec<u8> = vec![0u8; imm.metadata.block_size as usize];
+            let mut decryptor = readcap.decrypt_stream(&imm.metadata, &mut output)?;
+            for i in 0..imm.metadata.blocks as usize {
+                imm.data_provider.get_block(i, &mut block)?;
+                decryptor.write_all(&block)?;
+            }
+            return Ok(());
         }
     }
 
-    for this_url_catalog in catalog_url {
-        let this_result = CatalogUrl {
-            catalog_url: this_url_catalog.clone(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                // the file was not found for this catalog, keep going!
-                MagicCapError::ReqwestError(_error) => continue,
-                _ => {
-                    panic!("Something bad happened trying to find your file in a web catalog {err}")
-                }
-            },
-        }
-    }
-
-    for this_file_local in file_local {
-        let this_result = FileLocal {
-            file_local: this_file_local.clone(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                // file not found
-                MagicCapError::IOError(_error) => continue,
-                // file found, but does not match the given readcap
-                MagicCapError::McapMetadataDiscordant() => continue,
-                _ => panic!(
-                    "Something bad happened trying to find your file on the drive {this_file_local:?} {err}"
-                ),
-            },
-        }
-    }
-
-    for this_local_catalog in catalog_local {
-        let this_result = CatalogLocal {
-            catalog_local: this_local_catalog.to_path_buf(),
-        }
-        .extract(readcap, &mut output);
-        match this_result {
-            Ok(done) => return Ok(done),
-            Err(err) => match err {
-                MagicCapError::IOError(_error) => continue,
-                _ => panic!(
-                    "something bad happened trying to find your file on the drive {this_local_catalog:?} {err}"
-                ),
-            },
-        }
-    }
-
-    let count_sources = catalog_local.len() + catalog_url.len() + file_local.len() + file_url.len();
-    println!(
-        "Searched {count_sources} sources and did not find matching encrypted data to decrypt."
-    );
-    Ok(())
+    Err(MagicCapError::GenericError(format!(
+        "Failed to find corresponding Data in {} Catalogs",
+        catalogs.len(),
+    )))
 }
 
 fn cap_match(
@@ -311,7 +252,10 @@ fn cap_match(
 }
 
 /// "mcap verify"
-pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError> {
+pub fn main_verify(
+    capstr: &str,
+    catalogs: &mut Vec<Box<dyn ImmutableCatalog<'_>>>,
+) -> Result<(), MagicCapError> {
     // if we are given a "Read Cap" then we can still convert it to a
     // Verify Cap for the user, so lets do that .. but if this string
     // is neither a Read Cap _nor_ a Verify Cap then we error out via
@@ -324,11 +268,15 @@ pub fn main_verify(capstr: &str, input_fname: &Path) -> Result<(), MagicCapError
     // we have a verify-cap, load all the data and verify
     // todo: should be able to stream this instead
     // todo: support "--catalog" for finding the ciphertext
-    let f = std::fs::File::open(input_fname)?;
-    let mut imm = Immutable::read(&mut std::io::BufReader::new(f))?;
-
-    cap.verify(&mut imm)?;
-    Ok(())
+    let id: ImmutableIdentifier = cap.clone().into();
+    for catalog in catalogs {
+        if let Ok(mut imm) = catalog.stream(&id) {
+            return cap.verify(&mut imm);
+        }
+    }
+    Err(MagicCapError::GenericError(
+        "Could not find corresponding Data".to_string(),
+    ))
 }
 
 /// "mcap reduce"
@@ -527,29 +475,57 @@ pub fn main_anthology_create(directory: &Path) -> Result<(), MagicCapError> {
     Ok(())
 }
 
-pub fn main_anthology_list(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
-    // need a catalog -- waiting for shapr's PR to "promote" it to top-level
-    let catalog = ImmutableDirectoryCatalog::create(PathBuf::from("data/root"))?;
-
+pub fn main_anthology_list(
+    catalogs: &Vec<Box<dyn ImmutableCatalog>>,
+    readcap: &ImmutableReadCap,
+) -> Result<(), MagicCapError> {
     let id: ImmutableIdentifier = readcap.clone().into();
-    let mut anthology = catalog.load(&id)?;
-    let plaintext = readcap.decrypt(&mut anthology)?;
+    for catalog in catalogs {
+        if let Ok(mut anthology) = catalog.load(&id) {
+            let plaintext = readcap.decrypt(&mut anthology)?;
+            debug!("{:?}", anthology.metadata);
 
-    debug!("{:?}", anthology.metadata);
-    for line in plaintext.lines().map_while(Result::ok) {
-        debug!("{:?}", line);
-        let two: Vec<&str> = line.split(' ').collect();
-        if two.len() != 2 {
-            return Err(MagicCapError::GenericError(
-                "illegal line in Anthology".to_string(),
-            ));
+            for line in plaintext.lines().map_while(Result::ok) {
+                debug!("{:?}", line);
+                let two: Vec<&str> = line.split(' ').collect();
+                if two.len() != 2 {
+                    return Err(MagicCapError::GenericError(
+                        "illegal line in Anthology".to_string(),
+                    ));
+                }
+                let name = two[1];
+                println!("{name}");
+            }
+            return Ok(());
         }
-        let name = two[1];
-        println!("{name}");
     }
 
-    Ok(())
+    Err(MagicCapError::GenericError(
+        "Couldn't find corresponding Data".to_string(),
+    ))
 }
+
+// okay, thinking about this all in terms of Catalogs
+//
+// static config?
+// - each catalog has petname
+// - can be read-only or writable (e.g. no-creds HTTP is read-only)
+// - probably countless other metadatas (ideally only in support of features)
+//
+// for the "read" / decrypt side it's easy: keep looking until you
+// find the right Data. Tahoe-style. User might want:
+// - priority order (first filesystems, then remote)
+// - "no network"?
+// - w/ named config: "--catalog foo" or "--catalog-ignore bar" for filtering (from the whole config'd list)
+//
+// for "write" / encrypt side it's a little more complex:
+// - write to ALL configured Catalogs?
+// - only to named-on-the-command-line ones?
+// - (w/ named config that can be "--catalog foo")
+// - default is the set ("default", )
+// - if no catalog in static config named "default", the default is "one that makes sense on your system"
+// - default-default is like "~/.config/magic-cap/default-catalog" or something?
+// - (what's the crate that does platform-specific defaults for Rust?)
 
 struct FileUrl {
     url: Url,
@@ -617,7 +593,7 @@ impl Locator for FileUrl {
         if !readcap.verify.corresponds_to(&metadata) {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
-        let mut decryptor = readcap.decrypt_stream(metadata, &mut output)?;
+        let mut decryptor = readcap.decrypt_stream(&metadata, &mut output)?;
 
         // skip the first 8 bytes, which are "mcap" + 32-byte version
         // TODO: check those (version == 1 is the only one)
@@ -667,7 +643,7 @@ impl Locator for CatalogUrl {
         let metadata = collect.fetch_metadata(&locid)?;
         let key = tahoe_cap.create_tahoe_key();
         debug!("before stream_push");
-        let mut pusher = collect.stream_push(key, metadata, output)?;
+        let mut pusher = collect.stream_push(key, &metadata, output)?;
         collect.copy_ciphertext_to(&locid, &mut pusher)?;
         Ok(())
     }

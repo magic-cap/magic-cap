@@ -1,4 +1,4 @@
-use magic_cap::ImmutableReadCap;
+use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
     main_encrypt, main_publish, main_reduce, main_verify,
@@ -9,9 +9,11 @@ use tracing_subscriber::FmtSubscriber;
 // ^ encrypted "attack at dawn!" with key all zeros, IV all zeros
 // using tahoe libs.
 use std::path::PathBuf;
+//use std::sync::Arc;
 use url::Url;
 
 use clap::{Args, Parser, Subcommand};
+use magic_cap::{ImmutableCatalog, ImmutablePublisher};
 use tracing::{Level, debug, error};
 
 #[derive(Parser)]
@@ -32,15 +34,18 @@ Any Read Cap may be turned into a Verify Cap offline.
 
 Anyone with both the Data and corresponding Read Cap may re-create the plaintext.
 ")]
+
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
     /// ERROR, WARN, INFO, DEBUG, TRACE in that order.
     #[arg(short, long, default_value_t = Level::INFO)]
     loglevel: Level,
-    // todo: maybe promote --catalog up here?
-    // ("mcap reduce" doesn't use it, and not all "mcap debug" commands will, ...)
-    // maybe clap gives us a way to say "--catalog is illegal for ..."?
+
+    // todo: does clap have a way to error when passing --catalog to
+    // a subcommand that doesn't need / want it?
+    #[arg(short = 'c', long = "catalog", help = "A way to find and read Data. A local catalog root directory or a URL to the ReST API")]
+    catalogs: Vec<String>,
 }
 
 #[derive(Subcommand)]
@@ -84,8 +89,8 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-        #[command(flatten)]
-        ciphertext_store: CiphertextStore,
+        #[arg(short = 'p', long = "publisher", required = true, name = "PUBLISHER", help = "Where to publish the Data. Local catalog root directory")]
+        publishers: Vec<String>,
 
         #[arg(short, long, default_value_t = 4096)]
         blocksize: usize, // not Option because we have a default value
@@ -94,8 +99,8 @@ enum Commands {
     #[command(about = "turn a Read Cap + ciphertext into plaintext")]
     Decrypt {
         // this flatten is VERY IMPORTANT and took me days to discover.
-        #[command(flatten)]
-        ciphertext_loader: CiphertextLoad,
+        //        #[command(flatten)]
+        //        ciphertext_loader: CiphertextLoad,
 
         // non-optional magic-cap string
         cap: ImmutableReadCap,
@@ -114,9 +119,8 @@ enum Commands {
     #[command(about = "Confirm a ciphertext is valid")]
     Verify {
         cap: String,
-
-        #[arg(short, long)]
-        ciphertext: PathBuf,
+        //        #[arg(short, long)]
+        //        ciphertext: PathBuf,
     },
 
     #[command(about = "Turn a Read Cap into a less-powerful Verify Cap")]
@@ -193,6 +197,34 @@ struct CiphertextStore {
     output_file: Option<PathBuf>,
 }
 
+fn parse_catalogs(configs: &Vec<String>) -> Vec<Box<dyn ImmutableCatalog>> {
+    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec![];
+    for cfg in configs {
+        match connect_catalog(&cfg) {
+            Ok(catalog) => catalogs.push(catalog),
+            Err(e) => {
+                println!("--catalog: {}", e);
+                std::process::exit(3);
+            }
+        }
+    }
+    catalogs
+}
+
+fn parse_publishers(configs: &Vec<String>) -> Vec<Box<dyn ImmutablePublisher>> {
+    let mut publishers: Vec<Box<dyn ImmutablePublisher>> = vec![];
+    for cfg in configs {
+        match connect_publisher(&cfg) {
+            Ok(publisher) => publishers.push(publisher),
+            Err(e) => {
+                println!("--publisher: {}", e);
+                std::process::exit(3);
+            }
+        }
+    }
+    publishers
+}
+
 fn main() {
     let cli = Cli::parse();
     // This will show TRACE, DEBUG, INFO, WARN and ERROR; see tokio's tracing examples
@@ -203,37 +235,25 @@ fn main() {
     let _fail = tracing::subscriber::set_global_default(subscriber);
     debug!("after tracing subscriber init");
     debug!("set log level to {}", cli.loglevel);
+
+    // convert any Catalog configurations into proper objects
+    let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = parse_catalogs(&cli.catalogs);
+
     let result = match &cli.command {
         // if the MCAP output went to stdout a user will have a pretty
         // hard time separating the data file from the mcap string, so
         // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
-            ciphertext_store,
+            publishers,
             blocksize,
-        }) => main_encrypt(
-            &mut std::io::stdout(),
-            plaintext,
-            &ciphertext_store.output_file,
-            &ciphertext_store.catalog,
-            *blocksize,
-        ),
+        }) => main_encrypt(&mut std::io::stdout(), plaintext, &mut parse_publishers(&publishers), *blocksize),
         Some(Commands::Decrypt {
             cap,
-            ciphertext_loader: ciphertext_load,
+            //            ciphertext_loader: ciphertext_load,
             plaintext,
-        }) => {
-            let cl = ciphertext_load;
-            main_decrypt(
-                cap,
-                &cl.local_catalog,
-                &cl.url_catalog,
-                &cl.local_file,
-                &cl.url_file,
-                plaintext,
-            )
-        }
-        Some(Commands::Verify { cap, ciphertext }) => main_verify(cap, ciphertext),
+        }) => main_decrypt(cap, &catalogs, plaintext),
+        Some(Commands::Verify { cap }) => main_verify(cap, &mut catalogs),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
         Some(Commands::Publish { catalog, output }) => {
             main_publish(&mut std::io::stdout(), catalog, output)
@@ -246,7 +266,7 @@ fn main() {
         },
         Some(Commands::Anthology { command }) => match command {
             Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory),
-            Some(AnthologyCommands::List { readcap }) => main_anthology_list(readcap),
+            Some(AnthologyCommands::List { readcap }) => main_anthology_list(&catalogs, readcap),
             None => Ok(()),
         },
         None => Ok(()),

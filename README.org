@@ -39,8 +39,8 @@ We are definitely interested in your use-cases and ideas, but please ask your cr
 
 If you're lucky and don't want to read a lot, you can decrypt and display our example kitten picture like so:
 
-#+begin_src bash
-cargo run -- decrypt --url-file https://github.com/magic-cap/magic-cap/raw/refs/heads/main/kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v | display
+#+begin_src bash :tangle data/readme-examples.sh
+cargo run -- --catalog https://raw.githubusercontent.com/meejah/magic-cap/refs/heads/unify/kitten-catalog-published decrypt  mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ > kitten.jpeg
 #+end_src
 
 An error about "broken pipe" probably means you don't have "display"
@@ -60,8 +60,8 @@ Encrypt "README.org" into:
 2) a Magic Cap string:
 
 #+name: encrypt
-#+begin_src bash :results output
-cargo run -- encrypt README.org --ciphertext encrypted
+#+begin_src bash :results output :tangle data/readme-examples.sh
+  cargo run -- --catalog kitten-catalog/ encrypt README.org
 #+end_src
 
 #+RESULTS: encrypt
@@ -73,7 +73,7 @@ The latter is =mcap0r<base64-encoded data>=
 Before we break that down, lets convert the DataFile + Magic Cap string back into this README!
 
 #+begin_src bash :results output :var MCAP=encrypt
-  cargo run -- decrypt --ciphertext encrypted ${MCAP} --plaintext plain
+  cargo run -- --catalog kitten-catalog/ decrypt ${MCAP} --plaintext plain
 #+end_src
 
 #+RESULTS:
@@ -118,8 +118,8 @@ Inside this same folder is "kitten.mcap".
 The mcap to unlock it is: =mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v=
 If you're using "cargo" a command-line to do that is:
 
-#+begin_src sh
-  cargo run -- decrypt --ciphertext kitten.mcap mcap0rajRAVOgzmSuSsNQt5yA5JAEypic23eM5kRtGp9b5Mq2etDldhibLLwEzHOSOHAo3 --plaintext kitten.jpeg
+#+begin_src sh :tangle data/readme-examples.sh
+  cargo run -- --catalog kitten-catalog/ decrypt mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ > kitten.jpeg
 #+end_src
 
 #+RESULTS:
@@ -128,8 +128,8 @@ If you're using "cargo" a command-line to do that is:
 We have found an amazing cat picture from a public domain source[fn:1] for your viewing pleasure.
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
 
-#+begin_src sh
-  cargo run -- verify --ciphertext kitten.mcap mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
+#+begin_src sh :tangle data/readme-examples.sh
+  cargo run -- --catalog kitten-catalog/ verify mcap0vwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzg
 #+end_src
 
 #+RESULTS:
@@ -222,21 +222,37 @@ Instead, ciphertexts will be located relative to the root directory (specified b
 We have included an example of "Catalog" usage in this repository.
 The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalog``:
 
-| mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB | bruennhilde.jpeg |
-| mcap0rPa8OKdDYv9ts53IGzK1aBFIpMXOaJ-_xxtC3Hcw9aaxxdsyw1qQTBQ6L57da22z_ | cat-on-shoulder.jpeg |
-| mcap0ryrrZKxiB2xEsdrC5PXG40GXYf1nz5yCCAWZA1NQ7tEN4v-Lt3XwIMT5io1v-UdYN | kittens-in-basket.jpeg |
-| mcap0rWEKGyKhhZm0NCceLWecvWpKECReegpvQO6fjoXTy7OpVLxwe-cfWkvET1ReCBNT5 | the-cook.jpeg |
-| mcap0r1FtiGxu2KEJTmryLJZ2yTUZtfyjuBUqdIlkAOoFR9ggPAJR1npbkHXgwpPCnp4_L | three-jolly-kittens.jpeg |
+| mcap0rTDDL618penLGr1UcWqpSK6aTm7ZaDuLffE5CJkFCczHjDrO-pk8s2j3D7Ut6BMgr | bruennhilde.jpeg |
+| mcap0ref5lFU-oxTCQy5P3tSrgibQmFXZ1ig7KZuxaLbR0Judd91HqibK1V3NH33Oe5zj5 | cat-on-shoulder.jpeg |
+| mcap0rtON3PhP8vTcqal3AIQgwG_nd01yCD-zSBjBlCTp4SuDNDfi90LrG93zpSE1FZdIw | kittens-in-basket.jpeg |
+| mcap0r5Rwo47Kzpjmv6_UyVC2BEiWnRYcWp0R5vDNSrjJrZNvmNH2NfGQEPOlqTKT2rIvy | the-cook.jpeg |
+| mcap0rHTN4Rx8ACb4Ohi5ZR7rBtQYrxVgl2319EVGUNedlkvzARi9eCzYPCROqCOx-gc75 | three-jolly-kittens.jpeg |
+
+| mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ | bruennhilde.jpeg |
+| mcap0rm5g9eQuvsLw-WJQeOUdm8i7jbydECuFM4MOFW5zorQfOqwuE0SBssdDn-356-BM2 | cat-on-shoulder.jpeg |
+| mcap0rtNMdPi9aIxsA9bO2fFZkggvpBf8jp1CHo6dqmuGpUv_NiVaI5q_uc8bDkJf6i2h0 | kittens-in-basket.jpeg |
+| mcap0rglumX6gmP0VYEV_9zGq7p6EZydooi_2koYbH0qech9r2us90loZRuFWmGImXtMSS | the-cook.jpeg |
+| mcap0rm4GK7IU_SA7YuL-sw-TWgQCINbYUYPTLbLWvGyc4B4AaBpgYejTfaCzGzfEWBq1A | three-jolly-kittens.jpeg |
+
 
 We can decode one of these without "knowing" which ones goes with which Read Cap.
 Note that the output goes to stdout by default.
 
-#+begin_src sh
-  cargo run -- decrypt --catalog kitten-catalog mcap0rY2fm_lVL33W9-DfIUH01EzAT7fUQ3c5lZEGuZW-WyppXBR8ws_mMNghZAg7wxIUB | display
+#+begin_src sh :tangle data/readme-examples.sh
+  cargo run -- --catalog kitten-catalog/ decrypt mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ > kitten.jpeg
 #+end_src
 
 #+RESULTS:
 
+
+An "Anthology" is a collection of Read Caps, itself recorded as a Read Cap.
+Here is one collecting all the above kitten pictures:
+
+#+begin_src sh :tangle data/readme-examples.sh
+  cargo run -- --catalog kitten-catalog/ anthology list mcap0r_QehbXRgvq141m9-MPS5cgNChSM-_WsS7mcBrsv8szkqjZhIxd6ifD89_sCexPhQ
+#+end_src
+
+#+RESULTS:
 
 * Where From and Where To
 

@@ -45,17 +45,17 @@ pub enum MagicCapError {
     #[error("msgpack encoding error: {0}")]
     MsgpackEncodeError(#[from] rmp_serde::encode::Error),
 
-    #[error("msgpack encoding error: {0}")]
+    #[error("msgpack decoding error: {0}")]
     MsgpackDecodeError(#[from] rmp_serde::decode::Error),
+
+    #[error("JSON Error: {0}")]
+    JsonError(#[from] serde_json::error::Error),
 
     #[error("I/O Error: {0}")]
     IOError(#[from] std::io::Error),
 
     #[error("Failed to obtain entropy: {0}")]
     GetRandomError(#[from] getrandom::Error),
-
-    #[error("ImmutableDirectoryCollection must be a directory")]
-    NotDirectory(),
 
     #[error("Cannot download")]
     ReqwestError(#[from] reqwest::Error),

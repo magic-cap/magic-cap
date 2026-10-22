@@ -1,14 +1,14 @@
 use crate::err::MagicCapError;
 use crate::tahoe::tagged_hash;
 use crate::{
-    Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata, ImmutableReadCap,
-    ImmutableVerifyCap, TahoeAesCtr,
+    EncryptedImmutable, Immutable, ImmutableBuilder, ImmutableDecryptor, ImmutableMetadata,
+    ImmutableReadCap, ImmutableVerifyCap, TahoeAesCtr,
 };
 use data_encoding::HEXLOWER;
 use serde_json::Value;
 use std::fmt;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -23,11 +23,22 @@ pub trait ImmutableCatalog<'a> {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
 
     fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError>;
+}
 
+// rejected: making ImmutableCatalog a super-trait probably doesn't
+// make sense (for example we could have the Catalog on an https://
+// URL but the publisher is git-push or ssh)
+
+pub trait ImmutablePublisher<'a> {
+    // todo: we're going to want something more-generic for the return here
+    // (see e.g. main_encrypt in mcap)
+    // a Web Catalog doesn't want a "BufWriter<File>"
+    // can we return like Arc<ImmutableBuilder<dyn Write>> or something??
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
+    //) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
+    ) -> Result<ImmutableBuilder, MagicCapError>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -98,15 +109,19 @@ impl std::convert::From<ImmutableReadCap> for ImmutableIdentifier {
 /// a file-system implementation of [`ImmutableCatalog`] which
 /// stores magic-caps in a struture similar to Git
 /// (...should it just BE a Git object-store? Put the .cap files in Blobs...?)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImmutableDirectoryCatalog {
     root: PathBuf,
 }
 
 impl ImmutableDirectoryCatalog {
+    // todo: different API for "create a brand-new one" vs. "use an existing one"..?
     pub fn create(root: PathBuf) -> Result<ImmutableDirectoryCatalog, MagicCapError> {
         if !root.is_dir() {
-            return Err(MagicCapError::NotDirectory());
+            return Err(MagicCapError::GenericError(format!(
+                "{}: not a directory",
+                root.as_path().to_str().unwrap_or("weird path")
+            )));
         }
         // todo: consider putting a README or similar in here that
         // both more-accurately marks this as an
@@ -135,10 +150,18 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push("magic-cap-catalog");
         debug!("url is {}", url);
-        let result = reqwest::blocking::Client::new().get(url).send()?;
-        debug!("before js result.text");
+        let client = reqwest::blocking::Client::new();
+        let result = client.get(url.clone()).send()?;
+        if result.status() != reqwest::StatusCode::OK {
+            return Err(MagicCapError::GenericError(format!(
+                "{}: {}",
+                url,
+                result.status()
+            )));
+        }
         let js = result.text()?;
-        let js: Value = serde_json::from_str(js.as_str()).unwrap();
+        debug!("{} bytes of metadata JSON", js.len());
+        let js: Value = serde_json::from_str(js.as_str())?;
         debug!("before js version check");
         if js["version"] == 0 {
             return Ok(ImmutableWebCatalog { root });
@@ -156,12 +179,11 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push(id_str.as_str())
             .push("metadata");
-        debug!("URL {:?}", url);
+        debug!("fetch: {}", url.as_str());
         let result = reqwest::blocking::Client::new()
             .get(url)
             .send()?
             .error_for_status()?;
-        debug!("before js = result.bytes");
         let js = result.bytes()?;
         let slice = &js[0..];
         Ok(rmp_serde::decode::from_read(slice)?)
@@ -178,7 +200,7 @@ impl ImmutableWebCatalog {
             .expect("Valid base URL")
             .push(id_str.as_str())
             .push("ciphertext");
-        debug!("URL {:?}", url);
+        debug!("copy: {}", url.as_str());
         let mut result = reqwest::blocking::Client::new().get(url).send()?;
         result.copy_to(dest)?;
         Ok(())
@@ -198,18 +220,145 @@ pub fn add_identifier(root: &Path, locator: &ImmutableIdentifier) -> PathBuf {
     Path::join(&Path::join(root, dir), name)
 }
 
+#[derive(Debug, PartialEq)]
+/// Access all ciphertext via a [`Read`] provider **alone**
+///
+/// Note that we have no choice here but to buffer 'skipped' blocks so
+/// (worst case) the whole file ends up in memory (e.g. if you read
+/// backwards)
+pub struct EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    provider: R,
+    blocks: u64,
+    block_size: u32,
+    prior_blocks: Vec<Vec<u8>>,
+}
+
+impl<R> EncryptedImmutable for EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    fn total_blocks(&self) -> usize {
+        self.blocks as usize
+    }
+
+    fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.len() != self.block_size as usize {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+            ))
+        } else {
+            // todo: this is a naive implementation that will always
+            // end up with all the ciphertext in memory -- with
+            // penalty of possible panics (if an old block is asked
+            // for a second time), we could evict older stuff? perhaps
+            // make this optional?
+            while self.prior_blocks.len() <= index {
+                let mut data = vec![0u8; self.block_size as usize];
+                self.provider.read_exact(&mut data)?;
+                self.prior_blocks.push(data);
+            }
+
+            // we now must contain 'index' or we errored out on a read above
+            buf.copy_from_slice(&self.prior_blocks[index]);
+            return Ok(buf.len());
+        }
+    }
+}
+
 // promote into the trait?
 // fn stream_push() that returns ImmutableDecryptor ??
 impl ImmutableWebCatalog {
     pub fn stream_push<'b, W: Write>(
         &self,
         key: TahoeAesCtr,
-        metadata: ImmutableMetadata,
+        metadata: &'b ImmutableMetadata,
         plaintext_output: &'b mut W,
     ) -> Result<ImmutableDecryptor<'b, W>, MagicCapError> {
         Ok(ImmutableDecryptor::new(key, metadata, plaintext_output))
     }
 }
+
+impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
+    fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
+        let metadata = self.fetch_metadata(&locator)?;
+        debug!(
+            "load {} * {} = {}",
+            metadata.blocks, metadata.block_size, metadata.size
+        );
+        let size = metadata.blocks * metadata.block_size as u64;
+        let mut data: Vec<u8> = Vec::with_capacity(size as usize);
+        self.copy_ciphertext_to(&locator, &mut data)?;
+
+        Ok(Immutable {
+            metadata: metadata.clone(),
+            data_provider: Box::new(crate::EncryptedImmutableReader {
+                provider: std::io::Cursor::new(data),
+                blocks: metadata.blocks,
+                offset: 0,
+                block_size: metadata.block_size,
+            }),
+        })
+    }
+
+    fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
+        let metadata = self.fetch_metadata(&locator)?;
+        debug!(
+            "load {} * {} = {}",
+            metadata.blocks, metadata.block_size, metadata.size
+        );
+        let _size = metadata.blocks * metadata.block_size as u64;
+
+        // set up a Read for the ciphertext
+        let mut url = self.root.clone();
+        let id_str: String = locator.into();
+        url.path_segments_mut()
+            .expect("Valid base URL")
+            .push(id_str.as_str())
+            .push("ciphertext");
+        let result = reqwest::blocking::Client::new().get(url).send()?;
+
+        // result only implements Read, not Seek so we can't use
+        // EncryptedImmutableReader directly, we need to remember any
+        // "skipped" blocks
+
+        Ok(Immutable {
+            metadata: metadata.clone(),
+            data_provider: Box::new(EncryptedImmutableReadAdaptor {
+                provider: result,
+                blocks: metadata.blocks,
+                block_size: metadata.block_size,
+                prior_blocks: vec![],
+            }),
+        })
+    }
+}
+
+impl<'a> ImmutablePublisher<'a> for ImmutableWebCatalog {
+    fn insert(
+        &mut self,
+        _blocksize: usize,
+    ) -> Result<ImmutableBuilder, MagicCapError> {
+        Err(MagicCapError::GenericError(
+            "we cannot write to Web Catalogs yet".to_string(),
+        ))
+    }
+}
+
+// impl Clone for ImmutableDirectoryCatalog {
+//     fn clone(&self) -> Self {
+//         Self {
+//             root: self.root.clone(),
+//         }
+//     }
+// }
 
 impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
@@ -225,11 +374,13 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
         let imm = Immutable::stream(f)?;
         Ok(imm)
     }
+}
 
+impl<'a> ImmutablePublisher<'a> for ImmutableDirectoryCatalog {
     fn insert(
         &mut self,
         blocksize: usize,
-    ) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError> {
+    ) -> Result<ImmutableBuilder, MagicCapError> {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
         // 3. return the builder with Write to our ephemeral file
@@ -256,11 +407,64 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
             std::fs::rename(uploaded, fname).unwrap();
         });
 
-        let builder = ImmutableBuilder::<BufWriter<File>>::new(
+        let builder = ImmutableBuilder::new(
             blocksize,
-            bufwriter,
+            Box::new(bufwriter),
             Some(Box::new(completed)),
         )?;
         Ok(builder)
     }
+}
+
+/**
+Create an instance implementing [`ImmutableCatalog`] according to
+the configuration string. Currently the following are recognized:
+
+- a local path produces [`ImmutableFileCatalog`]
+- a valid HTTP URL produces [`ImmutableWebCatalog`] that uses the ReST API via reqwest
+
+*/
+
+pub fn connect_catalog<'a>(config: &str) -> Result<Box<dyn ImmutableCatalog<'a>>, MagicCapError> {
+    if let Ok(url) = Url::parse(config) {
+        let catalog = ImmutableWebCatalog::create(url)?;
+        Ok(Box::new(catalog))
+    } else {
+        let path: PathBuf = config.into();
+        // think: do we want to see if this path exists first? Then
+        // we'd need a different command or option for "create this
+        // catalog", perhaps?
+        let catalog = ImmutableDirectoryCatalog::create(path)?;
+        Ok(Box::new(catalog))
+    }
+}
+
+/**
+Create an instance implementing [`ImmutablePublisher`] according to
+the configuration string. Currently the following are recognized:
+
+- a local path produces [`ImmutableFilePublisher`]
+
+*/
+
+pub fn connect_publisher<'a>(config: &str) -> Result<Box<dyn ImmutablePublisher<'a>>, MagicCapError> {
+    // todo: URL -> GitHub? ImmutableGitHubPublisher
+    // todo: S3
+
+    let path: PathBuf = config.into();
+    // we want to publish; if this path doesn't exist, create a directory
+    // if the path _does_ exist, check that it's writable
+
+    if !path.exists() {
+        std::fs::create_dir(path.as_path())?;
+    }
+    if !path.is_dir() {
+        return Err(MagicCapError::GenericError("path is not a directory".to_string()));
+    }
+    if path.metadata()?.permissions().readonly() {
+        return Err(MagicCapError::GenericError("path is read-only".to_string()));
+    }
+    
+    let publisher = ImmutableDirectoryCatalog::create(path)?;
+    Ok(Box::new(publisher))
 }

@@ -85,6 +85,29 @@
 //!
 //! ## Examples
 //!
+//! This library is about the safe handling of data, so at the core we
+//! want to read plaintext out of encrypted locations and write
+//! plaintext into encrypted locations.
+//!
+//! We start with the low-level APIs, but most users will want to use
+//! a "Catalog" (like [`ImmutableDirectoryCatalog`]) which stores a
+//! collection of Data indexed by an "Identifier" derived from the
+//! Read Cap.
+//!
+//! ### Loading an Existing Immutable
+//!
+//! If you want all the plaintext loaded into memory, the easiest API
+//! is [`ReadCap::decrypt`]. This directly reads all the ciphertext
+//! from the provided [`Read`] implementation and returns the
+//! plaintext as a `Vec<u8>`.
+//! (If you have large files or memory use is a concern, read on).
+//! `cargo run --example read-memory`.
+//!
+//! ```rust
+#![doc = include_doc::source_file!("examples/read-memory.rs")]
+//! ```
+//! ### Creation From Plaintext
+//!
 //! One way to create an [`ImmutableReadCap`] is to stream plaintext
 //! to it using the [`Write`] trait to an [`ImmutableBuilder`]. For
 //! example:
@@ -102,10 +125,75 @@
 #![doc = include_doc::source_file!("examples/in-memory.rs")]
 //! ```
 //!
+//! ## Using Catalogs
+//!
+//! You may choose to associate Read Caps with Data using your own scheme (e.g. a database).
+//! We provide a mechanism using [`ImmutableIdentifier`] (deterministically derived from [`ImmutableReadCap`] or [`ImmutableVerifyCap`]) called a "Catalog" (see also [the Magic Cap glossary](https://magic-cap.readthedocs.io/en/latest/glossary.html)).
+//!
+//! We recommend using [`ImmutableIdentifier`] to index / find Data bytes even if you implement your own method.
+//! There is a proposed ReST API as well (see [`ImmutableWebCatalog`]).
+//!
+//! On the client side, one may create an appropriate [`ImmutableCatalog`] instance.
+//! That is [`ImmutableDirectoryCatalog`] for local on-disk Data files or [`ImmutableWebCatalog`] to access the ReST-style API remotely.
+//! In the near future we will finalize async vs. sync APIs.
+//! Ideas for other ways to access Data? [Get in touch](https://github.com/magic-cap/magic-cap/issues/new/choose>).
+//!
+//! Note that access-control is NOT part of any of the "remote" designs -- that is completely up to you.
+//! That can be as simple as file-permissions for local access, IAM or other credetials for commodity services.
+//! This could even be an unguessable URL like a Tor Onion service.
+//!
+//! ### The APIs
+//!
+//! There are two parts to decoding: you need the [`ImmutableReadCap`] **and** the corresponding [`Immutable`].
+//! These Catalog APIs get you the second part.
+//! A common way to get the first part is to parse a user-provided string.
+//!
+//! You can decide how to handle the ciphertext:
+//!
+//! * entirely in-memory: [`ImmutableCatalog::load`]
+//! * streamed on-demand from a [`Read`] instance: [`ImmutableCatalog::stream`]
+//! * outside handling by user code (ciphertext is "pushed" in via [`Write`] calls).
+//!
+//! The trait [`ImmutableCatalog`] shows the common API for Catalogs.
+//! [`ImmutableCatalog::load`] immediately reads all ciphertext into memory.
+//! [`ImmutableCatalog::stream`] sets up to read ciphertext on-demand via [`Read`] trait calls; only the metadata is read immediately.
+//!
+//! Doing everything in-memory:
+//!
+//! ```rust
+#![doc = include_doc::source_file!("examples/catalog-read.rs")]
+//! ```
+//!
+//! **Exercise 1**: Arrange to stream the ciphertext in by changing
+//! the ``catalog.load(..)`` line in the above to ``catalog.stream``.
+//! That it! The difference is that an entire copy of the ciphertext
+//! now won't exist in memory.
+//!
+//! (You might want to use ``load()`` when the ciphertext is *already* in memory anyway, for example).
+//!
+//! **Exercise 2**: Try loading different kittens from the kitten-catalog.
+//! Choose different Read Cap strings from README.org and replace them in the code.
+//! (The total number of bytes in the plaintext will differ between kittens).
+//!
+//! **Exercise 3**: Write out the plaintext to disk (e.g. to
+//! ``kitten.jpeg``) and then load it with your favourite photo
+//! viewer.
+//!
+//!
+//! ### Synchronous, Local Access: ``ImmutableDirectoryCatalog``
+//!
+//! Our method for storing Data locally is to have a "root" directory that looks a lot like a `.git` object database.
+//! That is, a ``root/`` directory followed by two-digit sub-directories which themselves contain files.
+//! See the ``kitten-catalog/`` in the root of this checkout for a concrete example.
+//!
+//! [`ImmutableDirectoryCatalog::create`] takes a root path (e.g. ``/path/to/kitten-catalog``).
+//! Upon [`ImmutableCatalog::load`], Data files are looked up by taking the base32 encoding of the [`ImmutableIdentifier`] and using the first two characters as the sub-directory and the entire encoding as the filename.
+//! Each file is the result of serializing an [`Immutable`].
+//!
 
 mod catalog;
 pub mod err;
-mod tahoe;
+pub mod tahoe;
 
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?
 mod test;
@@ -115,8 +203,8 @@ pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
 pub use catalog::{
-    ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
-    add_identifier,
+    ImmutableCatalog, ImmutablePublisher, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
+    add_identifier, connect_catalog, connect_publisher, 
 };
 
 // why can't we use KeyInit ?!
@@ -133,8 +221,6 @@ use tracing::{debug, error, info, trace};
 use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
-use std::fs::File;
-use std::io::BufWriter;
 use std::io::prelude::*;
 
 use err::MagicCapError;
@@ -170,7 +256,7 @@ where
     W: Write,
 {
     plain_output: &'a mut W,
-    metadata: ImmutableMetadata,
+    metadata: &'a ImmutableMetadata,
     key: TahoeAesCtr, // contains key state, thus consumed
     this_block: Vec<u8>,
     this_block_num: usize,
@@ -184,7 +270,7 @@ where
     // private constructor: the only way to make these is calls like ReadCap::decrypt_stream()
     fn new(
         key: TahoeAesCtr,
-        metadata: ImmutableMetadata,
+        metadata: &'a ImmutableMetadata,
         plain_output: &'a mut W,
     ) -> ImmutableDecryptor<'a, W> {
         let bs = metadata.block_size as usize;
@@ -231,8 +317,20 @@ where
             // decrypt the block
             self.key.apply_keystream(&mut this_block_bytes);
 
-            // write out plaintext block
-            self.plain_output.write_all(&this_block_bytes)?;
+            // write out plaintext block -- but we have to be careful
+            // if this is the last block to only write out what is
+            // valid
+            if self.this_block_num == self.metadata.blocks as usize {
+                let rawsize = self.metadata.block_size as u64 * self.metadata.blocks;
+                let last_block_leftover = rawsize - self.metadata.size;
+                let last_block_size: usize =
+                    (self.metadata.block_size as u64 - last_block_leftover) as usize;
+                debug!("last block: {last_block_size}");
+                self.plain_output
+                    .write_all(&this_block_bytes[0..last_block_size as usize])?;
+            } else {
+                self.plain_output.write_all(&this_block_bytes)?;
+            }
         }
         Ok(buf.len())
     }
@@ -256,7 +354,7 @@ pub trait ReadCap: ImmutableVerifier {
 
     fn decrypt_stream<'a, W>(
         &'a self,
-        meta: ImmutableMetadata,
+        meta: &'a ImmutableMetadata,
         output: &'a mut W,
     ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
     where
@@ -264,7 +362,7 @@ pub trait ReadCap: ImmutableVerifier {
 
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: BufWriter<File>, // probably want "dyn Write" or so? why demand a File here?
+        writer: Box<dyn Write>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError>;
 }
@@ -454,27 +552,23 @@ type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 /// for the duration of the encryption.
 ///
 /// Note that we do NOT need a [`Seek`] implementation here due to the
-/// file layout but in exchanged [`Seek`] is required when reading.
-pub struct ImmutableBuilder<W>
-where
-    W: Write,
+/// file layout but in exchange [`Seek`] is required when reading.
+pub struct ImmutableBuilder
 {
     context: EncryptionContext,
-    output: W,
+    output: Box<dyn Write>,
     this_block: Vec<u8>,
     ciphertext_bytes: usize,
     completed: Option<BuilderDoneCb>,
 }
 
-impl<W> ImmutableBuilder<W>
-where
-    W: Write,
+impl ImmutableBuilder
 {
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(
         blocksize: usize,
-        mut writer: W,
+        mut writer: Box<dyn Write>,
         completed: Option<BuilderDoneCb>,
     ) -> Result<Self, MagicCapError> {
         writer.write_all(b"mcap")?; // 4 tag bytes at beginnging
@@ -496,7 +590,7 @@ where
     /// consumed). Note that you receive the `output` [`Write`]
     /// instance back in case you have more to do; most use-cases
     /// should just close it (e.g. if it's a file).
-    pub fn done(mut self) -> Result<(ImmutableReadCap, W), MagicCapError> {
+    pub fn done(mut self) -> Result<(ImmutableReadCap, Box<dyn Write>), MagicCapError> {
         // 1. if remaining buffered data, pad it + write final block
         // 2. write metadata
         // 3. ... profit?
@@ -534,9 +628,7 @@ where
     }
 }
 
-impl<W> Write for ImmutableBuilder<W>
-where
-    W: Write,
+impl Write for ImmutableBuilder
 {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         // buffer the incoming data
@@ -603,7 +695,7 @@ impl ReadCap for ImmutableReadCap {
     /// to the encoded data.
     fn encrypt(
         plaintext: Vec<u8>,
-        writer: std::io::BufWriter<File>,
+        writer: Box<dyn Write>,
         blocksize: usize,
     ) -> Result<ImmutableReadCap, MagicCapError> {
         let mut builder = ImmutableBuilder::new(blocksize, writer, None)?;
@@ -618,9 +710,12 @@ impl ReadCap for ImmutableReadCap {
     // is this friend shaped?
     // probably need / want to pass in Metadata too?
     // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
+
+    // problems: see the test, not really straightforward to use and
+    // can't we just return a thing that does Read?
     fn decrypt_stream<'a, W>(
         &'a self,
-        meta: ImmutableMetadata,
+        meta: &'a ImmutableMetadata,
         output: &'a mut W,
     ) -> Result<ImmutableDecryptor<'a, W>, MagicCapError>
     where
@@ -886,7 +981,7 @@ impl EncryptedImmutable for EncryptedImmutableMemory {
 }
 
 #[derive(Debug, PartialEq)]
-/// Access all ciphertext via a [`Read`] provider
+/// Access all ciphertext via a [`Read`] + [`Seek`] provider
 pub struct EncryptedImmutableReader<R>
 where
     R: Read + Seek,
@@ -920,6 +1015,54 @@ where
             self.provider.seek(std::io::SeekFrom::Start(offset))?;
             self.provider.read_exact(buf)?;
             Ok(self.block_size as usize)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+/// Access all ciphertext via a [`Read`] provider **alone**
+///
+/// Note that we have no choice here but to buffer 'skipped' blocks so
+/// (worst case) the whole file ends up in memory (e.g. if you read
+/// backwards)
+pub struct EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    provider: R,
+    blocks: u64,
+    block_size: u32,
+    prior_blocks: Vec<Vec<u8>>,
+}
+
+impl<R> EncryptedImmutable for EncryptedImmutableReadAdaptor<R>
+where
+    R: Read,
+{
+    fn total_blocks(&self) -> usize {
+        self.blocks as usize
+    }
+
+    fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    fn get_block(&mut self, index: usize, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.len() != self.block_size as usize {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("buf is {} but blocksize is {}", buf.len(), self.block_size),
+            ))
+        } else {
+            while self.prior_blocks.len() <= index {
+                let mut data = vec![0u8; self.block_size as usize];
+                self.provider.read_exact(&mut data)?;
+                self.prior_blocks.push(data);
+            }
+
+            // we now must contain 'index' or we errored out on a read above
+            buf.copy_from_slice(&self.prior_blocks[index]);
+            return Ok(buf.len());
         }
     }
 }
