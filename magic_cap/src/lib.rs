@@ -698,43 +698,14 @@ impl ReadCap for ImmutableReadCap {
     /// corresponds to the ReadCap first).
     fn decrypt(&self, immutable: &mut Immutable) -> Result<Vec<u8>, MagicCapError> {
         let mut plaintext: Vec<u8> = Vec::with_capacity(immutable.metadata.size as usize);
-        // before anything else, we check that the capability
-        // corresponds to this Immutable ... by hashing the Metadata,
-        // and confirming it matches the Cap's hash
-        if !self.verify.corresponds_to(&immutable.metadata) {
-            return Err(MagicCapError::McapMetadataDiscordant());
-        }
+
+        // throw an error if verify fails!
+        self.verify(immutable)?;
 
         // todo: streaming decryption also goes into the ReadCapability, somehow
         // -> EncryptionContext equiv gets created by some fn in the trait
         // todo: the actual decrypt code should be moved into "impl Read for ReadCapabilty"
         let mut key = self.create_tahoe_key();
-
-        // can we use iterators more directly here instead of for loop? e.g.:
-        // let mut leaves: Vec<[u8; 32]> = cipher.iter().map(|x| TahoeLeaf::hash(x)).collect();
-        let mut leaves: Vec<[u8; 32]> = vec![];
-        for i in 0..immutable.data_provider.total_blocks() {
-            let mut leaf = vec![0u8; immutable.data_provider.block_size() as usize];
-            immutable.data_provider.get_block(i, &mut leaf)?;
-            // TODO: this just checks that the metadata.leaves
-            // _matches_ this hash instead of creating a whole merkle
-            // tree here
-            let lh = TahoeLeaf::hash(&leaf);
-            leaves.push(lh);
-        }
-        fill_empty_merkle_leaves(&mut leaves);
-
-        let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&leaves);
-        let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
-
-        // this checks that the _metadata_ from our metadata file
-        // actually matches the ciphertext from our 'data' file (we
-        // checked above that the user-supplied capability-string has
-        // a matching root early in this function)
-        if merkle_root != immutable.metadata.ciphertext_root {
-            let incorrect_hash = BASE64URL_NOPAD.encode(&merkle_root);
-            return Err(MagicCapError::CipherTextDiscordant(incorrect_hash));
-        }
 
         // XXX flip this outside
         for block_idx in 0..immutable.data_provider.total_blocks() {
