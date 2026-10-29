@@ -342,7 +342,6 @@ impl ImmutableVerifier for ImmutableVerifyCap {
     }
 }
 
-
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 /// A Cap that is able to both verify the ciphertext and decrypt it
 ///
@@ -684,7 +683,6 @@ impl ReadCap for ImmutableReadCap {
 
         // throw an error if verify fails!
         self.verify(immutable)?;
-
 
         // todo: streaming decryption also goes into the ReadCapability, somehow
         // -> EncryptionContext equiv gets created by some fn in the trait
