@@ -193,6 +193,7 @@
 
 mod catalog;
 pub mod err;
+// TODO: think: this is really only "pub" for examples/hash.rs .. make it private again?
 pub mod tahoe;
 
 #[cfg(test)] // can we put this "inside" test.rs instead somehow?

@@ -31,7 +31,7 @@ So, to take "the tagged hash" of the value `"No darkness lasts forever. And even
 - return these 32 bytes
 
 If you're following along at home, this should result in the bytes: `[170, 119, 221, 121, 208, 93, 0, 186, 155, 121, 80, 168, 102, 233, 219, 87, 111, 162, 128, 164, 48, 146, 149, 25, 106, 51, 96, 62, 0, 4, 34, 139]`.
-See also the "hash.rs" example.
+See also the "hash.rs" example (`cargo run --example hash`).
 
 
 ## Merkle Trees
