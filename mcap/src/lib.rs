@@ -293,13 +293,13 @@ pub fn main_reduce(output: &mut impl Write, cap: &str) -> Result<(), MagicCapErr
     Ok(())
 }
 
-/// "mcap publish"
-pub fn main_publish(
+/// "mcap export"
+pub fn main_export(
     stdout: &mut impl Write,
     catalog: &PathBuf,
     output: &PathBuf,
 ) -> Result<(), MagicCapError> {
-    writeln!(stdout, "publish {catalog:?} to {output:?}")?;
+    writeln!(stdout, "export {catalog:?} to {output:?}")?;
     if output.exists() {
         return Err(MagicCapError::GenericError(format!(
             "\"{}\" already exists",
@@ -313,7 +313,7 @@ pub fn main_publish(
         let mut readme = output.clone();
         readme.push("README");
         let mut readme = std::fs::File::create(readme.as_path())?;
-        readme.write_all(b"This is a Catalog published by Magic Cap\n")?;
+        readme.write_all(b"This is a Catalog exported by Magic Cap\n")?;
     }
     {
         // tell programs what this basedir is for
@@ -328,24 +328,24 @@ pub fn main_publish(
         if entry.metadata().unwrap().is_file() {
             let mut r = std::io::BufReader::new(std::fs::File::open(entry.path())?);
             let mut imm = Immutable::stream(&mut r)?;
-            let mut published = output.clone();
+            let mut exported = output.clone();
             let id: ImmutableIdentifier = (&imm).into();
             let id: String = id.into();
-            published.push(id);
-            //let published = magic_cap::add_identifier(&published, &id);
+            exported.push(id);
+            //let exported = magic_cap::add_identifier(&exported, &id);
             write!(
                 stdout,
                 "  {}: {} bytes",
                 entry.path().display(),
                 imm.metadata.size,
             )?;
-            std::fs::create_dir_all(published.clone())?;
+            std::fs::create_dir_all(exported.clone())?;
             // just assume version == 0 for now .. could put a "version" file with 0u32 in it?
             // (add ".version" to ImmutableMetadata?
 
             // write the metadata to "/metadata"
             {
-                let mut meta = published.clone();
+                let mut meta = exported.clone();
                 meta.push("metadata");
                 let mut meta = std::fs::File::create(meta.as_path())?;
                 imm.metadata.write(&mut meta)?;
@@ -355,7 +355,7 @@ pub fn main_publish(
             stdout.write_all(b"      blocks")?;
             // write the blocks to "/ciphertext"
             {
-                let mut blocks = published.clone();
+                let mut blocks = exported.clone();
                 blocks.push("ciphertext");
                 let mut blocks = std::fs::File::create(blocks.as_path())?;
                 let mut block = vec![0u8; imm.data_provider.block_size() as usize];
@@ -494,7 +494,8 @@ pub fn main_anthology_list(
                     ));
                 }
                 let name = two[1];
-                println!("{name}");
+                let mcap = two[0];
+                println!("{name} {mcap}");
             }
             return Ok(());
         }

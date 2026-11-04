@@ -1,7 +1,7 @@
 use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
-    main_encrypt, main_publish, main_reduce, main_verify,
+    main_encrypt, main_export, main_reduce, main_verify,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -139,7 +139,7 @@ enum Commands {
     #[command(
         about = "Turn a disc Catalog into one suitable for static hosting (as the REST API)."
     )]
-    Publish {
+    Export {
         #[arg(help("local path of a Catalog"))]
         catalog: PathBuf,
         #[arg(help("output path for the REST-style static-hostable files"))]
@@ -270,8 +270,8 @@ fn main() {
         }) => main_decrypt(cap, &catalogs, plaintext),
         Some(Commands::Verify { cap }) => main_verify(cap, &mut catalogs),
         Some(Commands::Reduce { cap }) => main_reduce(&mut std::io::stdout(), cap),
-        Some(Commands::Publish { catalog, output }) => {
-            main_publish(&mut std::io::stdout(), catalog, output)
+        Some(Commands::Export { catalog, output }) => {
+            main_export(&mut std::io::stdout(), catalog, output)
         }
         // todo: might make sense to promote --catalog to top-level
         Some(Commands::Debug { command }) => match command {
