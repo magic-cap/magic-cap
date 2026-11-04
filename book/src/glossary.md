@@ -24,33 +24,34 @@ Verify Cap
 
 
 Identifier or Locator
-: A 32-byte string (usually base32 encoded) derived from a "Read Cap" (or "Verify Cap") that uniquely identifies it (e.g. within a Catalog).
+: 32-bytes derived from a "Read Cap" (or "Verify Cap") that uniquely identifies the Data (e.g. within a Catalog).
+  Usually this is base32-encoded when users see it.
   This is used by parts of the system to associate a Data to a Read Cap (without revealing the Read Cap or Verify Cap to the storage system).
 
 Catalog
 : A collection of Data organized by "Identifier" (at some root directory or URL, for example).
 
-  This allows a client holding a Read Cap to derive the Identifier and
-  then ask the storage system if that Data is available (without
-  revealing details about the Read Cap).
+  This allows a client holding a Read Cap to derive the Identifier and then ask the storage system if that Data is available (without revealing details about the Read Cap).
   For example, an on-disk storage system may simply check if a particular file exists.
 
 Anthology
 : A way to group multiple different Read Caps together ("like a Zip file").
   For example, all the assets for a blog post.
   This allows you to have a single "top-level" Read Cap that references other Read Caps of various kinds.
+  What you choose to put in an Anthology is completely up to the user code; it has no semantics in this library.
   
 Netstring
 : A length-prefixed ASCII string which looks like `4:this,` which is the netstring encoding of the 4-byte ASCII string `"this"`. See also [djb97](https://cr.yp.to/proto/netstrings.txt).
+  (We use this in various places because Tahoe-LAFS does)
 
 # Catalog vs. Anthology
 
 The Anthology concept (think a book anthology) is meant to evoke a related collection that is meaningful to the application (or author) -- all the files that make up a blog post, or a bunch of photos for a particular client.
 
-A Catalog (think of a library card-catalog) is meant as a more generic place to store all kinds of things (e.g. books, anthologies, etc).
+A Catalog (think of a library card-catalog) is meant as a more generic place to store and index all kinds of things (e.g. books, anthologies, etc).
 
 Although the items in a Catalog may be related in some way, that's usually along "access" lines (e.g. *every current employee of MegaCorp* or "all comrades in good stating at the Tech Collective" or *anyone who has the right Onion Service URI*.
-Someone providing Catalog services may have several different applications with different data-storage needs using it; any number of Anthologies (which are just Data) are used by applications with "collections" meaningful to them.
+Someone providing Catalog services may have several different applications with different data-storage needs using it; any number of Anthologies (which are just Data) are used by applications with groupings meaningful to them.
 
 So: Anthologies are a way to structure related Data together
 ...and Catalogs are a way to provide a more generalized collection of Data (located only by Identifier) with any stucture decided by users.
@@ -59,7 +60,7 @@ A Catalog-provider could attempt to infer relationships through traffic monitori
 
 ## Analogy time!
 
-That is: books are just books to the library.
+That is: books are just books to the magic library.
 They are found on the shelves by obscure numbers on their spine (you look these up in a catalog).
 Every book is filled with gibberish (but you can see how many pages there are).
 Anyone who signs out a book needs the corresponding Read Cap to translate the gibberish.
