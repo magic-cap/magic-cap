@@ -2,6 +2,7 @@
 name = "magic_cap_cli"
 version = "0.2.0"
 edition = "2024"
+rust-version = "1.89.0"  # determined by "cargo-msrv"
 authors = [
     "meejah <meejah@meejah.ca>",
     "shapr <shae@ScannedInAvian.com>",
