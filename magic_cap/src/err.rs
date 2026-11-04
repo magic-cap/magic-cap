@@ -67,7 +67,6 @@ pub enum MagicCapError {
     // actually referencing the sub-error longer-term are we?
     //#[error("Failed to downcast correctly")]
     //DowncastFailed(#[from] std::boxed::Box<dyn std::any::Any>),
-
     #[error("{0}")]
     GenericError(String),
 }

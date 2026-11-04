@@ -37,7 +37,7 @@ pub trait ImmutablePublisher<'a> {
     fn insert(
         &mut self,
         blocksize: usize,
-    //) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
+        //) -> Result<ImmutableBuilder<BufWriter<File>>, MagicCapError>;
     ) -> Result<ImmutableBuilder, MagicCapError>;
 }
 
@@ -342,10 +342,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
 }
 
 impl<'a> ImmutablePublisher<'a> for ImmutableWebCatalog {
-    fn insert(
-        &mut self,
-        _blocksize: usize,
-    ) -> Result<ImmutableBuilder, MagicCapError> {
+    fn insert(&mut self, _blocksize: usize) -> Result<ImmutableBuilder, MagicCapError> {
         Err(MagicCapError::GenericError(
             "we cannot write to Web Catalogs yet".to_string(),
         ))
@@ -377,10 +374,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableDirectoryCatalog {
 }
 
 impl<'a> ImmutablePublisher<'a> for ImmutableDirectoryCatalog {
-    fn insert(
-        &mut self,
-        blocksize: usize,
-    ) -> Result<ImmutableBuilder, MagicCapError> {
+    fn insert(&mut self, blocksize: usize) -> Result<ImmutableBuilder, MagicCapError> {
         // 1. (use collection-builder thing we just built)
         // 2. open an ephemeral file in <root>/INCOMING/<rnd>.mcap
         // 3. return the builder with Write to our ephemeral file
@@ -407,11 +401,8 @@ impl<'a> ImmutablePublisher<'a> for ImmutableDirectoryCatalog {
             std::fs::rename(uploaded, fname).unwrap();
         });
 
-        let builder = ImmutableBuilder::new(
-            blocksize,
-            Box::new(bufwriter),
-            Some(Box::new(completed)),
-        )?;
+        let builder =
+            ImmutableBuilder::new(blocksize, Box::new(bufwriter), Some(Box::new(completed)))?;
         Ok(builder)
     }
 }
@@ -447,7 +438,9 @@ the configuration string. Currently the following are recognized:
 
 */
 
-pub fn connect_publisher<'a>(config: &str) -> Result<Box<dyn ImmutablePublisher<'a>>, MagicCapError> {
+pub fn connect_publisher<'a>(
+    config: &str,
+) -> Result<Box<dyn ImmutablePublisher<'a>>, MagicCapError> {
     // todo: URL -> GitHub? ImmutableGitHubPublisher
     // todo: S3
 
@@ -459,12 +452,14 @@ pub fn connect_publisher<'a>(config: &str) -> Result<Box<dyn ImmutablePublisher<
         std::fs::create_dir(path.as_path())?;
     }
     if !path.is_dir() {
-        return Err(MagicCapError::GenericError("path is not a directory".to_string()));
+        return Err(MagicCapError::GenericError(
+            "path is not a directory".to_string(),
+        ));
     }
     if path.metadata()?.permissions().readonly() {
         return Err(MagicCapError::GenericError("path is read-only".to_string()));
     }
-    
+
     let publisher = ImmutableDirectoryCatalog::create(path)?;
     Ok(Box::new(publisher))
 }

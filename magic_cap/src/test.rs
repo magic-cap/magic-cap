@@ -1,7 +1,7 @@
 use super::*;
-use std::fs::File;
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use proptest::prelude::*;
+use std::fs::File;
 use tempfile::TempDir;
 
 #[test]
@@ -96,8 +96,12 @@ fn handcrafted_filesystem_round_trip_stream() {
     let tmp = TempDir::new().unwrap();
 
     let fm = File::create(tmp.path().join("encrypted")).unwrap();
-    let cap =
-        ImmutableReadCap::encrypt(input.clone(), Box::new(std::io::BufWriter::new(fm)), blocksize).unwrap();
+    let cap = ImmutableReadCap::encrypt(
+        input.clone(),
+        Box::new(std::io::BufWriter::new(fm)),
+        blocksize,
+    )
+    .unwrap();
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let mut data = std::io::BufReader::new(fm);
@@ -129,8 +133,12 @@ fn handcrafted_filesystem_round_trip_single_block() {
     let tmp = TempDir::new().unwrap();
 
     let fm = File::create(tmp.path().join("encrypted")).unwrap();
-    let cap =
-        ImmutableReadCap::encrypt(input.clone(), Box::new(std::io::BufWriter::new(fm)), blocksize).unwrap();
+    let cap = ImmutableReadCap::encrypt(
+        input.clone(),
+        Box::new(std::io::BufWriter::new(fm)),
+        blocksize,
+    )
+    .unwrap();
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let mut data = std::io::BufReader::new(fm);

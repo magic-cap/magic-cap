@@ -44,7 +44,11 @@ struct Cli {
 
     // todo: does clap have a way to error when passing --catalog to
     // a subcommand that doesn't need / want it?
-    #[arg(short = 'c', long = "catalog", help = "A way to find and read Data. A local catalog root directory or a URL to the ReST API")]
+    #[arg(
+        short = 'c',
+        long = "catalog",
+        help = "A way to find and read Data. A local catalog root directory or a URL to the ReST API"
+    )]
     catalogs: Vec<String>,
 }
 
@@ -89,7 +93,13 @@ enum Commands {
         // non-optional source of data
         plaintext: PathBuf,
 
-        #[arg(short = 'p', long = "publisher", required = true, name = "PUBLISHER", help = "Where to publish the Data. Local catalog root directory")]
+        #[arg(
+            short = 'p',
+            long = "publisher",
+            required = true,
+            name = "PUBLISHER",
+            help = "Where to publish the Data. Local catalog root directory"
+        )]
         publishers: Vec<String>,
 
         #[arg(short, long, default_value_t = 4096)]
@@ -247,7 +257,12 @@ fn main() {
             plaintext,
             publishers,
             blocksize,
-        }) => main_encrypt(&mut std::io::stdout(), plaintext, &mut parse_publishers(&publishers), *blocksize),
+        }) => main_encrypt(
+            &mut std::io::stdout(),
+            plaintext,
+            &mut parse_publishers(&publishers),
+            *blocksize,
+        ),
         Some(Commands::Decrypt {
             cap,
             //            ciphertext_loader: ciphertext_load,

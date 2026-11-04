@@ -101,8 +101,8 @@ use tracing::debug;
 use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
-    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutablePublisher, ImmutableDirectoryCatalog, ImmutableIdentifier,
-    ImmutableMetadata, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
+    Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
+    ImmutableMetadata, ImmutablePublisher, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
     ImmutableWebCatalog, ReadCap,
 };
 use reqwest::header::HeaderMap;

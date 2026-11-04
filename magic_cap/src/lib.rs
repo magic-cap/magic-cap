@@ -203,8 +203,8 @@ pub use tahoe::TahoeAesCtr;
 use tahoe::{TahoeInside, TahoeLeaf};
 
 pub use catalog::{
-    ImmutableCatalog, ImmutablePublisher, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutableWebCatalog,
-    add_identifier, connect_catalog, connect_publisher, 
+    ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutablePublisher,
+    ImmutableWebCatalog, add_identifier, connect_catalog, connect_publisher,
 };
 
 // why can't we use KeyInit ?!
@@ -218,11 +218,11 @@ use sha2::Sha256;
 
 use tracing::{debug, error, info, trace};
 
+use std::any::Any;
 use std::convert::Into;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::io::prelude::*;
-use std::any::Any;
 
 use err::MagicCapError;
 
@@ -540,15 +540,13 @@ type BuilderDoneCb = Box<dyn FnOnce(&ImmutableReadCap)>;
 /// This allows one to use Box.downcast() on the second object
 /// returned from ImmutableBuiler.done() ... see most of the tests for
 /// examples.
-pub trait AnyWrite: Any + Write {
-}
+pub trait AnyWrite: Any + Write {}
 
 // not _entirely_ sure what types this will instantiate / mark but it
 // works for what we use in here already. (i.e. do we need to
 // explicitly mark interesting std-lib types that users may want, or
 // does this cover that?)
-impl<T: Any + Write> AnyWrite for T {} 
-
+impl<T: Any + Write> AnyWrite for T {}
 
 /// Incrementally encrypt to an underlying [`Write`] object
 ///
@@ -567,8 +565,7 @@ impl<T: Any + Write> AnyWrite for T {}
 ///
 /// Note that we do NOT need a [`Seek`] implementation here due to the
 /// file layout but in exchange [`Seek`] is required when reading.
-pub struct ImmutableBuilder
-{
+pub struct ImmutableBuilder {
     context: EncryptionContext,
     output: Box<dyn AnyWrite>,
     this_block: Vec<u8>,
@@ -576,8 +573,7 @@ pub struct ImmutableBuilder
     completed_f: Option<BuilderDoneCb>,
 }
 
-impl ImmutableBuilder
-{
+impl ImmutableBuilder {
     /// Create a new ``ImmutableBuilder`` which will write ciphertext
     /// to ``writer`` in chunks of size ``blocksize``.
     pub fn new(
@@ -585,7 +581,6 @@ impl ImmutableBuilder
         mut writer: Box<dyn AnyWrite>,
         completed_f: Option<BuilderDoneCb>,
     ) -> Result<Self, MagicCapError> {
-
         writer.write_all(b"mcap")?; // 4 tag bytes at beginnging
         writer.write_all(&1u32.to_be_bytes())?; // 4-byte "version" number == 0x0001
 
@@ -644,8 +639,7 @@ impl ImmutableBuilder
     }
 }
 
-impl Write for ImmutableBuilder
-{
+impl Write for ImmutableBuilder {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         // buffer the incoming data
         trace!("ImmutableBuilder::write: {} bytes", buf.len());

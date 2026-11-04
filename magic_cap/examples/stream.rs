@@ -1,12 +1,12 @@
 use magic_cap::{Immutable, ImmutableBuilder, ReadCap, err::MagicCapError};
-use std::io::{Cursor, Write};
 use std::any::Any;
 use std::boxed::Box;
+use std::io::{Cursor, Write};
 
 // NB: using ImmutableBuilder directly is fairly low-level and most
 // users will be happier to use Publisher
 
-fn main() -> Result<(), MagicCapError>{
+fn main() -> Result<(), MagicCapError> {
     let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
     let ciphertext = Box::<Vec<u8>>::new(vec![]);
 

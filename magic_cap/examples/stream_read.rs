@@ -1,6 +1,6 @@
 use magic_cap::{Immutable, ImmutableBuilder, ReadCap};
-use std::io::{Cursor, Write};
 use std::any::Any;
+use std::io::{Cursor, Write};
 
 // NB: using ImmutableBuilder directly is fairly low-level and most
 // users will be happier to use Publisher
