@@ -110,7 +110,8 @@ A common pattern is to host the data on servers the application operators or dev
 
 Traditionally, these same developers (e.g. their company) have access to all of this data.
 
-Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage.
+Using Magic Caps allows this **user data to be truly private to the user** -- the "Data" piece is still stored on the servers as before, while the Read Cap is stored on user-controlled secure storage.
+This means the operators are *unable* to access user data, without extra effort (e.g. by stealing a Read Cap from a particular user device).
 
 (See also "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext -- a user device could safely share a Verify Cap with the service-provider).
 
@@ -148,7 +149,7 @@ This separates the distribution from the actual "release", reducing server bandw
 
 ### Shared Organizational Data
 
-An organization often has lots of data, often with different visibility requirements.
+An organization often has lots of data, usually with different visibility requirements.
 
 A system centered around Magic Caps (along with the Catalog and Anthology concepts) could allow members of the organization to carry offline copies of all the data while only allowing access to particular pieces of it.
 
@@ -158,7 +159,7 @@ So, members of an organization could all have a complete copy of all organizatio
 
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.
-(Using the Anthology concept makes it easier to share many items with only one Read Cap instead of many).
+(Using the Anthology concept makes it easier to share many items while only distributing one Read Cap instead of many).
 
 
 ## Source Code, Documentation
