@@ -52,16 +52,22 @@ Options:
 
 ## Basic Decryption
 
-Inside the repository is ``kitten.mcap`` which is a Data that can be decrypted using the Magic Cap in the README.
-By default, ``mcap decrypt`` writes to stdout, and we know this is an image so:
+Most of the commands read from a Catalog and there is an example in the root at `kitten-catalog/`.
+Thus you'll want to include `--catalog ./kitten-catalog` for most commands.
+(You can find a list of Read Caps encoded in this Catalog in the top-level README.org)
 
 ```bash
-$ cargo run -- decrypt --local-file kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v > brunnhilde.jpeg
+$ cargo run -- --catalog ./kitten-catalog decrypt mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ > brunnhilde.jpeg
 $ display brunnhilde.jpeg
 ```
 
-What is happening here is that the software is fetching the Data from a "local file" source (``kitten.mcap``) and then using the Magic Cap to (attempt) decryption.
+What is happening here is that the software is fetching the Data from a "Directory Catalog" source (``./kitten-catalog/``) and then using the Magic Cap to (attempt) decryption.
 If this Data doesn't correspond to the Magic Cap, no decryption takes place.
+
+> [!TIP]
+> Explore the `kitten-catalog/` subdirectory: items are named according to their Identifier or Locator.
+> Find the Locator for a Read Cap like so: ``cargo run -- debug locator mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ``
+> Then see the Data with ``hexdump -C ./kitten-catalog/88/884ef78b37fd33ac3fa8f8e939ed68e8d4b35710908fddd411f4d2314cba66af``.
 
 
 ## Verification
@@ -87,44 +93,29 @@ Notice that there's no output by default; the exit-code indicates success or fai
 **Exercise**: try changing some of the file and see if it still verifies correctly.
 
 
-## Catalogs
+## Encryption on Publishers
 
-It quickly becomes annoying to have to create ``.mcap`` files, and then remember which Read Cap is for which file.
-We have the concept of a [Catalog](./catalog-anthology.md) (think "card-catalog from a library") to help with this.
-
-The remaining examples will all use the existing, local Catalog located in ``./data/root``.
-
-This is referenced by most commands with ``--local-catalog ./data/root``
+The ``--catalog`` option is just for reading things.
+When writing data, we use a Publisher.
+Commands that require one have a required ``--publisher`` option.
 
 When encoding Data, it will be written into the Catalog according to its "[Identifier](./locations.md)".
 Similarly, Data is found by searching for the correct "[Identifier](./locations.md)".
 The Identifier is deterministically derived from a Read Cap or a Verify Cap.
 
-As per the README, we also have an example Catalog containing several kittens at ``--local-catalog ./kitten-catalog``.
-
-Let's decrypt one of those:
-
-```bash
-$ cargo run -- decrypt --local-catalog ./kitten-catalog mcap0rPa8OKdDYv9ts53IGzK1aBFIpMXOaJ-_xxtC3Hcw9aaxxdsyw1qQTBQ6L57da22z_ | display
-```
-
-Note that we're piping the output from stdout (which is JPEG data) into the "display" program from the [Image Magick](https://imagemagick.org/) packages.
-If you see a "broken pipe" error it's likely you don't have this program, or it can't run for some reason.
-Replace ``| display`` with ``> kitten.jpeg`` to output to a file instead.
-
-We can also use these on the encoding side, so for example we can encode the ``README.org`` file into a local Catalog at ``./data/root`` like this:
+We encode the ``README.org`` file into a local Catalog at ``./data/root`` like this:
 
 ```bash
 $ mkdir data/root
-$ cargo run -- encrypt --local-catalog ./data/root README.org
+$ cargo run -- encrypt --publisher ./data/root README.org
 mcap0rtKJjQeHHgPPzj5vFAX0-BqaZYAdMuvZtTHgLUyi6W2Ud8hzN7utr_1-8uVVt6M1d
 ```
 
 Note that the Read Cap printed when you run this will be different because a random key is used.
-Regardless, you should then be able to immediately decrypt this like this:
+Regardless, you should then be able to immediately decrypt this like this (substitute your own Read Cap of course):
 
 ```bash
-$ cargo run -- decrypt --local-catalog ./data/root mcap0rtKJjQeHHgPPzj5vFAX0-BqaZYAdMuvZtTHgLUyi6W2Ud8hzN7utr_1-8uVVt6M1d
+$ cargo run -- decrypt --catalog ./data/root mcap0rtKJjQeHHgPPzj5vFAX0-BqaZYAdMuvZtTHgLUyi6W2Ud8hzN7utr_1-8uVVt6M1d
 ...
 ```
 
@@ -138,11 +129,11 @@ If instead you see an error, check that you copy-pasted _your_ Magic Cap (which 
 
 To facilitate network interactions, we've made some rudimentrary tools so you can export a local Catalog and host it (on any static Web host).
 
-This is the ``mcap publish`` tool, which transforms a local Catalog into a directory suitable for publishing.
+This is the ``mcap export`` tool, which transforms a local Catalog into a directory suitable for publishing.
 
 ```bash
-$ cargo run -- publish ./data/root data/published
-publish "./data/root" to "data/published"
+$ cargo run -- export ./data/root data/published
+export "./data/root" to "data/published"
   ./data/root/fc/fc8319d66125b6eaffbacb4ddcfe7d491844cb89e6ea38e0d8f8f6b3625801db: 12740 bytes, 00004 blocks.
 ```
 

@@ -73,7 +73,7 @@ Currently, we can only write to an on-disk catalog (see the `--publish` option t
 `mcap publish`
   : Turn a local on-disk Catalog into a format suitable for static-hosting.
     This "static hosted" data corresponds to the read-only ReST API.
-	An example workflow could be to `mcap publish` your Catalog periodically, and `rsync` it to a static Web host.
+	An example workflow could be to `mcap publish` your local Catalog periodically, and `rsync` it to a static Web host.
 
 
 ## Anthologies
