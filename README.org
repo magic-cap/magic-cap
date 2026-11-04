@@ -222,12 +222,6 @@ Instead, ciphertexts will be located relative to the root directory (specified b
 We have included an example of "Catalog" usage in this repository.
 The following Read Caps are encoded into the Catalog rooted at ``./kitten-catalog``:
 
-| mcap0rTDDL618penLGr1UcWqpSK6aTm7ZaDuLffE5CJkFCczHjDrO-pk8s2j3D7Ut6BMgr | bruennhilde.jpeg |
-| mcap0ref5lFU-oxTCQy5P3tSrgibQmFXZ1ig7KZuxaLbR0Judd91HqibK1V3NH33Oe5zj5 | cat-on-shoulder.jpeg |
-| mcap0rtON3PhP8vTcqal3AIQgwG_nd01yCD-zSBjBlCTp4SuDNDfi90LrG93zpSE1FZdIw | kittens-in-basket.jpeg |
-| mcap0r5Rwo47Kzpjmv6_UyVC2BEiWnRYcWp0R5vDNSrjJrZNvmNH2NfGQEPOlqTKT2rIvy | the-cook.jpeg |
-| mcap0rHTN4Rx8ACb4Ohi5ZR7rBtQYrxVgl2319EVGUNedlkvzARi9eCzYPCROqCOx-gc75 | three-jolly-kittens.jpeg |
-
 | mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ | bruennhilde.jpeg |
 | mcap0rm5g9eQuvsLw-WJQeOUdm8i7jbydECuFM4MOFW5zorQfOqwuE0SBssdDn-356-BM2 | cat-on-shoulder.jpeg |
 | mcap0rtNMdPi9aIxsA9bO2fFZkggvpBf8jp1CHo6dqmuGpUv_NiVaI5q_uc8bDkJf6i2h0 | kittens-in-basket.jpeg |
