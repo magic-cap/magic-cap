@@ -13,7 +13,7 @@ Written in Rust, we provide libraries to read and write data from various source
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
 
-Coming soon: WASM and Android bindings + examples.
+**Coming soon**: WASM and Android bindings + examples.
 
 We can ignore most details and look at the high-level view of this tool as two diagrams.
 
@@ -63,7 +63,7 @@ Immutable Verify Cap
 Plaintext is transformed into two pieces: encrypted Data and an associated Read Cap.
 Re-combining these two pieces later allows the software to recover the plaintext.
 The Read Cap is a short string (approximately 73 bytes).
-The size of the encrypted Data is the same as the plaintext (plus a little overhead)
+The size of the encrypted Data is the same as the plaintext (plus some small fixed overhead).
 
 Where and how the Data is stored, moved or transmitted is up to the application.
 Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage.
