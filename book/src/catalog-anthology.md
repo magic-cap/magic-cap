@@ -31,6 +31,7 @@ An "Anthology" must live inside a Catalog.
 
 Let us consider the distinction between the two categories.
 
+
 ## Catalogs
 
 A Catalog is like a library: a whole bunch of different titles, some perhaps related and others less so.

@@ -31,15 +31,15 @@ So, to take "the tagged hash" of the value `"No darkness lasts forever. And even
 - return these 32 bytes
 
 If you're following along at home, this should result in the bytes: `[170, 119, 221, 121, 208, 93, 0, 186, 155, 121, 80, 168, 102, 233, 219, 87, 111, 162, 128, 164, 48, 146, 149, 25, 106, 51, 96, 62, 0, 4, 34, 139]`.
-See also the "hash.rs" example (`cargo run --example hash`).
+See also `examples/hash.rs` or run it with `cargo run --example hash`.
 
 
 ## Merkle Trees
 
-Tahoe-LAFS makes use of a lot of different (Merkle trees)[https://en.wikipedia.org/wiki/Merkle_tree].
+Tahoe-LAFS makes extensive use of [Merkle trees](https://en.wikipedia.org/wiki/Merkle_tree).
 
-Magic Cap uses a Merkle tree over the ciphertext blocks, same as Tahoe LAFS does.
-The leaves and interior nodes are hashed differently, as are any "empty" nodes.
+Magic Cap uses a Merkle tree over the ciphertext blocks the same as Tahoe LAFS does.
+The leaves and interior nodes are hashed differently (as are any "empty" nodes).
 
 - Leaf merkle nodes are tagged-hashed with tag `b"allmydata_crypttext_segment_v1"`.
 - Interior merkle nodes are tagged-hashed with tag `b"Merkle tree internal node"`.
@@ -55,17 +55,17 @@ In Magic Cap we tagged-hash the Metadata block with tag `b"magic_cap_metadata_v1
 This is exposed publically in both a Magic Cap and a Magic Verifier as "the metadata hash", where it is based32 encoded as the first part of the string.
 Since the Metadata includes the Merkle root of the ciphertext, this allows the software to verify that the Metadata corresponds to the Magic Cap string and subsequently that any block of the ciphertext also corresponds.
 
+Ultimately this means we do not even expose ciphertext to a decryption implementation unless it corresponds.
+
 
 ## Symmetric Encryption & Key Derivation
 
 A Magic Cap's bulk data is encrypted using AES CTR.
 The counter is the index of 16-byte chunks (and is thus not related to the block size)
 
-FIXME TODO: does this mean our block size MUST be a multiple of 16??
-
 Each Magic Cap has a primary secret, similar to Tahoe-LAFS.
 
-FIXME TODO: the master secret is used directly for main encryption, same as tahoe: but should probably derive.
+**FIXME TODO: the master secret is used directly for main encryption, same as tahoe: but should probably derive.**
 
 For any "other" keys required, a key-derivation from this master secret is used.
 The key-derivation algorithm is as follows:
@@ -73,3 +73,5 @@ The key-derivation algorithm is as follows:
 - decide on a unique "purpose" string
 - use HKDF with SHA256 with the above string as "info"
 - derive a 16-byte key from the above
+
+**FIXME TODO: why isn't this 32 bytes??**

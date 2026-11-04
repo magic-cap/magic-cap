@@ -1485,6 +1485,10 @@ impl EncryptionContext {
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
         let merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
         let mut realmeta = std::collections::HashMap::<String, String>::new();
+
+        // FIXME TODO expose public API for metadata
+        // FIXME TODO proper mime-type API
+        // FIXME TODO getrid of these hard-coded things regardless of "proper" exposure
         realmeta.insert("mime-type".to_string(), "text/plain".to_string());
         realmeta.insert("suggested-filename".to_string(), "/etc/passwd".to_string());
         let hidden_metadata = SecretImmutableMetadata { data: realmeta };
