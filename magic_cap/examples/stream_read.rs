@@ -1,18 +1,24 @@
 use magic_cap::{Immutable, ImmutableBuilder, ReadCap};
+use std::any::Any;
 use std::io::{Cursor, Write};
+
+// NB: using ImmutableBuilder directly is fairly low-level and most
+// users will be happier to use Publisher
 
 fn main() {
     let plaintext: Vec<u8> = "To light a candle is to cast a shadow...".into();
-    let mut ciphertext: Vec<u8> = vec![];
+    let ciphertext = Box::<Vec<u8>>::new(vec![]);
 
     // Create an encrypted immutable + associated ReadCap.
     // We're using "Vec<u8>" as a Write implementation here, but it
     // could be a File or Stdout).
-    let mut cryptor = ImmutableBuilder::new(4096, &mut ciphertext, None).unwrap();
+    let mut cryptor = ImmutableBuilder::new(4096, ciphertext, None).unwrap();
     let _written_amount = cryptor.write(&plaintext).unwrap();
     // .write() may be called any number of times with any size data
     let (cap, ciphertext) = cryptor.done().unwrap();
-    println!("ciphertext: {} bytes", ciphertext.len());
+
+    let ciphertext = (ciphertext as Box<dyn Any>).downcast::<Vec<u8>>().unwrap();
+    println!("ciphertext size: {} bytes", ciphertext.len());
 
     // Using the encrypted immutable data and ReadCap, get back the
     // plaintext (note that Immutable::read() loads all the ciphertext

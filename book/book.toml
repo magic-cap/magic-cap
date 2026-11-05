@@ -3,3 +3,15 @@ title = "Magic Cap"
 authors = ["meejah", "shapr"]
 description = "A full high-level explanation of the Magic Cap system"
 language = "en"
+
+[output.html]
+git-repository-url = "https://github.com/magic-cap/magic-cap"
+
+[preprocessor.last-changed]
+command = "mdbook-last-changed"
+renderer = ["html"]
+
+[preprocessor.termlink]
+glossary-path = "glossary.md"
+link-first-only = false
+case-sensitive = true

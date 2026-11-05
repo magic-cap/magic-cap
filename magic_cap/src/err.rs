@@ -45,8 +45,11 @@ pub enum MagicCapError {
     #[error("msgpack encoding error: {0}")]
     MsgpackEncodeError(#[from] rmp_serde::encode::Error),
 
-    #[error("msgpack encoding error: {0}")]
+    #[error("msgpack decoding error: {0}")]
     MsgpackDecodeError(#[from] rmp_serde::decode::Error),
+
+    #[error("JSON Error: {0}")]
+    JsonError(#[from] serde_json::error::Error),
 
     #[error("I/O Error: {0}")]
     IOError(#[from] std::io::Error),
@@ -54,12 +57,16 @@ pub enum MagicCapError {
     #[error("Failed to obtain entropy: {0}")]
     GetRandomError(#[from] getrandom::Error),
 
-    #[error("ImmutableDirectoryCollection must be a directory")]
-    NotDirectory(),
-
     #[error("Cannot download")]
     ReqwestError(#[from] reqwest::Error),
 
+    #[error("Internal error: borrow failed")]
+    BorrowFailed(#[from] std::cell::BorrowMutError),
+
+    // for reasons unknown to me this demands Sync .. but we're not
+    // actually referencing the sub-error longer-term are we?
+    //#[error("Failed to downcast correctly")]
+    //DowncastFailed(#[from] std::boxed::Box<dyn std::any::Any>),
     #[error("{0}")]
     GenericError(String),
 }
