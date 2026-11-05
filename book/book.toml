@@ -7,6 +7,10 @@ language = "en"
 [output.html]
 git-repository-url = "https://github.com/magic-cap/magic-cap"
 
+[preprocessor.last-changed]
+command = "mdbook-last-changed"
+renderer = ["html"]
+
 [preprocessor.termlink]
 glossary-path = "glossary.md"
 link-first-only = false
