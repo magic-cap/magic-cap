@@ -329,7 +329,7 @@ where
                     (self.metadata.block_size as u64 - last_block_leftover) as usize;
                 debug!("last block: {last_block_size}");
                 self.plain_output
-                    .write_all(&this_block_bytes[0..last_block_size as usize])?;
+                    .write_all(&this_block_bytes[0..last_block_size])?;
             } else {
                 self.plain_output.write_all(&this_block_bytes)?;
             }
@@ -1079,7 +1079,7 @@ where
 
             // we now must contain 'index' or we errored out on a read above
             buf.copy_from_slice(&self.prior_blocks[index]);
-            return Ok(buf.len());
+            Ok(buf.len())
         }
     }
 }

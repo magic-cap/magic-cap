@@ -102,14 +102,10 @@ use magic_cap::err::MagicCapError;
 /// Functions that implement the core CLI commands
 use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
-    ImmutableMetadata, ImmutablePublisher, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap,
-    ImmutableWebCatalog, ReadCap,
+    ImmutablePublisher, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
-use reqwest::header::HeaderMap;
-use std::error::Error;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use url::Url;
 
 use walkdir::WalkDir;
 
@@ -121,7 +117,7 @@ pub mod tests;
 pub fn main_encrypt(
     output: &mut impl Write, // where we write the Magic Cap string
     plain_text: &Path,       // input data
-    publishers: &mut Vec<Box<dyn ImmutablePublisher<'_>>>,
+    mut publisher: Box<dyn ImmutablePublisher<'_>>,
     blocksize: usize,
 ) -> Result<(), MagicCapError> {
     let mut input_file = std::fs::File::open(plain_text)?;
@@ -133,13 +129,7 @@ pub fn main_encrypt(
     // <meta_offset>: <metadata>
     // 8 bytes: u64 meta_offset to start of metadata
 
-    // todo: factor out so we can do N publishers
-    if publishers.len() != 1 {
-        return Err(MagicCapError::GenericError(
-            "We need exactly one Publisher".to_string(),
-        ));
-    }
-    let mut cryptor: ImmutableBuilder = publishers[0].insert(blocksize)?;
+    let mut cryptor: ImmutableBuilder = publisher.insert(blocksize)?;
 
     // todo: do we we want a way to do stdout (or maybe arbitrary
     // file) output..?
@@ -232,23 +222,6 @@ pub fn main_decrypt(
         "Failed to find corresponding Data in {} Catalogs",
         catalogs.len(),
     )))
-}
-
-fn cap_match(
-    output: &mut impl Write,
-    cap: &ImmutableReadCap,
-    immutable: Result<Immutable<'_>, MagicCapError>,
-) -> Result<(), MagicCapError> {
-    match cap.decrypt(&mut immutable?) {
-        Ok(plain) => Ok(output.write_all(plain.as_slice())?),
-        Err(e) => match &e {
-            MagicCapError::McapMetadataDiscordant() => Err(e),
-            _ => {
-                writeln!(output, "Error decrypting: {e}")?;
-                Ok(())
-            }
-        },
-    }
 }
 
 /// "mcap verify"
@@ -519,159 +492,8 @@ pub fn main_anthology_list(
 // - "no network"?
 // - w/ named config: "--catalog foo" or "--catalog-ignore bar" for filtering (from the whole config'd list)
 //
-// for "write" / encrypt side it's a little more complex:
-// - write to ALL configured Catalogs?
-// - only to named-on-the-command-line ones?
-// - (w/ named config that can be "--catalog foo")
-// - default is the set ("default", )
-// - if no catalog in static config named "default", the default is "one that makes sense on your system"
-// - default-default is like "~/.config/magic-cap/default-catalog" or something?
+// for "write" / encrypt side:
+// - Catalogs are for reading; Publishers write
+// - for now, anything that encodes needs precisely one Publisher
+// - (could have a "multiplex" publisher in future if wanted? so code only needs "a Publisher" still)
 // - (what's the crate that does platform-specific defaults for Rust?)
-
-struct FileUrl {
-    url: Url,
-}
-struct CatalogUrl {
-    catalog_url: Url,
-}
-struct FileLocal {
-    file_local: PathBuf,
-}
-struct CatalogLocal {
-    catalog_local: PathBuf,
-}
-
-pub trait Locator {
-    fn extract(
-        &self,
-        readcap: &ImmutableReadCap,
-        output: &mut impl Write,
-    ) -> Result<(), MagicCapError>;
-}
-
-impl Locator for FileUrl {
-    fn extract(
-        &self,
-        readcap: &ImmutableReadCap,
-        mut output: &mut impl Write,
-    ) -> Result<(), MagicCapError> {
-        let mut headers = HeaderMap::new();
-        // read the last 8 bytes to get the metadata offset
-        headers.insert("Range", "bytes=-8".parse().unwrap());
-        let result = reqwest::blocking::Client::new()
-            .get(self.url.clone())
-            .headers(headers)
-            .send()?;
-
-        debug!("{:?}", result);
-        let offset = result.bytes()?;
-        let offraw: Vec<u8> = offset.into();
-        let offslice: [u8; 8] = offraw.try_into().unwrap();
-        let off: u64 = u64::from_be_bytes(offslice);
-        debug!("bytes {:?} {:?}", offslice, off);
-
-        // request the metadata bytes (note that we're also
-        // reading the last-8-bytes but serde ignores that
-        // successfully)
-        headers = HeaderMap::new();
-        headers.insert("Range", format!("bytes={off}-").parse().unwrap());
-
-        let result = reqwest::blocking::Client::new()
-            .get(self.url.clone())
-            .headers(headers)
-            .send()?
-            .error_for_status()?;
-        debug!("{:?}", result);
-        let metadata_raw: Vec<u8> = result.bytes()?.into();
-        debug!("{} bytes", metadata_raw.len());
-        let mut mdbytes = metadata_raw.as_slice();
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut mdbytes)?;
-        debug!(
-            "size={} blocks={} block_size={}",
-            metadata.size, metadata.blocks, metadata.block_size
-        );
-        // does this readcap match this immutable?
-        if !readcap.verify.corresponds_to(&metadata) {
-            return Err(MagicCapError::McapMetadataDiscordant());
-        }
-        let mut decryptor = readcap.decrypt_stream(&metadata, &mut output)?;
-
-        // skip the first 8 bytes, which are "mcap" + 32-byte version
-        // TODO: check those (version == 1 is the only one)
-        headers = HeaderMap::new();
-        headers.insert("Range", format!("bytes=8-{off}").parse().unwrap());
-        let mut result = reqwest::blocking::Client::new()
-            .get(self.url.clone())
-            .headers(headers)
-            .send()
-            .unwrap();
-        // streams the incoming data to the decryptor object
-        let res = result.copy_to(&mut decryptor);
-
-        // if the _output_ stream closes, then copy_to() will return a
-        // BrokenPipe error .. but piping "mcap" output through "head
-        // -n 10" will cause stdout to close, so we ignore this error
-        let res = match res {
-            Ok(x) => Ok(x),
-            Err(e) => {
-                if let Some(src) = &e.source()
-                    && let Some(ee) = src.downcast_ref::<std::io::Error>()
-                    && ee.kind() == std::io::ErrorKind::BrokenPipe
-                {
-                    debug!("ignoring BrokenPipe error");
-                    return Ok(());
-                }
-                Err(e)
-            }
-        };
-        res.unwrap();
-        Ok(())
-    }
-}
-
-impl Locator for CatalogUrl {
-    fn extract(
-        &self,
-        readcap: &ImmutableReadCap,
-        output: &mut impl Write,
-    ) -> Result<(), MagicCapError> {
-        debug!("before catalog create {}", self.catalog_url);
-        let collect = ImmutableWebCatalog::create(self.catalog_url.clone())?;
-        let tahoe_cap = readcap.clone();
-        debug!("before readcap.into");
-        let locid: ImmutableIdentifier = readcap.into();
-        debug!("before fetch_metadata");
-        let metadata = collect.fetch_metadata(&locid)?;
-        let key = tahoe_cap.create_tahoe_key();
-        debug!("before stream_push");
-        let mut pusher = collect.stream_push(key, &metadata, output)?;
-        collect.copy_ciphertext_to(&locid, &mut pusher)?;
-        Ok(())
-    }
-}
-
-impl Locator for FileLocal {
-    fn extract(
-        &self,
-        readcap: &ImmutableReadCap,
-        output: &mut impl Write,
-    ) -> Result<(), MagicCapError> {
-        let f = std::fs::File::open(self.file_local.clone())?;
-        let immutable = Immutable::read(&mut std::io::BufReader::new(f));
-
-        cap_match(output, readcap, immutable)
-    }
-}
-impl Locator for CatalogLocal {
-    fn extract(
-        &self,
-        readcap: &ImmutableReadCap,
-        output: &mut impl Write,
-    ) -> Result<(), MagicCapError> {
-        let collect = ImmutableDirectoryCatalog::create(self.catalog_local.clone())?;
-        let locid: ImmutableIdentifier = readcap.into();
-        debug!("Loading location {}", locid);
-        let immutable = collect.load(&locid);
-        cap_match(output, readcap, immutable)
-    }
-}

@@ -34,7 +34,6 @@ Any Read Cap may be turned into a Verify Cap offline.
 
 Anyone with both the Data and corresponding Read Cap may re-create the plaintext.
 ")]
-
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -98,9 +97,9 @@ enum Commands {
             long = "publisher",
             required = true,
             name = "PUBLISHER",
-            help = "Where to publish the Data. Local catalog root directory"
+            help = "Where to publish the Data (e.g. local catalog root directory)"
         )]
-        publishers: Vec<String>,
+        publisher: String,
 
         #[arg(short, long, default_value_t = 4096)]
         blocksize: usize, // not Option because we have a default value
@@ -207,10 +206,10 @@ struct CiphertextStore {
     output_file: Option<PathBuf>,
 }
 
-fn parse_catalogs(configs: &Vec<String>) -> Vec<Box<dyn ImmutableCatalog>> {
+fn parse_catalogs(configs: &Vec<String>) -> Vec<Box<dyn ImmutableCatalog<'_>>> {
     let mut catalogs: Vec<Box<dyn ImmutableCatalog>> = vec![];
     for cfg in configs {
-        match connect_catalog(&cfg) {
+        match connect_catalog(cfg) {
             Ok(catalog) => catalogs.push(catalog),
             Err(e) => {
                 println!("--catalog: {}", e);
@@ -221,18 +220,14 @@ fn parse_catalogs(configs: &Vec<String>) -> Vec<Box<dyn ImmutableCatalog>> {
     catalogs
 }
 
-fn parse_publishers(configs: &Vec<String>) -> Vec<Box<dyn ImmutablePublisher>> {
-    let mut publishers: Vec<Box<dyn ImmutablePublisher>> = vec![];
-    for cfg in configs {
-        match connect_publisher(&cfg) {
-            Ok(publisher) => publishers.push(publisher),
-            Err(e) => {
-                println!("--publisher: {}", e);
-                std::process::exit(3);
-            }
+fn parse_publisher(cfg: &str) -> Box<dyn ImmutablePublisher<'_>> {
+    match connect_publisher(cfg) {
+        Ok(publisher) => publisher,
+        Err(e) => {
+            println!("--publisher: {}", e);
+            std::process::exit(3);
         }
     }
-    publishers
 }
 
 fn main() {
@@ -255,12 +250,12 @@ fn main() {
         // we write the mcap string to stderr
         Some(Commands::Encrypt {
             plaintext,
-            publishers,
+            publisher,
             blocksize,
         }) => main_encrypt(
             &mut std::io::stdout(),
             plaintext,
-            &mut parse_publishers(&publishers),
+            parse_publisher(publisher),
             *blocksize,
         ),
         Some(Commands::Decrypt {

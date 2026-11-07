@@ -268,7 +268,7 @@ where
 
             // we now must contain 'index' or we errored out on a read above
             buf.copy_from_slice(&self.prior_blocks[index]);
-            return Ok(buf.len());
+            Ok(buf.len())
         }
     }
 }
@@ -288,14 +288,14 @@ impl ImmutableWebCatalog {
 
 impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
     fn load(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
-        let metadata = self.fetch_metadata(&locator)?;
+        let metadata = self.fetch_metadata(locator)?;
         debug!(
             "load {} * {} = {}",
             metadata.blocks, metadata.block_size, metadata.size
         );
         let size = metadata.blocks * metadata.block_size as u64;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
-        self.copy_ciphertext_to(&locator, &mut data)?;
+        self.copy_ciphertext_to(locator, &mut data)?;
 
         Ok(Immutable {
             metadata: metadata.clone(),
@@ -309,7 +309,7 @@ impl<'a> ImmutableCatalog<'a> for ImmutableWebCatalog {
     }
 
     fn stream(&self, locator: &ImmutableIdentifier) -> Result<Immutable<'a>, MagicCapError> {
-        let metadata = self.fetch_metadata(&locator)?;
+        let metadata = self.fetch_metadata(locator)?;
         debug!(
             "load {} * {} = {}",
             metadata.blocks, metadata.block_size, metadata.size
@@ -415,7 +415,6 @@ the configuration string. Currently the following are recognized:
 - a valid HTTP URL produces [`ImmutableWebCatalog`] that uses the ReST API via reqwest
 
 */
-
 pub fn connect_catalog<'a>(config: &str) -> Result<Box<dyn ImmutableCatalog<'a>>, MagicCapError> {
     if let Ok(url) = Url::parse(config) {
         let catalog = ImmutableWebCatalog::create(url)?;
@@ -437,7 +436,6 @@ the configuration string. Currently the following are recognized:
 - a local path produces [`ImmutableFilePublisher`]
 
 */
-
 pub fn connect_publisher<'a>(
     config: &str,
 ) -> Result<Box<dyn ImmutablePublisher<'a>>, MagicCapError> {
