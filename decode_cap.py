@@ -141,6 +141,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(f"usage: {sys.argv[0]} file cap-string")
         sys.exit(1)
+    # if the metadata has doesn't match the cap-string this produces a ValueError
     meta = decode_readcap(sys.argv[1], sys.argv[2])
     hexroot = base64.b16encode(meta.ciphertext_root).decode('utf8')
     print("Metadata hash matches Capability String")

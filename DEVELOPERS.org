@@ -56,19 +56,21 @@ We often also have "data/root" as an additional Catalog (see below, or the prose
 * Tools
 
 **encode-kittens.py**: this creates the example Catalog using the demo kitten pictures.
-This takes all the pictures in ``data/kittens`` and encodes them to the Catalog rooted at ``data/root``.
+This takes all the pictures in ``data/kittens`` and encodes them to the Catalog rooted at ``./kitten-catalog``.
+NOTE that if you do this, all the Read Cap strings in the examples need to be changed!
+There is no automation for this!
 
 **decode_cap.py**: read and verify the metadata (and encrypted metadata) when given a Read Cap and a Data file.
 For example:
 
-#+begin_src sh
-python decode_cap.py kitten.mcap mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
+#+begin_src sh :results output
+python decode_cap.py kitten-catalog/88/884ef78b37fd33ac3fa8f8e939ed68e8d4b35710908fddd411f4d2314cba66af mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ
 #+end_src
 
 #+RESULTS:
 : Metadata hash matches Capability String
 :   size: 306199 bytes (75 x 4096-byte blocks)
-:   root: 797f7bf16746b21284ad603a9561eaf673c86586821c538c03f86e5f328c3316
+:   root: 6a1fb9719b14c2a4f1340aa94f0f7a5c52eaac5c9fa460918a243a212900879b
 :   encrypted metadata:
 :     mime-type: text/plain
 :     suggested-filename: /etc/passwd
