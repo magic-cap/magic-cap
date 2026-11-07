@@ -12,7 +12,7 @@
   - cargo clippy
 
 - prose documentation:
-  - cargo install mdbook
+  - cargo install mdbook mdbook-glossary
   - mdbook serve ./book/
   - sensible-browser http://localhost:3000
 
@@ -25,6 +25,33 @@ For memory use, there is a Nix flake for setup too.
 
 (On Debian, you can get the required Nix setup via "apt install
 nix-setup-systemd" followed by adding your user to "nix-users")
+
+* Overview
+
+We assume you're genrally familiar with Rust development.
+This repository tries to follow "normal Rust idioms" so if you spot something weird, please get in touch!
+
+This is a "workspace" in Cargo + Rust terms, with two items:
+
+- "magic_cap/": the Rust library
+- "cli/": code that uses the above to make the "mcap" CLI tool
+
+"cargo run" at the top level runs "mcap" the CLI tool.
+So, it builds everything since mcap needs the library.
+All code should have automated tests (coverage is not currently 100% so this is aspirational).
+
+The README.org and this file use Emacs' "Org Mode", including some things to run the examples.
+Not everyone uses Emacs, so you may extract and run such examples the same way CI does:
+
+- emacs --script run-readme.el
+- bash -e data/readme-examples.sh
+
+We ourselves use "jujutsu" / "jj" for development, which automatically adds all files.
+Thus, there is an ignored directory "data/" where examples tend to dump results (so they don't accidentally make it into the repository).
+Everyone may contribute using Git directly (though you may use "jj" if you prefer).
+
+The canonical example data is "kittens-catalog/" (used via "--catalog ./kittens-catalog" on the CLI).
+We often also have "data/root" as an additional Catalog (see below, or the prose docs).
 
 * Tools
 
