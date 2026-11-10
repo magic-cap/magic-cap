@@ -1,6 +1,7 @@
 use super::*;
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use proptest::prelude::*;
+use std::fs::File;
 use tempfile::TempDir;
 
 #[test]
@@ -76,7 +77,7 @@ fn handcrafted_filesystem_round_trip() {
     let fm = File::create(tmp.path().join("encrypted")).unwrap();
     let cap = ImmutableReadCap::encrypt(
         input.clone(),
-        std::io::BufWriter::new(fm),
+        Box::new(std::io::BufWriter::new(fm)),
         blocksize as usize,
     )
     .unwrap();
@@ -95,8 +96,49 @@ fn handcrafted_filesystem_round_trip_stream() {
     let tmp = TempDir::new().unwrap();
 
     let fm = File::create(tmp.path().join("encrypted")).unwrap();
-    let cap =
-        ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize).unwrap();
+    let cap = ImmutableReadCap::encrypt(
+        input.clone(),
+        Box::new(std::io::BufWriter::new(fm)),
+        blocksize,
+    )
+    .unwrap();
+
+    let fm = File::open(tmp.path().join("encrypted")).unwrap();
+    let mut data = std::io::BufReader::new(fm);
+
+    let mut imm = Immutable::stream(&mut data).unwrap();
+
+    println!("{:?}", imm.metadata.merkle_leaves);
+
+    let mut plain: Vec<u8> = vec![];
+    // can we avoid this clone by passing ref?
+    let mut decryptor = cap.decrypt_stream(&imm.metadata, &mut plain).unwrap();
+    // copy data from file ...
+
+    // (here we're only providing the EncryptedImmutable interface
+    // .. but can we make an adaptor or just implement Read
+    // ...somewhere?)
+    let mut chunk: Vec<u8> = vec![0u8; imm.metadata.block_size as usize];
+    for block in 0..imm.metadata.blocks as usize {
+        imm.data_provider.get_block(block, &mut chunk).unwrap();
+        decryptor.write_all(&chunk).unwrap();
+    }
+    assert_eq!(input, plain);
+}
+
+#[test]
+fn handcrafted_filesystem_round_trip_single_block() {
+    let blocksize = 2;
+    let input: Vec<u8> = b"abcdef".to_vec();
+    let tmp = TempDir::new().unwrap();
+
+    let fm = File::create(tmp.path().join("encrypted")).unwrap();
+    let cap = ImmutableReadCap::encrypt(
+        input.clone(),
+        Box::new(std::io::BufWriter::new(fm)),
+        blocksize,
+    )
+    .unwrap();
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
     let mut data = std::io::BufReader::new(fm);
@@ -410,7 +452,7 @@ proptest! {
         let tmp = TempDir::new()?;
 
         let fm = File::create(tmp.path().join("encrypted"))?;
-        let cap = ImmutableReadCap::encrypt(input.clone(), std::io::BufWriter::new(fm), blocksize as usize)?;
+        let cap = ImmutableReadCap::encrypt(input.clone(), Box::new(std::io::BufWriter::new(fm)), blocksize as usize)?;
 
         let fm = File::open(tmp.path().join("encrypted"))?;
         let data = std::io::BufReader::new(fm);

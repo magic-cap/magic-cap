@@ -2,12 +2,13 @@
 name = "magic_cap"
 version = "0.2.0"
 edition = "2024"
+rust-version = "1.89.0"  # determined by "cargo-msrv"
 authors = [
     "meejah <meejah@meejah.ca>",
     "shapr <shae@ScannedInAvian.com>",
 ]
 license = "AGPL-3.0-or-later"
-description = "Magic Cap is a user-friendly tool for encrypted files."
+description = "Magic Cap is a user-friendly tool for encrypted files. Capability Theory makes it easy to reason about access while leaving distribution extremely flexible (p2p, self-hosted, S3, Web server, SSH, etc)"
 documentation = "https://docs.rs/crates/magic_cap"
 homepage = "https://github.com/magic-cap"
 repository = "https://github.com/magic-cap/magic-cap"

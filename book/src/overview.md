@@ -13,7 +13,7 @@ Written in Rust, we provide libraries to read and write data from various source
 > This is a release-early library that has **not yet received cryptographic (or other) audits**.
 > We do appreciate feedback, but you own both pieces if you deploy to production :)
 
-Coming soon: WASM and Android bindings + examples.
+**Coming soon**: WASM and Android bindings + examples.
 
 We can ignore most details and look at the high-level view of this tool as two diagrams.
 
@@ -39,7 +39,7 @@ A Read Cap may be transformed (offline) into a Verify Cap.
 The size of the Data is a few percent larger than the plaintext.
 Read and Verify Caps look like this:
 
-```
+```ignore
 mcap0r3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8EAnU9NkykdwXfOg6VdQ7v
 mcap0v3LsgJf1LYZtRc_BGOzhx8j_FVDmFROmoBhDHGNTfXq8
 ```
@@ -63,13 +63,13 @@ Immutable Verify Cap
 Plaintext is transformed into two pieces: encrypted Data and an associated Read Cap.
 Re-combining these two pieces later allows the software to recover the plaintext.
 The Read Cap is a short string (approximately 73 bytes).
-The size of the encrypted Data is the same as the plaintext (plus a little overhead)
+The size of the encrypted Data is the same as the plaintext (plus some small fixed overhead).
 
 Where and how the Data is stored, moved or transmitted is up to the application.
 Similarly, where and how the Read Cap is kept is up to the application -- its small size allows for storage in TPM or other secure storage.
 It could even printed be out or transcribed to a hard-copy.
 
-This gives users of this library a lot of choice, while keeping the core concepts straightforware to reason about.
+This gives users of this library a lot of choice, while keeping the core concepts straightforward to reason about.
 
 
 ## Networking
@@ -91,7 +91,7 @@ Local Files
    : Data is stored on the file-system, with familiar permissions-based read/write access-controls
 
 HTTP ReST-like API
-   : The ``mcap publish`` subcommand can export local filesystem data into a format suitable for direct access via HTTP, simulating a proof-of-concept ReST-style API that can be statically-hosted.
+   : The ``mcap publish`` sub-command can export local file-system data into a format suitable for direct access via HTTP, simulating a proof-of-concept ReST-style API that can be statically-hosted.
 
 See the "[Hands-On Examples](./hands-on.md)" section for more.
 
@@ -110,7 +110,8 @@ A common pattern is to host the data on servers the application operators or dev
 
 Traditionally, these same developers (e.g. their company) have access to all of this data.
 
-Using Magic Caps allows this user data to be truly private to the user -- the "Data" piece is stored on the servers, while the Read Cap is stored on user-controlled secure storage.
+Using Magic Caps allows this **user data to be truly private to the user** -- the "Data" piece is still stored on the servers as before, while the Read Cap is stored on user-controlled secure storage.
+This means the operators are *unable* to access user data, without extra effort (e.g. by stealing a Read Cap from a particular user device).
 
 (See also "Verify Caps" that allow the service to confirm data integrity without having access to the plaintext -- a user device could safely share a Verify Cap with the service-provider).
 
@@ -148,17 +149,17 @@ This separates the distribution from the actual "release", reducing server bandw
 
 ### Shared Organizational Data
 
-An organazation often has lots of data, often with different visibility requirements.
+An organization often has lots of data, usually with different visibility requirements.
 
 A system centered around Magic Caps (along with the Catalog and Anthology concepts) could allow members of the organization to carry offline copies of all the data while only allowing access to particular pieces of it.
 
 While Magic Cap itself has no concept of identity or users, application developers may layer this on top.
 
-So, members of an organzation could all have a complete copy of all organization Data items (and keep in sync periodically via rsync or similar).
+So, members of an organization could all have a complete copy of all organization Data items (and keep in sync periodically via rsync or similar).
 
 Since all these Data items are encrypted, members need a Read Cap to actually decrypt any of them.
 Thus, particular members could be given Read Caps as they require them.
-(Using the Anthology concept makes it easier to share many items with only one Read Cap instead of many).
+(Using the Anthology concept makes it easier to share many items while only distributing one Read Cap instead of many).
 
 
 ## Source Code, Documentation

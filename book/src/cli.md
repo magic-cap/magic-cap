@@ -13,7 +13,7 @@ These include:
 **Publish immutables to a Web server** that you control.
 If you can `rsync` or `scp` to a Web server then you can keep a [Catalog](./catalog-anthology.md) published.
 Use `mcap encrypt --catalog ./local/catalog` when creating Immutables.
-To syncrhonize / publish to your Web site, use `mcap ./local/catalog ~/public_html/published_catalog` along with an `rsync` or `scp` command to move all of `~/public_html/published_catalog` to your Web server.
+To synchronize / publish to your Web site, use `mcap ./local/catalog ~/public_html/published_catalog` along with an `rsync` or `scp` command to move all of `~/public_html/published_catalog` to your Web server.
 
 This would then allow other computers to use `mcap decrypt --url-catalog https://meejah.ca/published_catalog` (of course insert your own URL) to retrieve and decrypt an Immutable.
 (You need to share the Read Cap with them somehow).
@@ -46,20 +46,22 @@ These options apply to every command.
 ## Core Functionality
 
 The main thing this library does is encrypt and later decrypt data.
+For reading Data we use the Catalog idea; you may have one or many, and all will be searched until a Data is found.
+When writing Data we use a Publisher, which currently is only demanded by the `mcap encrypt` subcommand.
 
 `mcap encrypt`
-  : Turn plaintext into the ciphertext Data and a Read Cap. We need somewhere to write the Data; the Read Cap is printed to `stderr` (in case you chose to write the Data to `stdout` instead of a file or [Catalog](./catalog-anthology.md)).
+  : Turn plaintext into the ciphertext Data and a Read Cap. We need somewhere to write the Data; the Read Cap is printed to `stderr`.
 
 `mcap decrypt`
   : Turn a ciphertext Data and associated Read Cap back into the plaintext.
   
 These two commands know how to use data inside a Catalog, which can live on disk or behind an HTTP interface.
-These are controlled with the `--catalog` and `--catalog-url` options.
-Currently, we can only write to an on-disk catalog.
+These are controlled with the `--catalog` options.
+Currently, we can only write to an on-disk catalog (see the `--publish` option to `mcap encrypt`).
 
 `mcap verify`
   : Confirm that a given Data exists and correctly corresponds to the Read Cap that the specified Verify Cap is derived from.
-    Basically this computes the merkle root of the ciphertext blocks and confirms it matches the root in the Cap.
+    Basically this computes the marvel root of the ciphertext blocks and confirms it matches the root in the Cap.
 	This needs access to the ciphertext, so uses options for at Catalog similar to the prior two commands.
 
 `mcap reduce`
@@ -71,7 +73,7 @@ Currently, we can only write to an on-disk catalog.
 `mcap publish`
   : Turn a local on-disk Catalog into a format suitable for static-hosting.
     This "static hosted" data corresponds to the read-only ReST API.
-	An example workflow could be to `mcap publish` your Catalog periodically, and `rsync` it to a static Web host.
+	An example workflow could be to `mcap publish` your local Catalog periodically, and `rsync` it to a static Web host.
 
 
 ## Anthologies
