@@ -10,3 +10,4 @@
 - [Command Line](./cli.md)
 - [Hands-On Examples](./hands-on.md)
 - [Glossary](./glossary.md)
+- [Appendex: CASA](./casa.md)
