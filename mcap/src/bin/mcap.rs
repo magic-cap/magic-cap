@@ -54,8 +54,8 @@ struct Cli {
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
 enum DebugCommands {
-    #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id")]
-    Locator { readcap: ImmutableReadCap },
+    #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id", name = "id")]
+    Identifier { readcap: ImmutableReadCap },
 
     #[command(about = "Print human-readable information about the Read Cap")]
     Info {
@@ -270,7 +270,7 @@ fn main() {
         }
         // todo: might make sense to promote --catalog to top-level
         Some(Commands::Debug { command }) => match command {
-            Some(DebugCommands::Locator { readcap }) => main_debug_locator(readcap),
+            Some(DebugCommands::Identifier { readcap }) => main_debug_identifier(readcap),
             Some(DebugCommands::Info { readcap, catalog }) => main_debug_info(readcap, catalog),
             None => Ok(()),
         },

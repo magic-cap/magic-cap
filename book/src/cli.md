@@ -17,7 +17,6 @@ Use:
 To synchronize / publish to your Web site, use:
  - `mcap export ./local/catalog ~/public_html/published_catalog` exports a static version of the ReST API.
  - `rsync ~/public_html/published_catalog user@webhost:/published_catalog` or similar (e.g. `scp`) to move the exported data to your server.
- - `` is a real example
 
 Then other computers can use something like `mcap --catalog https://meejah.ca/media/mcap/kitten-catalog decrypt mcap0rWEKGyKhhZm0NCceLWecvWpKECReegpvQO6fjoXTy7OpVLxwe-cfWkvET1ReCBNT5 --plaintext kitten.jpeg` (of course insert your own URL) to retrieve and decrypt an Immutable.
 (You need to share the Read Cap with them somehow).

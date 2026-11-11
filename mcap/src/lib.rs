@@ -353,8 +353,8 @@ pub fn main_export(
     Ok(())
 }
 
-/// "mcap debug locator"
-pub fn main_debug_locator(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+/// "mcap debug id"
+pub fn main_debug_identifier(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
     let id: ImmutableIdentifier = readcap.into();
     println!("{id}");
     Ok(())
@@ -375,7 +375,7 @@ pub fn main_debug_info(
     let id: ImmutableIdentifier = (readcap).into();
     let imm = catalog.load(&id)?;
     let meta = imm.metadata;
-    println!("location-id: {id}");
+    println!(" identifier: {id}");
     println!(" block-size: {}", meta.block_size);
     println!("      bytes: {}", meta.size);
     println!("     blocks: {}", meta.blocks);

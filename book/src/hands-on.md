@@ -124,6 +124,10 @@ If instead you see an error, check that you copy-pasted _your_ Magic Cap (which 
 
 **Exercise**: try encoding and decrypting other files. Try using ``mcap reduce`` to create Verify Caps from your Read Caps (and use ``mcap verify`` to confirm the Data can be found).
 
+**Exercise**: use ``mcap debug id <magic-cap>`` to find the Identifier for your Magic Cap.
+The find the file that corresponds to your Magic Cap inside ``./data/root``.
+Hint: the first two characters are the directory.
+
 
 ## Remote / Hosted Catalogs
 
@@ -151,7 +155,7 @@ data/published/magic-cap-catalog
 ```
 
 This intends to simulate the [ReST-Style Network API](./network-api.md) we've mocked up.
-If you put the above Catalog at a static Web host, you can then pass that URL to ``--url-catalog``.
+If you put the above Catalog at a static Web host, you can then pass that URL to ``--catalog``.
 
 The ``fc9319...801db`` is an Identifier; we can't tell which Read Cap that derived from unless we also have that Read Cap (or its corresponding Verify Cap).
 You may fetch the ``.../metadata`` or ciphertext blocks (``.../ciphertext``) for an Identifier.
