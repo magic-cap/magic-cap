@@ -48,7 +48,7 @@ Anyone with both a Read Cap and the corresponding Data can turn it back into the
 
 Anyone with both a Verify Cap and the corresponding Data can confirm the ciphertext is correct and well-formed (but cannot see the plaintext)
 
-This allows many [use-cases](#use-case-examples), facilitating direct peer interactions since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
+This allows many [use-cases](#use-case-examples), facilitating direct-to-peer since no server interaction is needed to create, transform or share Read Caps (or Verify Caps).
 
 > [!NOTE]
 > Magic Cap is inspired by the core ideas of "capability theory" embedded in [Tahoe-LAFS](https://www.tahoe-lafs.org/).

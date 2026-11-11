@@ -5,5 +5,5 @@ build:
   tools:
     rust: latest
   commands:
-    - cargo install mdbook mdbook-glossary mdbook-last-changed
+    - cargo install mdbook mdbook-glossary mdbook-last-changed mdbook-termlink
     - mdbook build book --dest-dir $READTHEDOCS_OUTPUT/html
