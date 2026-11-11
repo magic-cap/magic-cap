@@ -12,10 +12,14 @@ These include:
 
 **Publish immutables to a Web server** that you control.
 If you can `rsync` or `scp` to a Web server then you can keep a [Catalog](./catalog-anthology.md) published.
-Use `mcap encrypt --catalog ./local/catalog` when creating Immutables.
-To synchronize / publish to your Web site, use `mcap ./local/catalog ~/public_html/published_catalog` along with an `rsync` or `scp` command to move all of `~/public_html/published_catalog` to your Web server.
+Use:
+ - `mcap encrypt --catalog ./local/catalog` when creating Immutables.
+To synchronize / publish to your Web site, use:
+ - `mcap export ./local/catalog ~/public_html/published_catalog` exports a static version of the ReST API.
+ - `rsync ~/public_html/published_catalog user@webhost:/published_catalog` or similar (e.g. `scp`) to move the exported data to your server.
+ - `` is a real example
 
-This would then allow other computers to use `mcap decrypt --url-catalog https://meejah.ca/published_catalog` (of course insert your own URL) to retrieve and decrypt an Immutable.
+Then other computers can use something like `mcap --catalog https://meejah.ca/media/mcap/kitten-catalog decrypt mcap0rWEKGyKhhZm0NCceLWecvWpKECReegpvQO6fjoXTy7OpVLxwe-cfWkvET1ReCBNT5 --plaintext kitten.jpeg` (of course insert your own URL) to retrieve and decrypt an Immutable.
 (You need to share the Read Cap with them somehow).
 You can use Anthologies to group many distinct files together.
 

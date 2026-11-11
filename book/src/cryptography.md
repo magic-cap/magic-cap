@@ -52,7 +52,7 @@ The leaves and interior nodes are hashed differently (as are any "empty" nodes).
 Tahoe-LAFS has a hash over a bunch of the metadata called the "UEB Hash".
 In Magic Cap we tagged-hash the Metadata block with tag `b"magic_cap_metadata_v1"`.
 
-This is exposed publically in both a Magic Cap and a Magic Verifier as "the metadata hash", where it is based32 encoded as the first part of the string.
+This is exposed publicly in both a Magic Cap and a Magic Verifier as "the metadata hash", where it is base32 encoded as the first part of the string.
 Since the Metadata includes the Merkle root of the ciphertext, this allows the software to verify that the Metadata corresponds to the Magic Cap string and subsequently that any block of the ciphertext also corresponds.
 
 Ultimately this means we do not even expose ciphertext to a decryption implementation unless it corresponds.
