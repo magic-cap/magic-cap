@@ -43,6 +43,8 @@ If you're lucky and don't want to read a lot, you can decrypt and display our ex
 cargo run -- --catalog https://raw.githubusercontent.com/meejah/magic-cap/refs/heads/unify/kitten-catalog-published decrypt  mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ > kitten.jpeg
 #+end_src
 
+#+RESULTS:
+
 An error about "broken pipe" probably means you don't have "display"
 by http://www.graphicsmagick.org/ installed; you could redirect to a
 file with ``> kitten.jpeg`` instead.
@@ -65,7 +67,7 @@ Encrypt "README.org" into:
 #+end_src
 
 #+RESULTS: encrypt
-: mcap0rgE06AlaV0CtRdRQK38LYi-RKYmJgj7iFz_daTeEmIk1MAUEJQ10IUbbAenOsLX3f
+: mcap0rjn9wb_aPd-YNfB3OKDFvqrTiwWJ-az1XWycalLYAVrHs8EuqU5BaPVO3FpeKzqX_
 
 Now, we have two things: "a Data File" and "a Magic Cap string".
 The latter is =mcap0r<base64-encoded data>=
@@ -77,7 +79,6 @@ Before we break that down, lets convert the DataFile + Magic Cap string back int
 #+end_src
 
 #+RESULTS:
-: Wrote 16499 bytes of plaintext to "plain".
 
 
 We can confirm that they're the same:
@@ -123,7 +124,6 @@ If you're using "cargo" a command-line to do that is:
 #+end_src
 
 #+RESULTS:
-: Wrote 306199 bytes of plaintext to "kitten.jpeg".
 
 We have found an amazing cat picture from a public domain source[fn:1] for your viewing pleasure.
 You could also verify that the ciphertext is correct if you only had the "verify" version of the cap:
@@ -247,6 +247,11 @@ Here is one collecting all the above kitten pictures:
 #+end_src
 
 #+RESULTS:
+| bruennhilde.jpeg         | mcap0rTDDL618penLGr1UcWqpSK6aTm7ZaDuLffE5CJkFCczHjDrO-pk8s2j3D7Ut6BMgr |
+| cat-on-shoulder.jpeg     | mcap0ref5lFU-oxTCQy5P3tSrgibQmFXZ1ig7KZuxaLbR0Judd91HqibK1V3NH33Oe5zj5 |
+| kittens-in-basket.jpeg   | mcap0rtON3PhP8vTcqal3AIQgwG_nd01yCD-zSBjBlCTp4SuDNDfi90LrG93zpSE1FZdIw |
+| the-cook.jpeg            | mcap0r5Rwo47Kzpjmv6_UyVC2BEiWnRYcWp0R5vDNSrjJrZNvmNH2NfGQEPOlqTKT2rIvy |
+| three-jolly-kittens.jpeg | mcap0rHTN4Rx8ACb4Ohi5ZR7rBtQYrxVgl2319EVGUNedlkvzARi9eCzYPCROqCOx-gc75 |
 
 * Where From and Where To
 
