@@ -1,7 +1,7 @@
 use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
-    main_anthology_create, main_anthology_list, main_debug_info, main_debug_identifier, main_decrypt,
-    main_encrypt, main_export, main_reduce, main_verify,
+    main_anthology_create, main_anthology_list, main_debug_identifier, main_debug_info,
+    main_decrypt, main_encrypt, main_export, main_reduce, main_verify,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -54,7 +54,10 @@ struct Cli {
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
 enum DebugCommands {
-    #[command(about = "Convert given Read Cap (or Verify Cap) to a Location-Id", name = "id")]
+    #[command(
+        about = "Convert given Read Cap (or Verify Cap) to a Location-Id",
+        name = "id"
+    )]
     Identifier { readcap: ImmutableReadCap },
 
     #[command(about = "Print human-readable information about the Read Cap")]
