@@ -1162,6 +1162,37 @@ impl ImmutableMetadata {
             rmp_serde::Serializer::new(writer).with_bytes(rmp_serde::config::BytesMode::ForceAll);
         Ok(self.serialize(&mut serializer)?)
     }
+
+    pub fn read<R>(reader: &mut R) -> Result<ImmutableMetadata, MagicCapError>
+    where
+        R: std::io::Read + std::io::Seek
+    {
+        // read the tag and verify this is an mcap file
+        let mut tag = [0u8; 4];
+        reader.read_exact(&mut tag)?;
+        if tag != *b"mcap" {
+            return Err(MagicCapError::InvalidCapTag(tag));
+        }
+
+        // read the version number, we only understand 0x01
+        let mut version = [0u8; 4];
+        reader.read_exact(&mut version)?;
+        let version: u32 = u32::from_be_bytes(version);
+        if version != 1 {
+            return Err(MagicCapError::InvalidCapVersion(version));
+        }
+        // the offset to the metadata is at the end of the file, the last 8 bytes
+        reader.seek(std::io::SeekFrom::End(-8))?;
+        // find the offset to metadata
+        let mut metadata = [0u8; 8];
+        reader.read_exact(&mut metadata)?;
+        let metadata_offset: u64 = u64::from_be_bytes(metadata);
+
+        // read the metadata first so we know blocksize etc
+        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(reader)?;
+        Ok(metadata)
+    }
 }
 
 /// Represents everything to do with an [`Immutable`] except the
@@ -1209,30 +1240,7 @@ impl<'a> Immutable<'a> {
     where
         R: Read + std::io::Seek,
     {
-        // read the tag and verify this is an mcap file
-        let mut tag = [0u8; 4];
-        reader.read_exact(&mut tag)?;
-        if tag != *b"mcap" {
-            return Err(MagicCapError::InvalidCapTag(tag));
-        }
-
-        // read the version number, we only understand 0x01
-        let mut version = [0u8; 4];
-        reader.read_exact(&mut version)?;
-        let version: u32 = u32::from_be_bytes(version);
-        if version != 1 {
-            return Err(MagicCapError::InvalidCapVersion(version));
-        }
-        // the offset to the metadata is at the end of the file, the last 8 bytes
-        reader.seek(std::io::SeekFrom::End(-8))?;
-        // find the offset to metadata
-        let mut metadata = [0u8; 8];
-        reader.read_exact(&mut metadata)?;
-        let metadata_offset: u64 = u64::from_be_bytes(metadata);
-
-        // read the metadata first so we know blocksize etc
-        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
+        let metadata = ImmutableMetadata::read(&mut reader)?;
         let bs = metadata.block_size;
 
         // todo: ideally we wouldn't store any of the "empty" merkle
@@ -1279,33 +1287,8 @@ impl<'a> Immutable<'a> {
     where
         R: Read + std::io::Seek + 'a,
     {
-        // read the tag and verify this is an mcap file
-        let mut tag = [0u8; 4];
-        reader.read_exact(&mut tag)?;
-        if tag != *b"mcap" {
-            return Err(MagicCapError::InvalidCapTag(tag));
-        }
-
-        // TODO: a bunch of this method is IDENTICAL to "fn read()"
-        // above -- we should unify them!
-
-        // read the version number, we only understand 0x01
-        let mut version = [0u8; 4];
-        reader.read_exact(&mut version)?;
-        let version: u32 = u32::from_be_bytes(version);
-        if version != 1 {
-            return Err(MagicCapError::InvalidCapVersion(version));
-        }
-        // the offset to the metadata is at the end of the file, the last 8 bytes
-        reader.seek(std::io::SeekFrom::End(-8))?;
-        // find the offset to metadata
-        let mut metadata = [0u8; 8];
-        reader.read_exact(&mut metadata)?;
-        let metadata_offset: u64 = u64::from_be_bytes(metadata);
-
-        // read the metadata first so we know blocksize etc
-        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
+        // this produces error on wrong tag, wrong version, etc.
+        let metadata = ImmutableMetadata::read(&mut reader)?;
 
         // check that the leaves correspond to the root -- does
         // rmp_serde give us hook so that we can check on every load?
