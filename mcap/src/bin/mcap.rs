@@ -1,6 +1,6 @@
 use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
-    main_anthology_create, main_anthology_list, main_debug_info, main_debug_locator, main_decrypt,
+    main_anthology_create, main_anthology_list, main_debug_info, main_debug_identifier, main_decrypt,
     main_encrypt, main_export, main_reduce, main_verify,
 };
 use tracing_subscriber::FmtSubscriber;
