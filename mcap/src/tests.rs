@@ -93,7 +93,7 @@ pub mod test {
         //  - mkdir data/
         //  - cargo run -- publish kitten-catalog/ data/published
         let rcap: ImmutableReadCap =
-            "mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB"
+            "mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ"
                 .try_into()
                 .unwrap();
         let id: ImmutableIdentifier = (&rcap).into();
