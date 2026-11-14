@@ -306,8 +306,8 @@ where
         self.this_block.write(buf)?;
         let bs: usize = self.metadata.block_size as usize;
 
-// FIXME: this never deals with "short last block" properly
-// because there's no close() and we're haven't got an entire block so we just wait here?
+        // FIXME: this never deals with "short last block" properly
+        // because there's no close() and we're haven't got an entire block so we just wait here?
 
         while self.this_block.len() >= bs {
             // cut off a block's worth at the front
@@ -315,10 +315,19 @@ where
 
             // does it correspond?
             let h = TahoeLeaf::hash(this_block_bytes.as_slice());
-            trace!("ohai {}, {:?} {:?}", self.this_block_num, self.this_block, h);
+            trace!(
+                "ohai {}, {:?} {:?}",
+                self.this_block_num, self.this_block, h
+            );
             if h != self.metadata.merkle_leaves[self.this_block_num] {
-                trace!("{:?}\n!=\n{:?}", h, self.metadata.merkle_leaves[self.this_block_num]);
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Leaf hash mismatch"));
+                trace!(
+                    "{:?}\n!=\n{:?}",
+                    h, self.metadata.merkle_leaves[self.this_block_num]
+                );
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Leaf hash mismatch",
+                ));
             }
             self.this_block_num += 1;
 
@@ -331,7 +340,10 @@ where
             if self.this_block_num == self.metadata.blocks as usize {
                 let rawsize = self.metadata.block_size as u64 * self.metadata.blocks;
                 let last_block_leftover = rawsize - self.metadata.size;
-                trace!("leftover {} {} {}", last_block_leftover, self.metadata.size, self.metadata.block_size);
+                trace!(
+                    "leftover {} {} {}",
+                    last_block_leftover, self.metadata.size, self.metadata.block_size
+                );
                 let last_block_size: usize =
                     (self.metadata.block_size as u64 - last_block_leftover) as usize;
                 debug!("last block: {last_block_size}");
@@ -1177,7 +1189,7 @@ impl ImmutableMetadata {
     /// There are 8 bytes of header before the ciphertext.
     pub fn read<R>(reader: &mut R) -> Result<ImmutableMetadata, MagicCapError>
     where
-        R: std::io::Read + std::io::Seek
+        R: std::io::Read + std::io::Seek,
     {
         // read the tag and verify this is an mcap file
         let mut tag = [0u8; 4];

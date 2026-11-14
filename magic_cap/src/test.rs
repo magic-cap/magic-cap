@@ -169,7 +169,8 @@ fn handcrafted_filesystem_round_trip_push_producer() {
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
     let blocksize = 7;
-    let input: Vec<u8> = b"He resolved not to speak again until he had controlled his temper.".to_vec();
+    let input: Vec<u8> =
+        b"He resolved not to speak again until he had controlled his temper.".to_vec();
     let tmp = TempDir::new().unwrap();
 
     let cap = {
