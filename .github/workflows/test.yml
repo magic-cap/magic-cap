@@ -69,6 +69,8 @@ jobs:
         persist-credentials: false
     - name: Install llvm-cov
       run: cargo install cargo-llvm-cov
+    - name: Prepare Data
+      run: mkdir data ; cargo run -- export kitten-catalog/ data/published
     - name: Run llvm-cov
       run: cargo llvm-cov
 
