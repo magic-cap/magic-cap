@@ -50,8 +50,6 @@ pub mod test {
 
         use warp::Filter;
 
-        let _js = warp::path!("magic-cap-catalog").map(|| "{\"version\": 0}");
-
         // todo:
         //
         // - can we implement some trait in ImmutableWebCatalog so

@@ -52,6 +52,8 @@ jobs:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
         persist-credentials: false
+    - name: Prepare Data
+      run: mkdir data ; cargo run -- export kitten-catalog/ data/published
     - name: Run mcap Tests
       run: cargo test --package magic_cap_cli
     - name: Run magic_cap Tests
