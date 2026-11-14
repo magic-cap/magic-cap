@@ -1,17 +1,17 @@
 #[cfg(test)]
 pub mod test {
-    use rstest::{rstest, fixture};
-    use url::Url;
     use crate::{main_decrypt, main_encrypt, main_reduce, main_verify};
-    use magic_cap::{ImmutableReadCap, ImmutableWebCatalog};
     use magic_cap::err::MagicCapError;
+    use magic_cap::{ImmutableReadCap, ImmutableWebCatalog};
     use proptest::prelude::*;
+    use rstest::{fixture, rstest};
     use std::fs::File;
     use std::io::{Read, Write};
     use std::str::FromStr;
     use tempfile::tempdir;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::runtime::{Builder, Runtime};
+    use url::Url;
 
     async fn process(socket: TcpStream) {
         println!("process {:?}", socket);
@@ -45,14 +45,12 @@ pub mod test {
             .build()
             .unwrap();
 
-
         println!("spawn web");
         let _guard = runtime.enter();
 
         use warp::Filter;
 
-        let _js = warp::path!("magic-cap-catalog")
-            .map(|| "{\"version\": 0}");
+        let _js = warp::path!("magic-cap-catalog").map(|| "{\"version\": 0}");
 
         // todo:
         //
@@ -62,18 +60,20 @@ pub mod test {
         //
         // - failing ^ can we at least do in-memory stuff via Warp paths
         let handle = tokio::spawn(
-            warp::serve(warp::fs::dir("../data/published/"))
-                .run(([127, 0, 0, 1], 4321))
+            warp::serve(warp::fs::dir("../data/published/")).run(([127, 0, 0, 1], 4321)),
         );
 
         println!("//spawn web");
-        CatalogServer { server: handle, runtime }
+        CatalogServer {
+            server: handle,
+            runtime,
+        }
     }
 
     use tokio::task::JoinHandle;
 
     #[rstest]
-    fn web_fetch(catalog_server: CatalogServer ) {
+    fn web_fetch(catalog_server: CatalogServer) {
         // fetech a thing using Catalog
         // - start a warp web server
         // - run it as a fixture (rstest)
@@ -94,7 +94,10 @@ pub mod test {
         // to create this test-data run (from the root of the checkout):
         //  - mkdir data/
         //  - cargo run -- publish kitten-catalog/ data/published
-        let rcap: ImmutableReadCap = "mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB".try_into().unwrap();
+        let rcap: ImmutableReadCap =
+            "mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB"
+                .try_into()
+                .unwrap();
         let id: ImmutableIdentifier = (&rcap).into();
         let res = catalog.fetch_metadata(&id).unwrap();
         assert!(rcap.verify.corresponds_to(&res));
