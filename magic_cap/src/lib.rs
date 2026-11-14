@@ -305,14 +305,29 @@ where
         // - decrypt it, write to output
         self.this_block.write(buf)?;
         let bs: usize = self.metadata.block_size as usize;
+
+        // FIXME: this never deals with "short last block" properly
+        // because there's no close() and we're haven't got an entire block so we just wait here?
+
         while self.this_block.len() >= bs {
             // cut off a block's worth at the front
             let mut this_block_bytes: Vec<u8> = self.this_block.drain(0..bs).collect();
 
             // does it correspond?
             let h = TahoeLeaf::hash(this_block_bytes.as_slice());
+            trace!(
+                "ohai {}, {:?} {:?}",
+                self.this_block_num, self.this_block, h
+            );
             if h != self.metadata.merkle_leaves[self.this_block_num] {
-                panic!("Leaf hash mismatch");
+                trace!(
+                    "{:?}\n!=\n{:?}",
+                    h, self.metadata.merkle_leaves[self.this_block_num]
+                );
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Leaf hash mismatch",
+                ));
             }
             self.this_block_num += 1;
 
@@ -325,6 +340,10 @@ where
             if self.this_block_num == self.metadata.blocks as usize {
                 let rawsize = self.metadata.block_size as u64 * self.metadata.blocks;
                 let last_block_leftover = rawsize - self.metadata.size;
+                trace!(
+                    "leftover {} {} {}",
+                    last_block_leftover, self.metadata.size, self.metadata.block_size
+                );
                 let last_block_size: usize =
                     (self.metadata.block_size as u64 - last_block_leftover) as usize;
                 debug!("last block: {last_block_size}");
@@ -617,19 +636,20 @@ impl ImmutableBuilder {
             let _written_amount = self.write(&pad)?;
             self.context.datasize -= leftover;
         }
-        // remember the offset to the metadata
-        let offset = self.ciphertext_bytes + 8;
-
         assert!(self.this_block.is_empty());
 
-        let (cap, meta) = self.context.done()?;
-        // "current_location" is now the offset of the metadata .. so
+        let (mut cap, meta) = self.context.done()?;
+        // "offset" (our current write position) is now the offset of the metadata .. so
         // we write that out at the very end of the file
+        trace!("other done: {:?}", meta);
         meta.write(&mut self.output)?;
+        cap.leaves = meta.merkle_leaves;
+        trace!("dingding {:?}", cap.leaves);
 
         // ...the last 8 bytes of the file are the offset to the
         // metadata. this lets us *write* without demanding Seek but
         // upon reading we do need Seek
+        let offset = self.ciphertext_bytes + 8;
         self.output.write_all(&offset.to_be_bytes())?;
 
         if let Some(completion_cb) = self.completed_f {
@@ -660,14 +680,12 @@ impl Write for ImmutableBuilder {
                 Err(err) => return Err(std::io::Error::other(err)),
             };
             // write out a block
-            // (is there an idiom for the match here and above for error-handling)
-            /*
-            let mut writer = match self.output.try_borrow_mut() {
-                Ok(it) => it,
-                Err(err) => return Err(std::io::Error::other(err)),
-            };*/
+            // (is there an idiom for the match above for error-handling)
             self.output.write_all(&encrypted_block)?;
             self.ciphertext_bytes += encrypted_block.len();
+
+            // note: the ciphertext leaf has has been updated by the
+            // "encrypt_block()" call above
         }
 
         // things like std::io::copy become grumpy if we don't report
@@ -717,18 +735,18 @@ impl ReadCap for ImmutableReadCap {
         let mut builder = ImmutableBuilder::new(blocksize, writer, None)?;
         builder.write_all(&plaintext)?;
         let (cap, _) = builder.done()?;
+        println!("META: {:?}", cap.leaves);
         Ok(cap)
     }
 
-    ////XXX want a like 'decrypt_stream' or something? what does a "rust stream of chunks" look like?
-    //// push vs. pull iterators? (e.g. File wants pull, network streams want "push" probably?)
-
-    // is this friend shaped?
-    // probably need / want to pass in Metadata too?
-    // (because this is a "push" producer that we feed data into, so we can't "seek to the end and find the metadata")
-
-    // problems: see the test, not really straightforward to use and
-    // can't we just return a thing that does Read?
+    /// the "push" producer style of decryption (see
+    /// Immutable::decrypt_stream for the "pull" producer version).
+    ///
+    /// User code must feed all the ciphertext to the returned
+    /// ImmutableDecryptor which will feed bytes out to the "output"
+    /// Write instance provided as they're available. That is, a
+    /// "write" of 50 bytes might not immediately produce a
+    /// corresponding 50 bytes of write to "output".
     fn decrypt_stream<'a, W>(
         &'a self,
         meta: &'a ImmutableMetadata,
@@ -787,6 +805,8 @@ impl ReadCap for ImmutableReadCap {
 
         info!("plaintext: {:?}", plaintext);
 
+        // this says "plaintext" but it is still encrypted here; we
+        // are hashing ciphertext
         let leaf_hash = TahoeLeaf::hash(plaintext);
         if leaf_hash != immutable.metadata.merkle_leaves[block] {
             // todo: better error?
@@ -1162,6 +1182,58 @@ impl ImmutableMetadata {
             rmp_serde::Serializer::new(writer).with_bytes(rmp_serde::config::BytesMode::ForceAll);
         Ok(self.serialize(&mut serializer)?)
     }
+
+    /// parse a serialized magic-cap file enough to read the Metadata
+    /// from the end. Note the reader will **not** be positioned to the
+    /// start of the ciphertext.
+    /// There are 8 bytes of header before the ciphertext.
+    pub fn read<R>(reader: &mut R) -> Result<ImmutableMetadata, MagicCapError>
+    where
+        R: std::io::Read + std::io::Seek,
+    {
+        // read the tag and verify this is an mcap file
+        let mut tag = [0u8; 4];
+        reader.read_exact(&mut tag)?;
+        if tag != *b"mcap" {
+            return Err(MagicCapError::InvalidCapTag(tag));
+        }
+
+        // read the version number, we only understand 0x01
+        let mut version = [0u8; 4];
+        reader.read_exact(&mut version)?;
+        let version: u32 = u32::from_be_bytes(version);
+        if version != 1 {
+            return Err(MagicCapError::InvalidCapVersion(version));
+        }
+        // the offset to the metadata is at the end of the file, the last 8 bytes
+        reader.seek(std::io::SeekFrom::End(-8))?;
+        // find the offset to metadata
+        let mut metadata = [0u8; 8];
+        reader.read_exact(&mut metadata)?;
+        let metadata_offset: u64 = u64::from_be_bytes(metadata);
+
+        // read the metadata first so we know blocksize etc
+        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
+
+        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(reader)?;
+        Ok(metadata)
+    }
+}
+
+pub fn parse_immutable<R>(mut data: R) -> Result<(ImmutableMetadata, impl Read), MagicCapError>
+where
+    R: Read + Seek,
+{
+    let meta = ImmutableMetadata::read(&mut data)?;
+    data.seek(std::io::SeekFrom::Start(4 + 4)).unwrap();
+    // we have to quantize this up to the nearest block-size so that
+    // we read _all_ the ciphertext, even 'garbage' / padded
+    let bonus = meta.size % meta.block_size as u64;
+    let leftover = meta.block_size as u64 - bonus;
+    trace!("BOINSU {}", leftover);
+    assert!((meta.size + leftover) % meta.block_size as u64 == 0);
+    let wrapped = data.take(meta.size + leftover);
+    Ok((meta, wrapped))
 }
 
 /// Represents everything to do with an [`Immutable`] except the
@@ -1209,30 +1281,8 @@ impl<'a> Immutable<'a> {
     where
         R: Read + std::io::Seek,
     {
-        // read the tag and verify this is an mcap file
-        let mut tag = [0u8; 4];
-        reader.read_exact(&mut tag)?;
-        if tag != *b"mcap" {
-            return Err(MagicCapError::InvalidCapTag(tag));
-        }
-
-        // read the version number, we only understand 0x01
-        let mut version = [0u8; 4];
-        reader.read_exact(&mut version)?;
-        let version: u32 = u32::from_be_bytes(version);
-        if version != 1 {
-            return Err(MagicCapError::InvalidCapVersion(version));
-        }
-        // the offset to the metadata is at the end of the file, the last 8 bytes
-        reader.seek(std::io::SeekFrom::End(-8))?;
-        // find the offset to metadata
-        let mut metadata = [0u8; 8];
-        reader.read_exact(&mut metadata)?;
-        let metadata_offset: u64 = u64::from_be_bytes(metadata);
-
-        // read the metadata first so we know blocksize etc
-        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
+        let metadata = ImmutableMetadata::read(&mut reader)?;
+        trace!("meta: {:?}", metadata);
         let bs = metadata.block_size;
 
         // todo: ideally we wouldn't store any of the "empty" merkle
@@ -1244,12 +1294,15 @@ impl<'a> Immutable<'a> {
         // merkle_leaves + ciphertext_root.
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&metadata.merkle_leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
+        trace!("alleged root {:?}", merkle_root);
+        trace!("actual root  {:?}", metadata.ciphertext_root);
         if merkle_root != metadata.ciphertext_root {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
 
-        // we have our metadata, now read the ciphertext
+        // position the reader at the start of the ciphertext
         reader.seek(std::io::SeekFrom::Start(4 + 4))?;
+
         let mut chunks =
             Vec::with_capacity(metadata.blocks as usize * metadata.block_size as usize);
         for _ in 0..metadata.blocks {
@@ -1279,33 +1332,8 @@ impl<'a> Immutable<'a> {
     where
         R: Read + std::io::Seek + 'a,
     {
-        // read the tag and verify this is an mcap file
-        let mut tag = [0u8; 4];
-        reader.read_exact(&mut tag)?;
-        if tag != *b"mcap" {
-            return Err(MagicCapError::InvalidCapTag(tag));
-        }
-
-        // TODO: a bunch of this method is IDENTICAL to "fn read()"
-        // above -- we should unify them!
-
-        // read the version number, we only understand 0x01
-        let mut version = [0u8; 4];
-        reader.read_exact(&mut version)?;
-        let version: u32 = u32::from_be_bytes(version);
-        if version != 1 {
-            return Err(MagicCapError::InvalidCapVersion(version));
-        }
-        // the offset to the metadata is at the end of the file, the last 8 bytes
-        reader.seek(std::io::SeekFrom::End(-8))?;
-        // find the offset to metadata
-        let mut metadata = [0u8; 8];
-        reader.read_exact(&mut metadata)?;
-        let metadata_offset: u64 = u64::from_be_bytes(metadata);
-
-        // read the metadata first so we know blocksize etc
-        reader.seek(std::io::SeekFrom::Start(metadata_offset))?;
-        let metadata: ImmutableMetadata = rmp_serde::decode::from_read(&mut reader)?;
+        // this produces error on wrong tag, wrong version, etc.
+        let metadata = ImmutableMetadata::read(&mut reader)?;
 
         // check that the leaves correspond to the root -- does
         // rmp_serde give us hook so that we can check on every load?
@@ -1354,6 +1382,7 @@ impl<'a> Immutable<'a> {
 
         let (cap, metadata) = ptc.done()?;
         assert_eq!(bytes, metadata.size as usize);
+        println!("ding: {:?}", metadata);
 
         // two-tuple of (cap, immutable)
         Ok((
@@ -1428,8 +1457,6 @@ impl EncryptionContext {
 
     // todo: actually we can accept any slice size and just pad?
     // (or, take "a small-sized block" to mean "we are done"?)
-    //
-    // TODO: replace error value with an enum with a descriptive message, like, EncryptionError::BlockSize(String)
     pub fn encrypt_block(&mut self, block: &[u8]) -> Result<Vec<u8>, MagicCapError> {
         if block.len() > self.blocksize {
             return Err(MagicCapError::WrongDataSize(block.len(), self.blocksize));
@@ -1446,15 +1473,15 @@ impl EncryptionContext {
     }
 
     // todo: double-check we did "all the blocks", or error?
-    // todo: once you call "done", are you disallowed from calling encrypt_blocks() anymore?
-    //       (do we "just get" this from the fact done() consumes self?) shae says YES! ("i think so")
     pub fn done(self) -> Result<(ImmutableReadCap, ImmutableMetadata), MagicCapError> {
         let mut melf = self;
         fill_empty_merkle_leaves(&mut melf.leaves);
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&melf.leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
-        let merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
+        let mut merkle_leaves = merkle_tree.leaves().ok_or(MagicCapError::MerkleError())?;
         let mut realmeta = std::collections::HashMap::<String, String>::new();
+
+        fill_empty_merkle_leaves(&mut merkle_leaves);
 
         // FIXME TODO expose public API for metadata
         // FIXME TODO proper mime-type API
@@ -1475,6 +1502,7 @@ impl EncryptionContext {
             ciphertext_root: merkle_root,
             _secret_metadata: Box::new(secret_metadata),
         };
+        trace!("EncryptionContext::done: {:?}", metadata);
 
         // create 'blank' all-0 leaves of the correct size
         let mut leaves = Vec::with_capacity(metadata.blocks as usize);

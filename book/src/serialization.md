@@ -39,7 +39,8 @@ This is a u64 telling us the offset where the metadata begins.
 The metadata is all the bytes from this offset to the begining of the offset.
 
 In this diagram, the metadata is highlighted in purple.
-The remainder of the file is ciphertext blocks.
+The white or un-highlighed portions of the file are ciphertext blocks.
+That is, the bytes following the 8 header bytes until the start of the metadata.
 
 In the network API, the metdata is delivered by one endpoint, and the ciphertext by another.
 Regardless, the metadata is encoded the same way on-disk an in the network API.
