@@ -51,7 +51,7 @@ pub mod test {
 
         use warp::Filter;
 
-        let js = warp::path!("magic-cap-catalog")
+        let _js = warp::path!("magic-cap-catalog")
             .map(|| "{\"version\": 0}");
 
         // todo:
@@ -95,10 +95,9 @@ pub mod test {
         //  - mkdir data/
         //  - cargo run -- publish kitten-catalog/ data/published
         let rcap: ImmutableReadCap = "mcap0rp2UZFy-aCyUD0lMwajQn9r9FKXMg8b1oC9A9x_Cj_f6SzNBaSzS0bbQ4U2IL5GNB".try_into().unwrap();
-        let id: ImmutableIdentifier = rcap.into();
-        let res = catalog.fetch_metadata(&id);
-        println!("FOO {:?}", res);
-        res.unwrap();
+        let id: ImmutableIdentifier = (&rcap).into();
+        let res = catalog.fetch_metadata(&id).unwrap();
+        assert!(rcap.verify.corresponds_to(&res));
     }
 
     #[test]
