@@ -17,7 +17,7 @@ use magic_cap::{ImmutableCatalog, ImmutablePublisher};
 use tracing::{Level, debug, error};
 
 #[derive(Parser)]
-#[command(version = "25.12.1")]
+#[command(version)]
 #[command(about = "
         ┏┳┓┏━┓┏━╸╻┏━╸        ┏━╸┏━┓┏━┓
 O------ ┃┃┃┣━┫┃╺┓┃┃    ---   ┃  ┣━┫┣━┛ ------O
