@@ -1,12 +1,6 @@
 use magic_cap::{Immutable, ImmutableReadCap, ReadCap};
 
 fn main() {
-    let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
-        .with_writer(std::io::stderr)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).unwrap();
-
     // "cargo test --doc" will run this in "<git-root>/magic_cap"
     let mut root = std::path::PathBuf::from("../kitten-catalog");
     if !root.exists() {
@@ -14,17 +8,18 @@ fn main() {
         root = std::path::PathBuf::from("kitten-catalog");
     }
 
-    // this is the path to bruennhilde.jpeg's encoding in the
-    // kitten-catalog at the root of this repository
-    root.push("88");
-    root.push("884ef78b37fd33ac3fa8f8e939ed68e8d4b35710908fddd411f4d2314cba66af");
-    let data = std::io::BufReader::new(std::fs::File::open(root).expect("find Bruennhilde"));
-    // ...so we'll need the corresponding Magic Cap to read it (see
-    // README.org for more of these)
+    // the readcap for "bruennhilde.jpeg"
     let readcap = ImmutableReadCap::try_from(
         "mcap0rwedkkhZUU4LIEBS9VypVCYO6YQrVpkYhazyNtg16Kzhqt4pKhRGjXNLLEhdYG-vZ",
     )
     .expect("valid readcap");
+
+    // we can find corresponding Data files inside on-disk Catalogs by
+    // using the "Identifier", which we can find with "mcap debug id"
+    // on the command-line
+    root.push("88");
+    root.push("884ef78b37fd33ac3fa8f8e939ed68e8d4b35710908fddd411f4d2314cba66af");
+    let data = std::io::BufReader::new(std::fs::File::open(root).expect("find Bruennhilde"));
 
     // now we can decrypt the data into memory
     let mut imm = Immutable::read(data).expect("deserialize Data");
