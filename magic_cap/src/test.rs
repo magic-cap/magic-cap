@@ -3,7 +3,6 @@ use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use proptest::prelude::*;
 use std::fs::File;
 use tempfile::TempDir;
-use tracing_subscriber::FmtSubscriber;
 
 #[test]
 fn golden_tahoe_tagged_hash() {
@@ -162,12 +161,6 @@ fn handcrafted_filesystem_round_trip_single_block() {
 /// "ourselves") and push the data _into_ the decryptor.
 #[test]
 fn handcrafted_filesystem_round_trip_push_producer() {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
-        .with_writer(std::io::stderr)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).unwrap();
-
     let blocksize = 7;
     let input: Vec<u8> =
         b"He resolved not to speak again until he had controlled his temper.".to_vec();
@@ -179,38 +172,25 @@ fn handcrafted_filesystem_round_trip_push_producer() {
         ImmutableReadCap::encrypt(input.clone(), bw, blocksize).unwrap()
     };
 
-    trace!("DING: {:?}", tmp.path().join("encrypted"));
     std::thread::sleep(std::time::Duration::from_secs(4));
 
     let fm = File::open(tmp.path().join("encrypted")).unwrap();
-    let mut data = std::io::BufReader::new(fm);
-
-    trace!("cap: {:?}", cap.to_string());
+    let data = std::io::BufReader::new(fm);
 
     // in a network streaming situation, we'd prefer to use the ReST
     // API to ask for the metadata; here we load it off disk before
     // streaming the rest.
-
-    // FIXME:
-    // this is supposed to be "user" code
-    // we don't want them to 'know' the file-format, but this forces it
-    // e.g. 8 bytes offset at start, and to fix other bug we need to read only valid ciphertext
-    //
-    // SO: have a "parse_file" or something that consumes the reader
-    // and returns the metadata + a Read implementation that wraps the
-    // other reader and knows the bounds
-
-    //let metadata = ImmutableMetadata::read(&mut data).unwrap();
     let (metadata, mut ciphertext_reader) = parse_immutable(data).unwrap();
-    trace!("metadata: {:?}", metadata);
 
-    // allocate enough space for the plaintext
+    // a Write instance that will collect the plaintext
     let mut plain: Vec<u8> = vec![];
 
     // ask the ReadCap to prepare a decryptor for the stream
     let mut immdec = cap.decrypt_stream(&metadata, &mut plain).unwrap();
 
-    // read up to 13 bytes at a time, streaming them in to the decryptor
+    // read up to 13 bytes at a time streaming them in to the
+    // decryptor (that is, we get to decide when and how many bytes to
+    // "push" into the decryptor)
     let mut cipher = [0u8; 13];
     loop {
         let b = ciphertext_reader.read(&mut cipher).unwrap();
@@ -220,8 +200,7 @@ fn handcrafted_filesystem_round_trip_push_producer() {
         immdec.write_all(&cipher[0..b]).unwrap();
     }
 
-    println!("{:?}", str::from_utf8(&plain));
-
+    // we should have the plaintext back
     assert_eq!(input, plain);
 }
 

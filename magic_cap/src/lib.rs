@@ -315,15 +315,7 @@ where
 
             // does it correspond?
             let h = TahoeLeaf::hash(this_block_bytes.as_slice());
-            trace!(
-                "ohai {}, {:?} {:?}",
-                self.this_block_num, self.this_block, h
-            );
             if h != self.metadata.merkle_leaves[self.this_block_num] {
-                trace!(
-                    "{:?}\n!=\n{:?}",
-                    h, self.metadata.merkle_leaves[self.this_block_num]
-                );
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     "Leaf hash mismatch",
@@ -340,10 +332,6 @@ where
             if self.this_block_num == self.metadata.blocks as usize {
                 let rawsize = self.metadata.block_size as u64 * self.metadata.blocks;
                 let last_block_leftover = rawsize - self.metadata.size;
-                trace!(
-                    "leftover {} {} {}",
-                    last_block_leftover, self.metadata.size, self.metadata.block_size
-                );
                 let last_block_size: usize =
                     (self.metadata.block_size as u64 - last_block_leftover) as usize;
                 debug!("last block: {last_block_size}");
@@ -639,12 +627,8 @@ impl ImmutableBuilder {
         assert!(self.this_block.is_empty());
 
         let (mut cap, meta) = self.context.done()?;
-        // "offset" (our current write position) is now the offset of the metadata .. so
-        // we write that out at the very end of the file
-        trace!("other done: {:?}", meta);
         meta.write(&mut self.output)?;
         cap.leaves = meta.merkle_leaves;
-        trace!("dingding {:?}", cap.leaves);
 
         // ...the last 8 bytes of the file are the offset to the
         // metadata. this lets us *write* without demanding Seek but
@@ -735,7 +719,6 @@ impl ReadCap for ImmutableReadCap {
         let mut builder = ImmutableBuilder::new(blocksize, writer, None)?;
         builder.write_all(&plaintext)?;
         let (cap, _) = builder.done()?;
-        println!("META: {:?}", cap.leaves);
         Ok(cap)
     }
 
@@ -1230,7 +1213,6 @@ where
     // we read _all_ the ciphertext, even 'garbage' / padded
     let bonus = meta.size % meta.block_size as u64;
     let leftover = meta.block_size as u64 - bonus;
-    trace!("BOINSU {}", leftover);
     assert!((meta.size + leftover) % meta.block_size as u64 == 0);
     let wrapped = data.take(meta.size + leftover);
     Ok((meta, wrapped))
@@ -1282,7 +1264,6 @@ impl<'a> Immutable<'a> {
         R: Read + std::io::Seek,
     {
         let metadata = ImmutableMetadata::read(&mut reader)?;
-        trace!("meta: {:?}", metadata);
         let bs = metadata.block_size;
 
         // todo: ideally we wouldn't store any of the "empty" merkle
@@ -1294,8 +1275,6 @@ impl<'a> Immutable<'a> {
         // merkle_leaves + ciphertext_root.
         let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&metadata.merkle_leaves);
         let merkle_root = merkle_tree.root().ok_or(MagicCapError::MerkleError())?;
-        trace!("alleged root {:?}", merkle_root);
-        trace!("actual root  {:?}", metadata.ciphertext_root);
         if merkle_root != metadata.ciphertext_root {
             return Err(MagicCapError::McapMetadataDiscordant());
         }
@@ -1382,7 +1361,6 @@ impl<'a> Immutable<'a> {
 
         let (cap, metadata) = ptc.done()?;
         assert_eq!(bytes, metadata.size as usize);
-        println!("ding: {:?}", metadata);
 
         // two-tuple of (cap, immutable)
         Ok((
@@ -1502,7 +1480,6 @@ impl EncryptionContext {
             ciphertext_root: merkle_root,
             _secret_metadata: Box::new(secret_metadata),
         };
-        trace!("EncryptionContext::done: {:?}", metadata);
 
         // create 'blank' all-0 leaves of the correct size
         let mut leaves = Vec::with_capacity(metadata.blocks as usize);
