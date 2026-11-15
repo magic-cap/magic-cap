@@ -626,9 +626,9 @@ impl ImmutableBuilder {
         }
         assert!(self.this_block.is_empty());
 
-        let (mut cap, meta) = self.context.done()?;
+        let (cap, meta) = self.context.done()?;
         meta.write(&mut self.output)?;
-        cap.leaves = meta.merkle_leaves;
+        assert_eq!(cap.leaves, meta.merkle_leaves);
 
         // ...the last 8 bytes of the file are the offset to the
         // metadata. this lets us *write* without demanding Seek but
@@ -1476,22 +1476,16 @@ impl EncryptionContext {
             size: melf.datasize as u64,
             blocks: melf.datasize.div_ceil(melf.blocksize) as u64,
             block_size: melf.blocksize as u32,
-            merkle_leaves,
+            merkle_leaves: merkle_leaves.clone(),
             ciphertext_root: merkle_root,
             _secret_metadata: Box::new(secret_metadata),
         };
-
-        // create 'blank' all-0 leaves of the correct size
-        let mut leaves = Vec::with_capacity(metadata.blocks as usize);
-        for _ in 0..metadata.blocks {
-            leaves.push([0u8; 32]);
-        }
 
         Ok((
             ImmutableReadCap {
                 key: melf.key_bytes,
                 verify: ImmutableVerifyCap::from(&metadata),
-                leaves,
+                leaves: merkle_leaves,
             },
             metadata,
         ))
