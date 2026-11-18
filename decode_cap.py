@@ -78,6 +78,9 @@ def decode_readcap(data_fname, capstr):
     if blocks > len(merkle_leaves):
         raise ValueError(f"{len(merkle_leaves)} merkle leaves vs. {blocks} block count")
 
+    for x, leaf in enumerate(merkle_leaves):
+        print(x, leaf)
+
     # compute the metadata hash .. then we can "trust" the metadata
     # as version 0 follows Tahoe, this is a 32 byte tagged-hash:
     # - netstring of the tag
