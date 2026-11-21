@@ -136,6 +136,7 @@ impl ImmutableDirectoryCatalog {
 // are both synchronous -- presumably an async thing would be
 // "different"..?)
 
+// why doesn't this implement the trait??
 #[derive(Debug)]
 pub struct ImmutableWebCatalog {
     root: Url,
