@@ -1,5 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use magic_cap::ImmutableBuilder;
+use std::any::Any;
 use std::hint::black_box;
 use std::io::Write;
 
@@ -7,12 +8,13 @@ fn encode(block_size: usize, num_bytes: usize) {
     let mut plaintext = vec![0u8; num_bytes];
     getrandom::fill(&mut plaintext).unwrap();
 
-    let mut ciphertext: Vec<u8> = vec![]; //vec![0u8; 4096];
+    let ciphertext = Box::<Vec<u8>>::new(vec![]);
 
     // create an encrypted immutable + associated ReadCap
-    let mut cryptor = ImmutableBuilder::new(block_size, &mut ciphertext, None).unwrap();
+    let mut cryptor = ImmutableBuilder::new(block_size, ciphertext, None).unwrap();
     let _written_amount = cryptor.write(&plaintext).unwrap();
     let (_cap, ciphertext) = cryptor.done().unwrap();
+    let ciphertext = (ciphertext as Box<dyn Any>).downcast::<Vec<u8>>().unwrap();
     assert!(ciphertext.len() > num_bytes);
 }
 
