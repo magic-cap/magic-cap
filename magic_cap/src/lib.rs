@@ -192,6 +192,7 @@
 //!
 
 mod catalog;
+pub mod mutable; // FIXME TODO do we actually want to export everything??
 pub mod err;
 // TODO: think: this is really only "pub" for examples/hash.rs .. make it private again?
 pub mod tahoe;
@@ -207,6 +208,7 @@ pub use catalog::{
     ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier, ImmutablePublisher,
     ImmutableWebCatalog, add_identifier, connect_catalog, connect_publisher,
 };
+
 
 // why can't we use KeyInit ?!
 use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
