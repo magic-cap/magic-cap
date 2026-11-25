@@ -75,7 +75,7 @@ impl MutablePublisher {
         let item = MutableItem::new(
             SigningKey::from_bytes(&signing_key_bytes),
             &value.into_bytes(),
-            0i64,
+            1i64, // does 0 have special meaning?
             None,
         );
         self.client.put_mutable(item, None)?;
@@ -89,7 +89,6 @@ impl MutablePublisher {
     pub fn get(self: &mut Self, mutable: &MutableWriteCap) -> Result<ImmutableReadCap, MagicCapError> {
         let signer = SigningKey::from_bytes(&mutable.signing_key_bytes);
         let item = self.client.get_mutable_most_recent(signer.verifying_key().as_bytes(), None).ok_or(MagicCapError::GenericError("failed to fetch mutable DHT slot".to_string()))?;
-        println!("{:?}", item);
         let capstr = String::from_utf8(item.value().to_vec())?;
         //let capstr = item.value().try_from()?;
         let readcap = ImmutableReadCap::try_from(capstr.as_str())?;
@@ -98,7 +97,7 @@ impl MutablePublisher {
 }
 
 impl MutableWriteCap {
-    fn update(self: &mut Self, publisher: &MutablePublisher, new_value: &ImmutableReadCap) -> Result<(), MagicCapError> {
+    pub fn update(self: &Self, publisher: &MutablePublisher, new_value: &ImmutableReadCap) -> Result<(), MagicCapError> {
         let value = format!("{}", new_value);
         let signer = SigningKey::from_bytes(&self.signing_key_bytes);
 
@@ -109,7 +108,7 @@ impl MutableWriteCap {
             item.seq() + 1,
             None,
         );
-        publisher.client.put_mutable(item, None)?;
+        publisher.client.put_mutable(newitem, None)?;
         Ok(())
     }
 }
