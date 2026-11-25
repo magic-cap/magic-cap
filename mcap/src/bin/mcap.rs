@@ -1,8 +1,10 @@
 use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_identifier, main_debug_info,
-    main_decrypt, main_encrypt, main_export, main_reduce, main_verify,
+    main_decrypt, main_encrypt, main_export, main_reduce, main_verify, main_mutable_create,
+    main_mutable_update,
 };
+use magic_cap::mutable::MutableWriteCap;
 use tracing_subscriber::FmtSubscriber;
 
 // b'\xbd\xe1\xb4\x19\xc1+\xa9\xe8\xd9h\xc6u\xe5\xea\x01'
@@ -89,6 +91,24 @@ enum AnthologyCommands {
 
 #[derive(Subcommand)]
 #[command(arg_required_else_help(true))]
+enum MutableCommands {
+    #[command(about = "Create a brand new Mutable")]
+    Create { readcap: ImmutableReadCap },
+
+    #[command(about = "Change the contents of an existing Mutable")]
+    Update { mutable: MutableWriteCap, readcap: ImmutableReadCap },
+    // talked about having a "anthology download" or similar that will
+    // take an anthology and download it locally -- but probably wants
+    // more thinking? Like maybe this is a good idea for anything or
+    // any collection of Read Caps you have?
+    //#[command(about = "")]
+    //Download {
+    //    directory: PathBuf,
+    //},
+}
+
+#[derive(Subcommand)]
+#[command(arg_required_else_help(true))]
 enum Commands {
     #[command(about = "turn plaintext into a Read Cap + ciphertext")]
     Encrypt {
@@ -161,6 +181,12 @@ enum Commands {
         #[command(subcommand)]
         command: Option<AnthologyCommands>,
     },
+
+    #[command(about = "Publish mutables on the Mainline DHT")]
+    Mutable {
+        #[command(subcommand)]
+        command: Option<MutableCommands>,
+    }
 }
 
 /// When decrypting ciphertext, where is that ciphertext?
@@ -280,6 +306,11 @@ fn main() {
         Some(Commands::Anthology { command }) => match command {
             Some(AnthologyCommands::Create { directory }) => main_anthology_create(directory),
             Some(AnthologyCommands::List { readcap }) => main_anthology_list(&catalogs, readcap),
+            None => Ok(()),
+        },
+        Some(Commands::Mutable { command }) => match command {
+            Some(MutableCommands::Create { readcap }) => main_mutable_create(readcap),
+            Some(MutableCommands::Update { mutable, readcap }) => main_mutable_update(mutable, readcap),
             None => Ok(()),
         },
         None => Ok(()),

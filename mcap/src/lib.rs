@@ -104,6 +104,7 @@ use magic_cap::{
     Immutable, ImmutableBuilder, ImmutableCatalog, ImmutableDirectoryCatalog, ImmutableIdentifier,
     ImmutablePublisher, ImmutableReadCap, ImmutableVerifier, ImmutableVerifyCap, ReadCap,
 };
+use magic_cap::mutable::MutableWriteCap;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
@@ -478,6 +479,21 @@ pub fn main_anthology_list(
         "Couldn't find corresponding Data".to_string(),
     ))
 }
+
+
+/// "mcap mutable create"
+pub fn main_mutable_create(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+    println!("mutable create");
+    Ok(())
+}
+
+
+/// "mcap mutable update"
+pub fn main_mutable_update(mutable: &MutableWriteCap, readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
+    println!("mutable create");
+    Ok(())
+}
+
 
 // okay, thinking about this all in terms of Catalogs
 //
