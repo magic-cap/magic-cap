@@ -66,6 +66,9 @@ pub enum MagicCapError {
     #[error("Could not push to Mainline")]
     DhtPutFailed(#[from] mainline::errors::PutMutableError),
 
+    #[error("Conversion error on utf8")]
+    UtfSadness(#[from] std::string::FromUtf8Error),
+
     // for reasons unknown to me this demands Sync .. but we're not
     // actually referencing the sub-error longer-term are we?
     //#[error("Failed to downcast correctly")]

@@ -486,7 +486,7 @@ pub fn main_mutable_create(readcap: &ImmutableReadCap) -> Result<(), MagicCapErr
     println!("mutable create {}", readcap);
     let mut publisher = magic_cap::mutable::MutablePublisher::connect_mainline()?;
     let writecap = publisher.create(readcap)?;
-    println!("writecap: {:?}", writecap);
+    println!("writecap: {}", writecap);
     Ok(())
 }
 
@@ -494,6 +494,16 @@ pub fn main_mutable_create(readcap: &ImmutableReadCap) -> Result<(), MagicCapErr
 /// "mcap mutable update"
 pub fn main_mutable_update(mutable: &MutableWriteCap, readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
     println!("mutable update {:?} {}", mutable, readcap);
+    Ok(())
+}
+
+
+/// "mcap mutable show"
+pub fn main_mutable_show(mutable: &MutableWriteCap) -> Result<(), MagicCapError> {
+    let mut publisher = magic_cap::mutable::MutablePublisher::connect_mainline()?;
+    let cap = publisher.get(mutable)?;
+    println!("{}", cap);
+
     Ok(())
 }
 

@@ -2,7 +2,7 @@ use magic_cap::{ImmutableReadCap, connect_catalog, connect_publisher};
 use magic_cap_cli::{
     main_anthology_create, main_anthology_list, main_debug_identifier, main_debug_info,
     main_decrypt, main_encrypt, main_export, main_reduce, main_verify, main_mutable_create,
-    main_mutable_update,
+    main_mutable_update, main_mutable_show,
 };
 use magic_cap::mutable::MutableWriteCap;
 use tracing_subscriber::FmtSubscriber;
@@ -97,14 +97,9 @@ enum MutableCommands {
 
     #[command(about = "Change the contents of an existing Mutable")]
     Update { mutable: MutableWriteCap, readcap: ImmutableReadCap },
-    // talked about having a "anthology download" or similar that will
-    // take an anthology and download it locally -- but probably wants
-    // more thinking? Like maybe this is a good idea for anything or
-    // any collection of Read Caps you have?
-    //#[command(about = "")]
-    //Download {
-    //    directory: PathBuf,
-    //},
+
+    #[command(about = "Printe the contents (Read Cap) of an existing Mutable")]
+    Show { mutable: MutableWriteCap },
 }
 
 #[derive(Subcommand)]
@@ -311,6 +306,7 @@ fn main() {
         Some(Commands::Mutable { command }) => match command {
             Some(MutableCommands::Create { readcap }) => main_mutable_create(readcap),
             Some(MutableCommands::Update { mutable, readcap }) => main_mutable_update(mutable, readcap),
+            Some(MutableCommands::Show { mutable }) => main_mutable_show(mutable),
             None => Ok(()),
         },
         None => Ok(()),

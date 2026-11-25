@@ -1,4 +1,6 @@
 #![allow(warnings)]
+
+use std::fmt::{Display, Formatter};
 use mainline::Dht;
 use mainline::MutableItem;
 use mainline::SigningKey;
@@ -36,6 +38,15 @@ impl std::convert::TryFrom<&str> for MutableWriteCap {
         })
     }
 }
+
+impl Display for MutableWriteCap {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        let private_key: String = BASE64URL_NOPAD.encode(&self.signing_key_bytes);
+        write!(f, "mcap0w{}", private_key)?;
+        Ok(())
+    }
+}
+
 
 impl std::str::FromStr for MutableWriteCap {
     type Err = MagicCapError;
@@ -75,9 +86,14 @@ impl MutablePublisher {
         )
     }
 
-    pub fn from_str(self: &mut Self, existing_mutable: &str) -> Result<MutableWriteCap, MagicCapError> {
-        // use self.client to fetch the existing one, so we learn the sequence number
-        todo!()
+    pub fn get(self: &mut Self, mutable: &MutableWriteCap) -> Result<ImmutableReadCap, MagicCapError> {
+        let signer = SigningKey::from_bytes(&mutable.signing_key_bytes);
+        let item = self.client.get_mutable_most_recent(signer.verifying_key().as_bytes(), None).ok_or(MagicCapError::GenericError("failed to fetch mutable DHT slot".to_string()))?;
+        println!("{:?}", item);
+        let capstr = String::from_utf8(item.value().to_vec())?;
+        //let capstr = item.value().try_from()?;
+        let readcap = ImmutableReadCap::try_from(capstr.as_str())?;
+        Ok(readcap)
     }
 }
 
@@ -86,7 +102,7 @@ impl MutableWriteCap {
         let value = format!("{}", new_value);
         let signer = SigningKey::from_bytes(&self.signing_key_bytes);
 
-        let item = publisher.client.get_mutable_most_recent(signer.verifying_key().as_bytes(), None).ok_or(MagicCapError::GenericError("stuff".to_string()))?;
+        let item = publisher.client.get_mutable_most_recent(signer.verifying_key().as_bytes(), None).ok_or(MagicCapError::GenericError("failed to get current value of mutable".to_string()))?;
         let newitem = MutableItem::new(
             signer,
             value.as_bytes(),
