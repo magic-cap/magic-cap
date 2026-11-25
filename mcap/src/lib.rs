@@ -483,14 +483,17 @@ pub fn main_anthology_list(
 
 /// "mcap mutable create"
 pub fn main_mutable_create(readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
-    println!("mutable create");
+    println!("mutable create {}", readcap);
+    let mut publisher = magic_cap::mutable::MutablePublisher::connect_mainline()?;
+    let writecap = publisher.create(readcap)?;
+    println!("writecap: {:?}", writecap);
     Ok(())
 }
 
 
 /// "mcap mutable update"
 pub fn main_mutable_update(mutable: &MutableWriteCap, readcap: &ImmutableReadCap) -> Result<(), MagicCapError> {
-    println!("mutable create");
+    println!("mutable update {:?} {}", mutable, readcap);
     Ok(())
 }
 

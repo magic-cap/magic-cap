@@ -48,7 +48,7 @@ impl std::str::FromStr for MutableWriteCap {
 
 
 impl MutablePublisher {
-    fn connect_mainline() -> Result<MutablePublisher, MagicCapError> {
+    pub fn connect_mainline() -> Result<MutablePublisher, MagicCapError> {
         Ok(
             MutablePublisher {
                 client: Dht::client()?,
@@ -56,7 +56,7 @@ impl MutablePublisher {
         )
     }
 
-    fn create(self: &mut Self, initial_value: &ImmutableReadCap) -> Result<MutableWriteCap, MagicCapError> {
+    pub fn create(self: &mut Self, initial_value: &ImmutableReadCap) -> Result<MutableWriteCap, MagicCapError> {
         let value = format!("{}", initial_value);
         // todo: double-check that arbitrary bytes are sufficient for this signing key (must be, given api?)
         let mut signing_key_bytes = [0u8; 32];
@@ -75,7 +75,7 @@ impl MutablePublisher {
         )
     }
 
-    fn from_str(self: &mut Self, existing_mutable: &str) -> Result<MutableWriteCap, MagicCapError> {
+    pub fn from_str(self: &mut Self, existing_mutable: &str) -> Result<MutableWriteCap, MagicCapError> {
         // use self.client to fetch the existing one, so we learn the sequence number
         todo!()
     }
